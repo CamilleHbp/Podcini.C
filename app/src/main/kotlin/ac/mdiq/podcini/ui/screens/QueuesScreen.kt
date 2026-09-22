@@ -1,6 +1,7 @@
 package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.automation.AutoDownloadAlgorithm
 import ac.mdiq.podcini.automation.AutoEnqueueAlgorithm
 import ac.mdiq.podcini.playback.actQueueFlow
@@ -40,9 +41,8 @@ import ac.mdiq.podcini.ui.compose.CustomTextStyles
 import ac.mdiq.podcini.ui.compose.EpisodeLazyColumn
 import ac.mdiq.podcini.ui.compose.EpisodeScreen
 import ac.mdiq.podcini.ui.compose.EpisodeSortDialog
-import ac.mdiq.podcini.ui.compose.InforBar
+import ac.mdiq.podcini.ui.compose.EpisodeListInfoBar
 import ac.mdiq.podcini.ui.compose.NumberEditor
-import ac.mdiq.podcini.ui.compose.PlayRandom
 import ac.mdiq.podcini.ui.compose.TitleSummaryActionColumn
 import ac.mdiq.podcini.ui.compose.TitleSummarySwitchRow
 import ac.mdiq.podcini.ui.compose.borderColor
@@ -362,7 +362,7 @@ fun QueuesScreen(id: Long = -1L) {
 
     @Composable
     fun OpenDialogs() {
-        ConfirmDialog(titleRes = R.string.clear_queue_label, message = stringResource(R.string.clear_queue_confirmation_msg), showDialog = showClearQueueDialog) {
+        ConfirmDialog(titleRes = R.string.clear_queue_label, message = stringResource(R.string.clear_queue_confirmation_msg), showDialog = showClearQueueDialog, confirmRes = R.string.clear_queue_label) {
             runOnIOScope {
                 val qes = curQueue.entries
                 val episodeIds = qes.map { it.episodeId }
@@ -383,8 +383,8 @@ fun QueuesScreen(id: Long = -1L) {
         if (showAddQueueDialog) CommonPopupCard(onDismiss = { showAddQueueDialog = false }) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 var newName by remember { mutableStateOf("") }
-                TextField(value = newName, onValueChange = { newName = it }, label = { Text("Add queue (Unique name only)") })
-                Button(onClick = {
+                TextField(value = newName, onValueChange = { newName = it }, label = { Text(stringResource(R.string.archive_add_queue_name)) })
+                Button(enabled = newName.isNotBlank() && newName !in queueNames, onClick = {
                     if (newName.isNotEmpty() && queueNames.indexOf(newName) < 0) {
                         val newQueue = PlayQueue()
                         val maxId = queues.map { it.id }.filter { it < VIRTUAL_QUEUE_ID }.maxOrNull() ?: -1
@@ -393,7 +393,7 @@ fun QueuesScreen(id: Long = -1L) {
                         upsertBlk(newQueue) {}
                         showAddQueueDialog = false
                     }
-                }) { Text(stringResource(R.string.confirm_label)) }
+                }) { Text(stringResource(R.string.archive_create_queue)) }
             }
         }
 
@@ -486,13 +486,13 @@ fun QueuesScreen(id: Long = -1L) {
                         }
                         runOnIOScope { upsert(appAttribs) { it.queuesMode = vm.queuesMode.name } }
                     }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = "feeds") }
-                    if (vm.queuesMode == QueuesScreenMode.Feed) {
+                    if (vm.queuesMode == QueuesScreenMode.Feed && feedsAssociated.isNotEmpty()) {
                         IconButton(onClick = {
                             facetsMode = QuickAccess.Custom
                             facetsCustomTag = queueTexts[curIndex]
                             facetsCustomQuery = realm.query(Episode::class).query("feedId IN $0", feedsAssociated.map { it.id })
                             navTo(Facets(modeName = QuickAccess.Custom.name))
-                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = "facets") }
+                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = stringResource(R.string.facets)) }
                         IconButton(onClick = {
                             feedIdsToUse = feedsAssociated.map { it.id }
                             navTo(Library)
@@ -502,20 +502,21 @@ fun QueuesScreen(id: Long = -1L) {
                     Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                         IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
                         DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.settings_label)) }, onClick = {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.archive_queue_settings)) }, onClick = {
                                 vm.queuesMode = QueuesScreenMode.Settings
                                 runOnIOScope { upsert(appAttribs) { it.queuesMode = vm.queuesMode.name } }
                                 expanded = false
                             })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.clear_bin_label)) }, onClick = {
-                                upsertBlk(curQueue) {
-                                    it.idsBinList.clear()
-                                    it.update()
-                                }
+                            if (curQueue.idsBinList.isNotEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.clear_bin_label)) }, onClick = {
                                 expanded = false
+                                commonConfirms.add(CommonConfirmAttrib(
+                                    title = context.getString(R.string.clear_bin_label),
+                                    message = context.getString(R.string.archive_clear_queue_history_body),
+                                    confirmRes = R.string.clear_bin_label, cancelRes = R.string.cancel_label,
+                                    onConfirm = { upsertBlk(curQueue) { it.idsBinList.clear(); it.update() } }))
                             })
                             if (vm.queuesMode == QueuesScreenMode.Queue) {
-                                DropdownMenuItem(text = { Text(stringResource(R.string.sort)) }, onClick = {
+                                if (episodes.isNotEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.sort)) }, onClick = {
                                     showSortDialog = true
                                     expanded = false
                                 })
@@ -523,33 +524,18 @@ fun QueuesScreen(id: Long = -1L) {
                                     showAddQueueDialog = true
                                     expanded = false
                                 })
-                                DropdownMenuItem(text = { Text(stringResource(R.string.clear_queue_label)) }, onClick = {
+                                if (episodes.isNotEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.clear_queue_label)) }, onClick = {
                                     showClearQueueDialog.value = true
                                     expanded = false
                                 })
-                                fun toggleQL() {
-                                    upsertBlk(curQueue) {
-                                        it.isLocked = !it.isLocked
-                                        if (!it.isLocked) it.autoSort = false
-                                    } //                                dragDropEnabled = !(curQueue.isSorted || curQueue.isLocked)
-                                    Logt(TAG, context.getString(if (curQueue.isLocked) R.string.queue_locked else R.string.queue_unlocked))
-                                    expanded = false
-                                }
-                                DropdownMenuItem(text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(R.string.lock_queue))
-                                        Checkbox(checked = curQueue.isLocked, onCheckedChange = { toggleQL() })
-                                    }
-                                }, onClick = { toggleQL() })
+
                             }
                         }
                     }
 
                 }
-                if (vm.queuesMode in listOf(QueuesScreenMode.Bin, QueuesScreenMode.Queue)) InforBar(swipeActions) {
-                    Text("$listInfoText $feedOperationText", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.weight(0.1f))
-                    PlayRandom(episodes, playNext = true)
+                if (vm.queuesMode in listOf(QueuesScreenMode.Bin, QueuesScreenMode.Queue)) {
+                    EpisodeListInfoBar(episodes, "$listInfoText $feedOperationText", swipeActions, playNext = true)
                 }
             }
         }
@@ -558,13 +544,16 @@ fun QueuesScreen(id: Long = -1L) {
     @Composable
     fun Settings() {
         Column(Modifier.verticalScroll(rememberScrollState())) {
+            TitleSummarySwitchRow(R.string.lock_queue, R.string.archive_lock_queue_summary, curQueue.isLocked) { locked ->
+                upsertBlk(curQueue) { it.isLocked = locked; if (!locked) it.autoSort = false }
+            }
             val showRename = remember(curQueue.name) { curQueue.name != "Default" && curQueue.name != "Virtual"}
             if (showRename) Row(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.rename), style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(0.2f))
                 var showIcon by remember { mutableStateOf(false) }
                 var newName by remember { mutableStateOf(curQueue.name) }
-                TextField(value = newName, label = { Text("Rename (Unique name only)") }, singleLine = true, modifier = Modifier.weight(1f),
+                TextField(value = newName, label = { Text(stringResource(R.string.archive_add_queue_name)) }, singleLine = true, modifier = Modifier.weight(1f),
                     onValueChange = {
                         newName = it
                         showIcon = true
@@ -584,6 +573,9 @@ fun QueuesScreen(id: Long = -1L) {
             TitleSummarySwitchRow(R.string.pref_followQueue_title, R.string.pref_followQueue_sum, curQueue.playInSequence) { v ->
                 upsertBlk(curQueue) { it.playInSequence = v }
             }
+            TitleSummarySwitchRow(R.string.archive_repeat_queue, R.string.archive_repeat_queue_summary, curQueue.repeatQueue) { repeat ->
+                upsertBlk(curQueue) { it.repeatQueue = repeat }
+            }
 
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.bin_limit) + ": ${curQueue.binLimit}", style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
@@ -594,7 +586,7 @@ fun QueuesScreen(id: Long = -1L) {
                     upsertBlk(curQueue) { it.binLimit = limitString }
                 }
             }
-            var autoSort by remember { mutableStateOf(curQueue.autoSort) }
+            var autoSort by remember(curQueue.autoSort) { mutableStateOf(curQueue.autoSort) }
             TitleSummarySwitchRow(R.string.pref_auto_sort_queue, R.string.pref_auto_sort_queue_sum, autoSort) { v ->
                 autoSort = v
                 upsertBlk(curQueue) {
@@ -604,12 +596,12 @@ fun QueuesScreen(id: Long = -1L) {
             }
             if (!autoSort) {
                 var showLocationOptions by remember { mutableStateOf(false) }
-                var location by remember { mutableStateOf(EnqueueLocation.BACK) }
-                TitleSummaryActionColumn(R.string.pref_enqueue_location_title, R.string.pref_enqueue_location_sum) { showLocationOptions = true }
-                Text(location.name, modifier = Modifier.padding(start = 30.dp), style = MaterialTheme.typography.bodyMedium)
+                var location by remember(curQueue.id, curQueue.enqueueLocation) { mutableStateOf(EnqueueLocation.fromCode(curQueue.enqueueLocation)) }
+                TitleSummaryActionColumn(R.string.pref_enqueue_location_title, 0) { showLocationOptions = true }
+                Text(stringResource(location.res), modifier = Modifier.padding(start = 30.dp), style = MaterialTheme.typography.bodyMedium)
                 if (showLocationOptions) {
                     AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { showLocationOptions = false },
-                        title = { Text(stringResource(R.string.pref_hardware_previous_button_title), style = CustomTextStyles.titleCustom) },
+                        title = { Text(stringResource(R.string.pref_enqueue_location_title), style = CustomTextStyles.titleCustom) },
                         text = {
                             Column {
                                 EnqueueLocation.entries.forEach { option ->
@@ -625,7 +617,7 @@ fun QueuesScreen(id: Long = -1L) {
                             TextButton(onClick = {
                                 upsertBlk(curQueue) { it.enqueueLocation = location.code }
                                 showLocationOptions = false
-                            }) { Text(text = "OK") }
+                            }) { Text(stringResource(R.string.save)) }
                         },
                         dismissButton = { TextButton(onClick = { showLocationOptions = false }) { Text(stringResource(R.string.cancel_label)) } }
                     )
@@ -642,8 +634,8 @@ fun QueuesScreen(id: Long = -1L) {
                 TitleSummaryActionColumn(R.string.remove_queue, R.string.remove_queue_sum) {
                     commonConfirms.add(CommonConfirmAttrib(
                         title = context.getString(R.string.remove_queue) + "?",
-                        message = "",
-                        confirmRes = R.string.confirm_label,
+                        message = context.getString(R.string.remove_queue_sum),
+                        confirmRes = R.string.remove_queue,
                         cancelRes = R.string.cancel_label,
                         onConfirm = {
                             runOnIOScope {
@@ -677,7 +669,10 @@ fun QueuesScreen(id: Long = -1L) {
                         Logd(TAG) { "LaunchedEffect(episodes.size) ${episodes.size}" }
                         withContext(Dispatchers.IO) { listInfoText = buildListInfo(episodes) }
                     }
-                    if (vm.queuesMode == QueuesScreenMode.Bin) Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+                    if (episodes.isEmpty()) Box(Modifier.padding(innerPadding).fillMaxSize()) {
+                        if (vm.queuesMode == QueuesScreenMode.Bin) ArchiveEmpty(R.string.archive_empty_queue_history, R.string.archive_empty_queue_history_body)
+                        else ArchiveEmpty(R.string.archive_empty_queue, R.string.archive_empty_queue_body, R.string.archive_browse_library) { selectPrimary(Library) }
+                    } else if (vm.queuesMode == QueuesScreenMode.Bin) Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                         EpisodeLazyColumn(episodes, swipeActions = swipeActions, lazyListState = lazyListStateBin, preferSingleAction = true)
                     } else {
                         val dragDropEnabled = remember(curQueue.id, curQueue.isLocked) { !curQueue.isLocked }
@@ -769,4 +764,3 @@ fun QueuesScreen(id: Long = -1L) {
         if (episodeForInfo != null) EpisodeScreen(episodeForInfo!!, listFlow = vm.episodesSortedFlow, allowOpenFeed = true)
     }
 }
-

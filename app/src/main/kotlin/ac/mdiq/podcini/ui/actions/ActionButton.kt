@@ -50,6 +50,10 @@ import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Loge
 import ac.mdiq.podcini.utils.LogeFor
 import ac.mdiq.podcini.utils.openInSystemDefault
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -257,13 +261,7 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
             }
             ButtonTypes.DOWNLOAD -> {
                 fun downloadNow() {
-                    runOnIOScope {
-                        val request = requestFor(item).build()
-                        val downloader = downloaderFor(request)
-                        downloader?.download()
-                        val status = downloader?.result
-                        if (status?.isSuccessful == true) updateDB(request)
-                    }
+                    EpisodeAdrDLManager.manager.downloadNow(listOf(item), ignoreConstraints = true)
                 }
                 fun shouldNotDownload(): Boolean {
                     if (item.downloadUrl.isNullOrBlank()) {
@@ -403,55 +401,54 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
 
     
     @Composable
-    fun AltActionsDialog(onDismiss: () -> Unit) {
+    fun AltActionsDialog(includeDownloads: Boolean = true, onDismiss: () -> Unit) {
         CommonPopupCard(onDismiss = onDismiss) {
-            @Composable
-            fun OptionRow(type_:  ButtonTypes, reset: Boolean = false) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
-                    val btn = ActionButton(item, typeInit = type_)
-                    btn.onClick()
-                    if (reset) btn.type = type_
-                    onDismiss()
-                }) {
-                    Icon(imageVector = ImageVector.vectorResource(type_.drawable), modifier = Modifier.size(24.dp), contentDescription = "")
-                    Text(stringResource(type_.labelRes))
+            val local = item.feed?.isLocal == true
+            val hasFile = !item.fileUrl.isNullOrBlank() && (local || item.downloaded)
+            val hasRemote = !local && !item.downloadUrl.isNullOrBlank()
+            val downloading = item.downloadUrl?.let { EpisodeAdrDLManager.manager.isDownloading(it) } == true
+            val options = buildList {
+                if (hasFile) {
+                    add(ButtonTypes.PLAY_ONE)
+                    add(ButtonTypes.PLAY_REPEAT)
+                } else if (hasRemote) {
+                    add(ButtonTypes.STREAM_ONE)
+                    add(ButtonTypes.STREAM_REPEAT)
                 }
+                if (hasFile && hasRemote) add(ButtonTypes.STREAM)
+                if (type == ButtonTypes.PAUSE) {
+                    remove(ButtonTypes.PLAY_REPEAT)
+                    remove(ButtonTypes.STREAM_REPEAT)
+                    add(ButtonTypes.REPEAT_THIS)
+                }
+                if (includeDownloads) when (episodeDownloadAction(local, hasFile, downloading, hasRemote, isMediaDownloadable(item))) {
+                    EpisodeDownloadAction.CANCEL -> add(ButtonTypes.CANCEL)
+                    EpisodeDownloadAction.REMOVE_DOWNLOAD, EpisodeDownloadAction.DELETE_LOCAL_FILE -> add(ButtonTypes.DELETE)
+                    EpisodeDownloadAction.DOWNLOAD -> add(ButtonTypes.DOWNLOAD)
+                    null -> Unit
+                }
+                if (!item.description.isNullOrBlank() || !item.transcript.isNullOrBlank()) {
+                    add(ButtonTypes.TTS_NOW)
+                    add(ButtonTypes.TTS)
+                }
+                if (!item.link.isNullOrBlank()) add(ButtonTypes.WEBSITE)
             }
-            Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-                Logd(TAG) { "button label: $type" }
-                if (type !in listOf(ButtonTypes.PAUSE, ButtonTypes.TTS)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
-                        type = ButtonTypes.TTS
-                        onClick()
+            Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.archive_playback_options), style = MaterialTheme.typography.titleLarge)
+                options.distinct().forEach { option ->
+                    TextButton(onClick = {
+                        val action = ActionButton(item, typeInit = option)
+                        action.typeToCancel = ButtonTypes.DOWNLOAD
+                        action.onClick()
                         onDismiss()
                     }) {
-                        Icon(imageVector = ImageVector.vectorResource(ButtonTypes.TTS.drawable), modifier = Modifier.size(24.dp), contentDescription = "TTS")
-                        Text(stringResource(ButtonTypes.TTS.labelRes))
+                        Text(stringResource(when {
+                            option == ButtonTypes.DELETE && local -> R.string.archive_delete_local
+                            option == ButtonTypes.CANCEL -> R.string.archive_cancel_download
+                            else -> option.labelRes
+                        }))
                     }
                 }
-                if (type !in listOf(ButtonTypes.PAUSE,  ButtonTypes.TTS_NOW)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
-                        type = ButtonTypes.TTS_NOW
-                        onClick()
-                        onDismiss()
-                    }) {
-                        Icon(imageVector = ImageVector.vectorResource(ButtonTypes.TTS_NOW.drawable), modifier = Modifier.size(24.dp), contentDescription = "TTS now")
-                        Text(stringResource(ButtonTypes.TTS_NOW.labelRes))
-                    }
-                }
-                if (type !in listOf(ButtonTypes.PLAY, ButtonTypes.PAUSE, ButtonTypes.DOWNLOAD, ButtonTypes.DELETE)) {
-                    val client = clientByEpisode(item)
-                    if (client?.attributes?.supportDownload != false) OptionRow(ButtonTypes.DOWNLOAD, true)
-                }
-                if (type !in listOf(ButtonTypes.STREAM, ButtonTypes.PAUSE, ButtonTypes.DOWNLOAD, ButtonTypes.DELETE)) OptionRow(ButtonTypes.DELETE, true)
-                if (type !in listOf(ButtonTypes.PAUSE, ButtonTypes.STREAM, ButtonTypes.DOWNLOAD)) OptionRow(ButtonTypes.PLAY_REPEAT, true)
-                if (type !in listOf(ButtonTypes.PLAY, ButtonTypes.PAUSE, ButtonTypes.STREAM, ButtonTypes.DOWNLOAD)) OptionRow(ButtonTypes.PLAY, true)
-                if (type !in listOf(ButtonTypes.PAUSE, ButtonTypes.STREAM, ButtonTypes.DOWNLOAD)) OptionRow(ButtonTypes.PLAY_ONE, true)
-                if (type !in listOf(ButtonTypes.PLAY, ButtonTypes.PAUSE, ButtonTypes.DELETE)) OptionRow(ButtonTypes.STREAM_REPEAT, true)
-                if (type !in listOf(ButtonTypes.PLAY, ButtonTypes.PAUSE, ButtonTypes.STREAM, ButtonTypes.DELETE)) OptionRow(ButtonTypes.STREAM, true)
-                if (type !in listOf(ButtonTypes.PLAY, ButtonTypes.PAUSE, ButtonTypes.DELETE)) OptionRow(ButtonTypes.STREAM_ONE, true)
-                if (type == ButtonTypes.PAUSE) OptionRow(ButtonTypes.REPEAT_THIS)
-                if (type != ButtonTypes.WEBSITE) OptionRow(ButtonTypes.WEBSITE)
             }
         }
     }
@@ -486,7 +483,7 @@ enum class ButtonTypes(val labelRes: Int, val drawable: Int) {
     REPEAT_THIS(R.string.repeat_this, R.drawable.baseline_repeat_one_24),
     STREAM_REPEAT(R.string.stream_repeat, R.drawable.outline_repeat_24),
 
-    DELETE(R.string.delete_label, R.drawable.ic_delete),
+    DELETE(R.string.delete_episode_label, R.drawable.ic_delete),
     NULL(R.string.null_label, R.drawable.ic_questionmark),
     PAUSE(R.string.pause_label, R.drawable.ic_pause),
     DOWNLOAD(R.string.download_label, R.drawable.ic_download),

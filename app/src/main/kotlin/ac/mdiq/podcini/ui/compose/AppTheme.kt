@@ -44,7 +44,10 @@ object CustomTextStyles {
     val titleCustom = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium)
 }
 
-val borderColor = Color(0xDDFFD700)
+val borderColor: Color
+    @Composable
+    @ReadOnlyComposable
+    get() = MaterialTheme.colorScheme.outlineVariant
 
 val textColor: Color
     @Composable
@@ -54,7 +57,7 @@ val textColor: Color
 val buttonColor: Color
     @Composable
     @ReadOnlyComposable
-    get() = MaterialTheme.colorScheme.tertiary
+    get() = MaterialTheme.colorScheme.primary
 
 val Shapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
@@ -64,16 +67,35 @@ val Shapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp)
 )
 
-private val LightColors = lightColorScheme().copy(
-    tertiary = Color(0xFF4E3511),
-    tertiaryContainer = Color(0xFFB6EEEE),
-    surface = Color(0xFFFDFCF0),
-    onSurface = Color(0xFF2D2E30)
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF6B437C), onPrimary = Color.White,
+    primaryContainer = Color(0xFFE9E2EF), onPrimaryContainer = Color(0xFF30213D),
+    secondary = Color(0xFF62586D), onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE9E2EF), onSecondaryContainer = Color(0xFF30213D),
+    tertiary = Color(0xFF6B437C), tertiaryContainer = Color(0xFFE9E2EF),
+    onTertiary = Color.White, onTertiaryContainer = Color(0xFF30213D),
+    background = Color(0xFFF7F7FA), onBackground = Color(0xFF252136),
+    surface = Color(0xFFF7F7FA), onSurface = Color(0xFF252136),
+    surfaceVariant = Color(0xFFEAE6EF), onSurfaceVariant = Color(0xFF625B6C),
+    surfaceContainerLowest = Color.White, surfaceContainerLow = Color(0xFFF1EEF5),
+    surfaceContainer = Color(0xFFEDE9F1), surfaceContainerHigh = Color(0xFFE7E2ED),
+    surfaceContainerHighest = Color(0xFFE1DBE7),
+    outline = Color(0xFF7C7485), outlineVariant = Color(0xFFD8D1DF)
 )
-private val DarkColors = darkColorScheme().copy(
-    tertiary = Color(0xFFE9A43E),
-    tertiaryContainer = Color(0xFF0D343E),
-    onSurface = Color(0xFFE0D7C1),
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFFD8B5EA), onPrimary = Color(0xFF3D224C),
+    primaryContainer = Color(0xFF513560), onPrimaryContainer = Color(0xFFF0DBFA),
+    secondary = Color(0xFFCFC0DB), onSecondary = Color(0xFF352D40),
+    secondaryContainer = Color(0xFF44384F), onSecondaryContainer = Color(0xFFF0E3FA),
+    tertiary = Color(0xFFD8B5EA), tertiaryContainer = Color(0xFF513560),
+    onTertiary = Color(0xFF3D224C), onTertiaryContainer = Color(0xFFF0DBFA),
+    background = Color(0xFF17141D), onBackground = Color(0xFFECE5F1),
+    surface = Color(0xFF17141D), onSurface = Color(0xFFECE5F1),
+    surfaceVariant = Color(0xFF49414F), onSurfaceVariant = Color(0xFFCDC3D4),
+    surfaceContainerLowest = Color(0xFF121016), surfaceContainerLow = Color(0xFF211D28),
+    surfaceContainer = Color(0xFF272230), surfaceContainerHigh = Color(0xFF312B3A),
+    surfaceContainerHighest = Color(0xFF3C3446),
+    outline = Color(0xFF998CA5), outlineVariant = Color(0xFF49414F)
 )
 
 enum class AppThemes {
@@ -125,7 +147,7 @@ fun PodciniTheme(forceTheme: AppThemes? = null, content: @Composable () -> Unit)
         isDark -> DarkColors
         else -> LightColors
     }
-    MaterialTheme(colorScheme = colorScheme, content = content)
+    MaterialTheme(colorScheme = colorScheme, shapes = Shapes, typography = Typography(), content = content)
 }
 
 fun isLightTheme(): Boolean {

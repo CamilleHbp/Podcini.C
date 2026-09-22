@@ -1,6 +1,11 @@
 package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.*
+import ac.mdiq.podcini.ui.compose.ArchiveTopBar
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.MainActivity
 import ac.mdiq.podcini.config.settings.DocumentFileExportWorker
@@ -38,6 +43,9 @@ import ac.mdiq.podcini.storage.model.deleteVolumeTree
 import ac.mdiq.podcini.storage.specs.EpisodeFilter
 import ac.mdiq.podcini.storage.specs.EpisodeState
 import ac.mdiq.podcini.storage.specs.FeedFilter
+import ac.mdiq.podcini.storage.specs.FeedFilterDraft
+import ac.mdiq.podcini.ui.compose.FeedFilterEditor
+import ac.mdiq.podcini.ui.compose.FeedFilterChips
 import ac.mdiq.podcini.storage.specs.Rating
 import ac.mdiq.podcini.storage.utils.AddLocalFolder
 import ac.mdiq.podcini.storage.utils.durationInHours
@@ -340,59 +348,12 @@ class LibraryVM : ViewModel() {
 
     suspend fun feedsRealmFlows(): Flow<RealmResults<Feed>> {
         Logd(TAG) { "feedsRealmFlows subPrefs.sortProperty: ${prefsFlow.value.sortProperty}" }
-        fun languagesQS() : String {
-            var qrs  = ""
-            when {
-                prefsFlow.value.langsSel.isEmpty() -> qrs = " (langSet.@count > 0) "
-                prefsFlow.value.langsSel.size == appAttribsFlow!!.value.langSet.size -> qrs = ""
-                else -> {
-                    for (l in prefsFlow.value.langsSel) qrs += if (qrs.isEmpty()) " ( ANY langSet == '$l' " else " OR ANY langSet == '$l' "
-                    if (qrs.isNotEmpty()) qrs += " ) "
-                }
-            }
-            Logd(TAG) { "languagesQS: $qrs" }
-            return qrs
-        }
-        fun tagsQS() : String {
-            var qrs  = ""
-            when {
-                //                prefsFlow.value.tagsSel.isEmpty() -> qrs = " (tags.@count == 0 OR (tags.@count != 0 AND ALL tags == $TAG_ROOT )) "
-                prefsFlow.value.tagsSel.isEmpty() -> qrs = " (tags.@count == 0) "
-                prefsFlow.value.tagsSel.size == appAttribsFlow!!.value.feedTagSet.size -> qrs = ""
-                else -> {
-                    for (t in prefsFlow.value.tagsSel) {
-                        qrs += if (qrs.isEmpty()) " ( ANY tags == '$t' " else " OR ANY tags == '$t' "
-                    }
-                    if (qrs.isNotEmpty()) qrs += " ) "
-                }
-            }
-            Logd(TAG) { "tagsQS: $qrs" }
-            return qrs
-        }
-        fun queuesQS() : String {
-            val qSelIds_ = prefsFlow.value.queueSelIds.toMutableSet()
-            if (qSelIds_.isEmpty()) qSelIds_.add(-2L)
-            else {
-                if ((queueIds - qSelIds_).isEmpty()) qSelIds_.clear()
-                else qSelIds_.remove(-2L)
-            }
-            var qrs  = ""
-            for (id in qSelIds_) qrs += if (qrs.isEmpty()) " ( queueId == '$id' " else " OR queueId == '$id' "
-            if (qrs.isNotEmpty()) qrs += " ) "
-            Logd(TAG) { "queuesQS: $qrs" }
-            return qrs
-        }
-
         val sortPair = Pair(prefsFlow.value.sortProperty.ifBlank { "eigenTitle" }, if (prefsFlow.value.sortDirCode == 0) Sort.ASCENDING else Sort.DESCENDING)
 
+        val selection = FeedFilterDraft(FeedFilter(prefsFlow.value.feedsFilter).properties.toSet(), prefsFlow.value.langsSel.toSet(), prefsFlow.value.tagsSel.toSet(), prefsFlow.value.queueSelIds.toSet())
+        val filterQuery = selection.queryString(appAttribsFlow!!.value.langSet.toSet(), appAttribsFlow!!.value.feedTagSet.toSet(), queueIds.toSet())
         if (feedIdsToUse.isEmpty()) {
-            val sb = StringBuilder(FeedFilter(prefsFlow.value.feedsFilter).queryString())
-            val langsStr = languagesQS()
-            if (langsStr.isNotEmpty()) sb.append(" AND $langsStr")
-            val tagsStr = tagsQS()
-            if (tagsStr.isNotEmpty()) sb.append(" AND $tagsStr")
-            val queuesStr = queuesQS()
-            if (queuesStr.isNotEmpty()) sb.append(" AND $queuesStr")
+            val sb = StringBuilder(filterQuery)
             if (!prefsFlow.value.showArchived && curVolume?.id == -1L && !showAllFeeds) sb.append(" AND volumeId >= -1 ")
 
             val fetchQS = sb.toString()
@@ -402,7 +363,7 @@ class LibraryVM : ViewModel() {
             else realm.query(Feed::class).query("volumeId == ${curVolume?.id ?: -1L}").query(fetchQS).sort(sortPair).asFlow()
 
             return realmFlow.map { it.list }
-        } else return realm.query(Feed::class).query("id IN $0", feedIdsToUse).sort(sortPair).asFlow().map  { it.list}
+        } else return realm.query(Feed::class).query("id IN $0", feedIdsToUse).query(filterQuery).sort(sortPair).asFlow().map { it.list }
     }
 
     fun preparePropertySort(feeds: List<Feed>, subIndex: FeedPropertySortIndex? = null) {
@@ -414,7 +375,7 @@ class LibraryVM : ViewModel() {
                     val f = findLatest(f_) ?: continue
                     Logd(TAG) { "preparePropertySort f: ${f.title}" }
                     f.sortInfo = when(subIndexOrdinal) {
-                        FeedPropertySortIndex.Rating.code -> Rating.fromCode(f.rating).name
+                        FeedPropertySortIndex.Rating.code -> getAppContext().getString(Rating.fromCode(f.rating).labelRes)
                         FeedPropertySortIndex.Score.code -> "${f.score}(${f.scoreCount})"
                         FeedPropertySortIndex.ScoreCount.code -> "${f.score}(${f.scoreCount})"
                         FeedPropertySortIndex.Updated.code -> formatDateTimeFlex(f.lastUpdateTime)
@@ -621,7 +582,7 @@ fun LibraryScreen() {
     val drawerController = LocalDrawerController.current
 
 //    val muteColor = MaterialTheme.colorScheme.onSurfaceVariant
-    
+
     val buttonAltColor = lerp(MaterialTheme.colorScheme.tertiary, Color.Green, 0.5f)
 
 //    val vm: LibraryVM = viewModel()
@@ -756,8 +717,19 @@ fun LibraryScreen() {
 
     val subPrefs by vm.prefsFlow.collectAsStateWithLifecycle()
 
-    val feedList by vm.feedsFlow.collectAsStateWithLifecycle()
+    var libraryTab by rememberSaveable { mutableIntStateOf(0) }
+    val unfilteredFeeds by vm.feedsFlow.collectAsStateWithLifecycle()
+    val feedList = remember(unfilteredFeeds, libraryTab) { unfilteredFeeds.filter { if (libraryTab == 2) it.isSynthetic() else !it.isSynthetic() } }
+    val tabFeedCount by remember(libraryTab, vm.curVolume?.id, feedIdsToUse) {
+        var query = realm.query(Feed::class, if (libraryTab == 2) "id <= $0" else "id > $0", Feed.MAX_SYNTHETIC_ID)
+        if (feedIdsToUse.isNotEmpty()) query = query.query("id IN $0", feedIdsToUse)
+        else if (libraryTab == 1) query = query.query("volumeId == $0", vm.curVolume?.id ?: -1L)
+        query.count().asFlow()
+    }.collectAsStateWithLifecycle(initialValue = null)
+    val hasTabFeeds = (tabFeedCount ?: 0L) > 0L
+    LaunchedEffect(tabFeedCount) { if (tabFeedCount == 0L) showFilterDialog = false }
     val volumes by vm.subVolumesFlow.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { if (libraryTab != 1) vm.showAllFeeds = true }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -800,94 +772,81 @@ fun LibraryScreen() {
     @Composable
     fun TopBar() {
         var expanded by remember { mutableStateOf(false) }
-        val isFiltered = remember(subPrefs.feedsFilter, subPrefs.tagsSel.size, subPrefs.langsSel.size, subPrefs.queueSelIds.size) { subPrefs.feedsFilter.isNotEmpty() || subPrefs.tagsSel.size != appAttribs.feedTagSet.size || subPrefs.langsSel.size != appAttribs.langSet.size || subPrefs.queueSelIds.size != vm.queueIds.size }
-        Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            val feedCount by feedCountFlow.collectAsStateWithLifecycle()
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 10.dp).clickable { drawerController?.open() })
-            if (feedOperationText.isNotEmpty()) Text(feedOperationText, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.clickable {})
-            else {
-                val feedCountState = remember(feedList.size, feedCount) { "${feedList.size}/$feedCount" }
-                Text(feedCountState, maxLines=1, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = textColor, modifier = Modifier.scale(scaleX = 1f, scaleY = 1.8f))
-            }
-            Spacer(Modifier.weight(1f))
-            if (!vm.isViewGarden) IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = "search") }
-            if (!vm.isViewGarden) IconButton(onClick = { showFilterDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = if (isFiltered) buttonAltColor else MaterialTheme.colorScheme.onSurface, contentDescription = "filter") }
-            IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "sort") }
-            if (!vm.isViewGarden) IconButton(onClick = {
-                facetsCustomTag = "Subscriptions"
-                facetsCustomQuery = realm.query(Episode::class).query("feedId IN $0", feedList.map { it.id })
-                navTo(Facets(modeName = QuickAccess.Custom.name))
-            }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = "facets") }
+        var menuPage by remember { mutableIntStateOf(0) }
+        val filterSelection = FeedFilterDraft(FeedFilter(subPrefs.feedsFilter).properties.toSet(), subPrefs.langsSel.toSet(), subPrefs.tagsSel.toSet(), subPrefs.queueSelIds.toSet())
+        val isFiltered = filterSelection.properties.isNotEmpty() || filterSelection.tags != appAttribs.feedTagSet.toSet() ||
+            filterSelection.languages != appAttribs.langSet.toSet() || filterSelection.queueIds != vm.queueIds.toSet()
+        Column {
+            ArchiveTopBar(stringResource(R.string.library)) {
+                IconButton(onClick = { navTo(Search) }) { Icon(ImageVector.vectorResource(R.drawable.ic_search), stringResource(R.string.archive_search)) }
+                IconButton(onClick = { navTo(Settings) }) { Icon(ImageVector.vectorResource(R.drawable.ic_settings), stringResource(R.string.archive_settings)) }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                IconButton(onClick = { menuPage = 0; expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more_library)) }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.toggle_grid_list)) }, onClick = {
-                        runOnIOScope { upsert(subPrefs) { it.prefFeedGridLayout = !it.prefFeedGridLayout } }
-                        expanded = false
-                    })
-                    if (!vm.isViewGarden) {
-                        fun toggleAllFeeds() {
-                            vm.curVolume = null
-                            vm.showAllFeeds = !vm.showAllFeeds
+                    if (menuPage != 0) DropdownMenuItem(text = { Text(stringResource(R.string.archive_back)) }, onClick = { menuPage = 0 })
+                    if (menuPage == 0) {
+                        if (libraryTab != 3 && (hasTabFeeds || (libraryTab == 1 && volumes.isNotEmpty()))) DropdownMenuItem(text = { Text(stringResource(R.string.archive_view)) }, onClick = { menuPage = 1 })
+                        if (!vm.isViewGarden && libraryTab != 3) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.add_feed_label)) }, onClick = { expanded = false; navTo(FindFeeds) })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.archive_new_folder)) }, onClick = { expanded = false; showNewVolume = true })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.archive_new_collection)) }, onClick = { expanded = false; showNewSynthetic = true })
                         }
-                        DropdownMenuItem(text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.show_all_feeds))
-                                Checkbox(checked = vm.showAllFeeds, onCheckedChange = { toggleAllFeeds() })
-                            }
-                        }, onClick = { toggleAllFeeds() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.new_volume_label)) }, onClick = {
-                            showNewVolume = true
-                            expanded = false
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.new_synth_label)) }, onClick = {
-                            showNewSynthetic = true
-                            expanded = false
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.add_feed_label)) }, onClick = {
-                            navTo(FindFeeds)
-                            expanded = false
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.receive_contents)) }, onClick = {
-                            showReceiverDialog = true
-                            expanded = false
-                        })
-                        // TODO
-                        //                        DropdownMenuItem(text = { Text(stringResource(R.string.send_catalog)) }, onClick = {
-                        //                            showSendCatalogDialog = true
-                        //                            expanded = false
-                        //                        })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_more_library)) }, onClick = { menuPage = 2 })
                     }
-                    DropdownMenuItem(text = { Text(stringResource(R.string.full_refresh_label)) }, onClick = {
-                        if (vm.curVolume == null) runOnceOrAsk(fullUpdate = true, removeUnlisted = true)
-                        else {
-                            if (vm.curVolume!!.isLocal) {
-                                runOnIOScope {
-                                    var uri = vm.curVolume!!.uriString.toSafeUri()
-                                    val rootUri =  findRootForUri(uri)
-                                    if (rootUri != null && uri != rootUri) {
-                                        Logt(TAG, "Loading from root folder: $rootUri")
-                                        uri = rootUri
+                    if (menuPage == 1 && libraryTab != 3) {
+                        DropdownMenuItem(text = { Text(stringResource(if (subPrefs.prefFeedGridLayout) R.string.archive_list_view else R.string.archive_grid_view)) }, onClick = {
+                            runOnIOScope { upsert(subPrefs) { it.prefFeedGridLayout = !it.prefFeedGridLayout } }; expanded = false
+                        })
+                        if (!vm.isViewGarden) DropdownMenuItem(text = { Text(stringResource(R.string.show_archived)) }, trailingIcon = {
+                            Checkbox(checked = subPrefs.showArchived, onCheckedChange = null)
+                        }, onClick = { upsertBlk(subPrefs) { it.showArchived = !it.showArchived }; expanded = false })
+                    }
+                    if (menuPage == 2) {
+                        if (hasTabFeeds) DropdownMenuItem(text = { Text(stringResource(R.string.full_refresh_label)) }, onClick = {
+                            if (vm.curVolume == null) runOnceOrAsk(fullUpdate = true, removeUnlisted = true)
+                            else {
+                                if (vm.curVolume!!.isLocal) {
+                                    runOnIOScope {
+                                        var uri = vm.curVolume!!.uriString.toSafeUri()
+                                        val rootUri =  findRootForUri(uri)
+                                        if (rootUri != null && uri != rootUri) {
+                                            Logt(TAG, "Loading from root folder: $rootUri")
+                                            uri = rootUri
+                                        }
+                                        loadLocalFolder(uri, vm.curVolume!!.allFeeds.filter { it.isLocal })
                                     }
-                                    loadLocalFolder(uri, vm.curVolume!!.allFeeds.filter { it.isLocal })
-                                }
-                            } else runOnceOrAsk(vm.curVolume!!.allFeeds, fullUpdate = true, doItWanyway = vm.curVolume!!.isNormal, removeUnlisted = true)
-                        }
-                        expanded = false
-                    })
-                    if (!vm.isViewGarden) {
-                        fun toggleArchived() {
-                            upsertBlk(subPrefs) { it.showArchived = !it.showArchived }
-                            expanded = false
-                        }
-                        DropdownMenuItem(text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.show_archived))
-                                Checkbox(checked = subPrefs.showArchived, onCheckedChange = { toggleArchived() })
+                                } else runOnceOrAsk(vm.curVolume!!.allFeeds, fullUpdate = true, doItWanyway = vm.curVolume!!.isNormal, removeUnlisted = true)
                             }
-                        }, onClick = { toggleArchived() })
+                            expanded = false
+                        })
+
+                        if (!vm.isViewGarden) DropdownMenuItem(text = { Text(stringResource(R.string.receive_contents)) }, onClick = { expanded = false; showReceiverDialog = true })
                     }
                 }
+            }
+            }
+            PrimaryScrollableTabRow(selectedTabIndex = libraryTab, edgePadding = 12.dp) {
+                listOf(R.string.archive_sources, R.string.archive_folders, R.string.archive_collections, R.string.archive_saved).forEachIndexed { index, label ->
+                    Tab(selected = libraryTab == index, onClick = { libraryTab = index; vm.curVolume = null; vm.showAllFeeds = index != 1 }, text = { Text(stringResource(label)) })
+                }
+            }
+            if (libraryTab != 3 && (hasTabFeeds || vm.curVolume != null)) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (vm.curVolume != null) TextButton(onClick = { vm.curVolume = realm.query(Volume::class).query("id == ${vm.curVolume?.parentId ?: -1L}").first().find() }) { Text(stringResource(R.string.archive_back)) }
+                Text(vm.curVolume?.name ?: stringResource(when(libraryTab) { 1 -> R.string.archive_folder_help; 2 -> R.string.archive_collection_help; else -> R.string.archive_sources }), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (hasTabFeeds) IconButton(onClick = { showFilterDialog = true }) { Icon(ImageVector.vectorResource(R.drawable.ic_filter), stringResource(R.string.archive_filter), tint = if(isFiltered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (feedList.isNotEmpty()) IconButton(onClick = { showSortDialog = true }) { Icon(ImageVector.vectorResource(R.drawable.arrows_sort), stringResource(R.string.archive_sort)) }
+            }
+            if (feedOperationText.isNotBlank()) Text(feedOperationText, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 20.dp))
+            if (libraryTab != 3 && hasTabFeeds && isFiltered) FeedFilterChips(
+                filterSelection,
+                appAttribs.langSet.toSet(), appAttribs.feedTagSet.toSet(), vm.queueIds.zip(vm.queueNames)) { selection ->
+                runOnIOScope { upsert(subPrefs) {
+                    it.feedsFilter = selection.properties.joinToString(",")
+                    it.langsSel = selection.languages.toRealmSet()
+                    it.tagsSel = selection.tags.toRealmSet()
+                    it.queueSelIds = selection.queueIds.toRealmSet()
+                    it.feedsFilteredInc()
+                } }
             }
         }
     }
@@ -1256,282 +1215,37 @@ fun LibraryScreen() {
 
         @Composable
         fun FilterDialog(filter: FeedFilter? = null, onDismiss: () -> Unit) {
-            val filterValues = remember { filter?.properties ?: mutableSetOf() }
-            var reset by remember { mutableIntStateOf(0) }
-            var langFull by remember(subPrefs.langsSel.size) { mutableStateOf(subPrefs.langsSel.size == appAttribs.langSet.size) }
-            var tagsFull by remember(subPrefs.tagsSel.size) { mutableStateOf(subPrefs.tagsSel.size == appAttribs.feedTagSet.size) }
-            var queuesFull by remember(subPrefs.queueSelIds.size) { mutableStateOf(subPrefs.queueSelIds.size == vm.queueNames.size) }
-            fun onFilterChanged(newFilterValues: Set<String>) {
-                runOnIOScope {
-                    upsert(subPrefs) {
-                        it.feedsFilter = newFilterValues.joinToString(",")
-                        it.feedsFilteredInc()
+            val initial = FeedFilterDraft(filter?.properties?.toSet().orEmpty(), subPrefs.langsSel.toSet(), subPrefs.tagsSel.toSet(), subPrefs.queueSelIds.toSet())
+            val languages = appAttribs.langSet.toSet()
+            val tags = appAttribs.feedTagSet.toSet()
+            val queues = vm.queueIds.zip(vm.queueNames)
+            val currentIds = feedIdsToUse.toList()
+            val volumeId = vm.curVolume?.id ?: -1L
+            val showAll = vm.showAllFeeds
+            val showArchived = subPrefs.showArchived
+            val excludeArchived = vm.curVolume?.id == -1L && !showAll && !showArchived
+            FeedFilterEditor(initial = initial, languages = languages, tags = tags, queues = queues,
+                scopeKey = "$libraryTab|$volumeId|$showAll|$showArchived|$currentIds", countMatches = { selection ->
+                    val base = if (currentIds.isNotEmpty()) realm.query(Feed::class).query("id IN $0", currentIds).query(selection.queryString(languages, tags, queues.map { it.first }.toSet()))
+                    else {
+                        var query = realm.query(Feed::class).query(selection.queryString(languages, tags, queues.map { it.first }.toSet()))
+                        if (excludeArchived) query = query.query("volumeId >= -1")
+                        if (!showAll) query = query.query("volumeId == $volumeId")
+                        query
                     }
-                }
-                Logd(TAG) { "onFilterChanged: ${subPrefs.feedsFilter}" }
-            }
-            Dialog(properties = DialogProperties(usePlatformDefaultWidth = false), onDismissRequest = { onDismiss() }) {
-                val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
-                dialogWindowProvider?.window?.setGravity(Gravity.BOTTOM)
-                Surface(modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 10.dp).height(350.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, borderColor)) {
-                    Column(Modifier.fillMaxSize()) {
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                            Logd(TAG) { "appAttribs.langSet: ${appAttribs.langSet.size}" }
-                            if (appAttribs.langSet.isNotEmpty()) {
-                                val langs = remember(appAttribs.langSet.size) { appAttribs.langSet.toList().sorted().toMutableStateList() }
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    val selectedList = remember { MutableList(langs.size) { mutableStateOf(false) } }
-                                    LaunchedEffect(reset) {
-                                        Logd(TAG) { "LaunchedEffect(reset) lang" }
-                                        for (index in selectedList.indices) {
-                                            if (langs[index] in subPrefs.langsSel) selectedList[index].value = true
-                                            langFull = selectedList.count { it.value } == selectedList.size
-                                        }
-                                    }
-                                    var expandRow by remember { mutableStateOf(false) }
-                                    Row(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                                        Text(stringResource(R.string.languages) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (langFull) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                        if (expandRow) {
-                                            val cb = {
-                                                runOnIOScope {
-                                                    val langsSel = mutableSetOf<String>()
-                                                    for (i in langs.indices) if (selectedList[i].value) langsSel.add(langs[i])
-                                                    upsert(subPrefs) {
-                                                        it.langsSel = langsSel.toRealmSet()
-                                                        it.feedsFilteredInc()
-                                                    }
-                                                }
-                                                Logd(TAG) { "langsSel: ${subPrefs.langsSel.size} ${langs.size}" }
-                                            }
-                                            SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                                        }
-                                    }
-                                    if (expandRow) ScrollRowGrid(columns = 3, itemCount = langs.size, modifier = Modifier.padding(start = 10.dp)) { index ->
-                                        OutlinedButton(modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                            onClick = {
-                                                selectedList[index].value = !selectedList[index].value
-                                                runOnIOScope {
-                                                    val langsSel = subPrefs.langsSel.toMutableSet()
-                                                    if (selectedList[index].value) langsSel.add(langs[index])
-                                                    else langsSel.remove(langs[index])
-                                                    upsert(subPrefs) {
-                                                        it.langsSel = langsSel.toRealmSet()
-                                                        it.feedsFilteredInc()
-                                                    }
-                                                }
-                                            },
-                                        ) { Text(text = langs[index], maxLines = 1, color = textColor) }
-                                    }
-                                }
-                            }
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                val selectedList = remember { MutableList(vm.queueNames.size) { mutableStateOf(false) } }
-                                LaunchedEffect(reset) {
-                                    Logd(TAG) { "LaunchedEffect(reset) queue" }
-                                    for (index in selectedList.indices) {
-                                        if (vm.queueIds[index] in subPrefs.queueSelIds) selectedList[index].value = true
-                                        queuesFull = selectedList.count { it.value } == selectedList.size
-                                    }
-                                }
-                                var expandRow by remember { mutableStateOf(false) }
-                                Row(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                                    Text(stringResource(R.string.queue_label) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (queuesFull) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                    if (expandRow) {
-                                        val cb = {
-                                            runOnIOScope {
-                                                val qSelIds = mutableSetOf<Long>()
-                                                for (i in vm.queueNames.indices) if (selectedList[i].value) qSelIds.add(vm.queueIds[i])
-                                                upsert(subPrefs) {
-                                                    it.queueSelIds = qSelIds.toRealmSet()
-                                                    it.feedsFilteredInc()
-                                                }
-                                            }
-                                            Unit
-                                        }
-                                        SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                                    }
-                                }
-                                if (expandRow) ScrollRowGrid(columns = 3, itemCount = vm.queueNames.size, modifier = Modifier.padding(start = 10.dp)) { index ->
-                                    OutlinedButton(modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                        onClick = {
-                                            selectedList[index].value = !selectedList[index].value
-                                            runOnIOScope {
-                                                val qSelIds = subPrefs.queueSelIds.toMutableSet()
-                                                if (selectedList[index].value) qSelIds.add(vm.queueIds[index])
-                                                else qSelIds.remove(vm.queueIds[index])
-                                                upsert(subPrefs) {
-                                                    it.queueSelIds = qSelIds.toRealmSet()
-                                                    it.feedsFilteredInc()
-                                                }
-                                            }
-                                        },
-                                    ) { Text(text = vm.queueNames[index], maxLines = 1, color = textColor) }
-                                }
-                            }
-                            if (appAttribs.feedTagSet.isNotEmpty()) {
-                                val tagList = remember(appAttribs.feedTagSet.size) { appAttribs.feedTagSet.toList().sorted().toMutableStateList() }
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    val selectedList = remember { MutableList(tagList.size) { mutableStateOf(false) } }
-                                    LaunchedEffect(reset) {
-                                        Logd(TAG) { "LaunchedEffect(reset) tag" }
-                                        for (index in selectedList.indices) {
-                                            if (tagList[index] in subPrefs.tagsSel) selectedList[index].value = true
-                                            tagsFull = selectedList.count { it.value } == selectedList.size
-                                        }
-                                    }
-                                    var expandRow by remember { mutableStateOf(false) }
-                                    Row(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                                        Text(stringResource(R.string.tags_label) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (tagsFull) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                        if (expandRow) {
-                                            val cb = {
-                                                runOnIOScope {
-                                                    val tagsSel = mutableSetOf<String>()
-                                                    for (i in tagList.indices) if (selectedList[i].value) tagsSel.add(tagList[i])
-                                                    upsert(subPrefs) {
-                                                        it.tagsSel = tagsSel.toRealmSet()
-                                                        it.feedsFilteredInc()
-                                                    }
-                                                }
-                                                Unit
-                                            }
-                                            SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                                        }
-                                    }
-                                    if (expandRow) ScrollRowGrid(columns = 3, itemCount = tagList.size, modifier = Modifier.padding(start = 10.dp)) { index ->
-                                        OutlinedButton(modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                            onClick = {
-                                                selectedList[index].value = !selectedList[index].value
-                                                runOnIOScope {
-                                                    val tagsSel = subPrefs.tagsSel.toMutableSet()
-                                                    if (selectedList[index].value) tagsSel.add(tagList[index])
-                                                    else tagsSel.remove(tagList[index])
-                                                    upsert(subPrefs) {
-                                                        it.tagsSel = tagsSel.toRealmSet()
-                                                        it.feedsFilteredInc()
-                                                    }
-                                                }
-                                            },
-                                        ) { Text(text = tagList[index], maxLines = 1, color = textColor) }
-                                    }
-                                }
-                            }
-                            var selectNone by remember { mutableStateOf(false) }
-                            for (item in FeedFilter.FeedFilterGroup.entries) {
-                                if (item.values.size == 2) {
-                                    Row(modifier = Modifier.padding(start = 5.dp).fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
-                                        var selectedIndex by remember(selectNone) { mutableIntStateOf(
-                                            if (selectNone) -1
-                                            else if (filter != null) {
-                                                if (item.values[0].filterId in filter.properties) 0
-                                                else if (item.values[1].filterId in filter.properties) 1
-                                                else -1
-                                            } else -1
-                                        ) }
-                                        Text(stringResource(item.nameRes) + " :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = textColor, modifier = Modifier.padding(end = 10.dp))
-                                        Spacer(Modifier.width(30.dp))
-                                        OutlinedButton(
-                                            modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp), border = BorderStroke(2.dp, if (selectedIndex != 0) borderColor else buttonAltColor),
-                                            onClick = {
-                                                if (selectedIndex != 0) {
-                                                    selectNone = false
-                                                    selectedIndex = 0
-                                                    filterValues.add(item.values[0].filterId)
-                                                    filterValues.remove(item.values[1].filterId)
-                                                } else {
-                                                    selectedIndex = -1
-                                                    filterValues.remove(item.values[0].filterId)
-                                                }
-                                                onFilterChanged(filterValues)
-                                            },
-                                        ) { Text(text = if (item.values[0].displayName > 0) stringResource(item.values[0].displayName) else item.values[0].filterId, color = textColor) }
-                                        Spacer(Modifier.width(20.dp))
-                                        OutlinedButton(
-                                            modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp), border = BorderStroke(2.dp, if (selectedIndex != 1) borderColor else buttonAltColor),
-                                            onClick = {
-                                                if (selectedIndex != 1) {
-                                                    selectNone = false
-                                                    selectedIndex = 1
-                                                    filterValues.add(item.values[1].filterId)
-                                                    filterValues.remove(item.values[0].filterId)
-                                                } else {
-                                                    selectedIndex = -1
-                                                    filterValues.remove(item.values[1].filterId)
-                                                }
-                                                onFilterChanged(filterValues)
-                                            },
-                                        ) { Text(text = if (item.values[1].displayName > 0) stringResource(item.values[1].displayName) else item.values[1].filterId, color = textColor) } //                                    Spacer(Modifier.weight(0.5f))
-                                    }
-                                } else {
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        val selectedList = remember { MutableList(item.values.size) { mutableStateOf(false) } }
-                                        var allOrNone by remember { mutableStateOf(false) }
-                                        LaunchedEffect(reset) {
-                                            Logd(TAG) { "LaunchedEffect(reset) filter" }
-                                            if (filter != null) {
-                                                for (index in selectedList.indices) {
-                                                    if (item.values[index].filterId in filter.properties) selectedList[index].value = true
-                                                }
-                                                val c = selectedList.count { it.value }
-                                                allOrNone = c == 0 || c == item.values.size
-                                            } else allOrNone = true
-                                        }
-                                        var expandRow by remember { mutableStateOf(false) }
-                                        Row(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                                            Text(stringResource(item.nameRes) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (allOrNone) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                            if (expandRow) {
-                                                val cb = {
-                                                    for (i in item.values.indices) {
-                                                        if (selectedList[i].value) filterValues.add(item.values[i].filterId)
-                                                        else filterValues.remove(item.values[i].filterId)
-                                                    }
-                                                    val c = selectedList.count { it.value }
-                                                    allOrNone = c == 0 || c == item.values.size
-                                                    onFilterChanged(filterValues)
-                                                }
-                                                SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                                            }
-                                        }
-                                        if (expandRow) ScrollRowGrid(columns = 3, itemCount = item.values.size, modifier = Modifier.padding(start = 10.dp)) { index ->
-                                            if (selectNone) selectedList[index].value = false
-                                            OutlinedButton(
-                                                modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                                onClick = {
-                                                    selectNone = false
-                                                    selectedList[index].value = !selectedList[index].value
-                                                    if (selectedList[index].value) filterValues.add(item.values[index].filterId)
-                                                    else filterValues.remove(item.values[index].filterId)
-                                                    val c = selectedList.count { it.value }
-                                                    allOrNone = c == 0 || c == item.values.size
-                                                    onFilterChanged(filterValues)
-                                                },
-                                            ) { Text(text = if (item.values[index].displayName > 0) stringResource(item.values[index].displayName) else item.values[index].filterId, maxLines = 1, color = textColor) }
-                                        }
-                                    }
-                                }
-                            }
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(Modifier.weight(0.3f))
-                                Button(onClick = {
-                                    runOnIOScope {
-                                        upsert(subPrefs) {
-                                            it.tagsSel = appAttribs.feedTagSet.toRealmSet()
-                                            it.queueSelIds = vm.queueIds.toRealmSet()
-                                            it.langsSel = appAttribs.langSet.toRealmSet()
-                                            it.feedsFilteredInc()
-                                        }
-                                    }
-                                    selectNone = true
-                                    reset++
-                                    onFilterChanged(setOf(""))
-                                }) { Text(stringResource(R.string.reset)) }
-                                Spacer(Modifier.weight(0.4f))
-                                Button(onClick = { onDismiss() }) { Text(stringResource(R.string.close)) }
-                                Spacer(Modifier.weight(0.3f))
-                            }
+                    // The Library tabs distinguish real sources from synthetic collections after querying.
+                    base.find().count { if (libraryTab == 2) it.isSynthetic() else !it.isSynthetic() }.toLong()
+                }, onDismiss = onDismiss, onApply = { selection ->
+                    runOnIOScope {
+                        upsert(subPrefs) {
+                            it.feedsFilter = selection.properties.joinToString(",")
+                            it.langsSel = selection.languages.toRealmSet()
+                            it.tagsSel = selection.tags.toRealmSet()
+                            it.queueSelIds = selection.queueIds.toRealmSet()
+                            it.feedsFilteredInc()
                         }
                     }
-                }
-            }
+                })
         }
 
         @Composable
@@ -1558,57 +1272,8 @@ fun LibraryScreen() {
             }
         }
 
-        @Composable
-        fun ReceiveContentDialog() {
-            var tcpPort by remember(appAttribs.transceivePort) { mutableIntStateOf(appAttribs.transceivePort) }
-            var udpPort by remember(appAttribs.udpPort) { mutableIntStateOf(appAttribs.udpPort) }
-            val ip = remember { getLocalIpAddress() }
-            var contentType by remember { mutableStateOf(ContentType.Feed) }
-            var receiver by remember { mutableStateOf<Receiver?>(null) }
-            var receiveJob by remember { mutableStateOf<Job?>(null) }
-            var broadcastJob by remember { mutableStateOf<Job?>(null) }
 
-            fun onDismiss() {
-                broadcastJob?.cancel()
-                broadcastJob = null
-                receiver?.stop()
-                receiveJob?.cancel()
-                showReceiverDialog = false
-            }
-            AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = {  },
-                title = { Text(stringResource(R.string.receive_contents), style = CustomTextStyles.titleCustom) },
-                text = {
-                    Column {
-                        Text(appAttribs.name + " at: " + (ip ?: "address unknown"))
-                        Text(stringResource(R.string.ports_sum), style = MaterialTheme.typography.bodySmall)
-                        if (receiveJob == null) Row(modifier = Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            TextField(value = udpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.broadcast_port)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { udpPort = it.toIntOrNull() ?: 0 })
-                            TextField(value = tcpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.port_label)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { tcpPort = it.toIntOrNull() ?: 0 })
-                        } else Text("Receiving at port $tcpPort")
-                        if (receiveJob == null) Row {
-                            Text(stringResource(R.string.content_type), modifier = Modifier.padding(end = 5.dp))
-                            Spinner(ContentType.entries.map { it.name }, ContentType.Feed.name) { index -> contentType = ContentType.entries.toTypedArray()[index] }
-                        } else Text("Receiving: ${contentType.name}")
-                    }
-                },
-                confirmButton = {
-                    if (receiveJob == null && !ip.isNullOrBlank()) TextButton(onClick = {
-                        if (udpPort != appAttribs.udpPort) upsertBlk(appAttribs) { it.udpPort = udpPort }
-                        broadcastJob = scope.launch { broadcastPresence(udpPort, tcpPort) }
-                        if (tcpPort != appAttribs.transceivePort) upsertBlk(appAttribs) { it.transceivePort = tcpPort }
-                        receiver = when (contentType) {
-                            ContentType.Feed -> FeedReceiver(tcpPort, vm.curVolume?.id ?: -1L)
-                            ContentType.Catalog -> CatalogReceiver(tcpPort) { onDismiss() }
-                            ContentType.Episodes -> EpisodesReceiver(tcpPort) { onDismiss() }
-                        }
-                        receiveJob = scope.launch(Dispatchers.IO) { receiver!!.start() }
-                    }) { Text(stringResource(R.string.start)) }
-                },
-                dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.stop)) } }
-            )
-        }
-
-        if (showReceiverDialog) ReceiveContentDialog()
+        if (showReceiverDialog) ReceiveContentDialog(vm.curVolume?.id ?: -1L) { showReceiverDialog = false }
 
         if (showSendCatalogDialog) SendToDevice(onDismiss = { showSendCatalogDialog = false}) { host, port -> sendCatalog(host, port) { showSendCatalogDialog =  false } }
 
@@ -1710,7 +1375,7 @@ fun LibraryScreen() {
                             onDismiss()
                         }) {
                             Icon(imageVector = ImageVector.vectorResource(id = rating.res), "")
-                            Text(rating.name, Modifier.padding(start = 4.dp))
+                            Text(stringResource(rating.labelRes), Modifier.padding(start = 4.dp))
                         }
                     }
                 }
@@ -1724,13 +1389,13 @@ fun LibraryScreen() {
                     feedsOptionsMap.entries.forEachIndexed { _, entry -> if (entry.key != "ParentVolume") entry.value() }
                     HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp).clickable { showEditVolume = true }) {
-                        Icon(imageVector = Icons.Filled.Edit, "edit volume")
+                        Icon(imageVector = Icons.Filled.Edit, stringResource(R.string.edit_volume))
                         Text(stringResource(id = R.string.edit_volume)) }
                     if (volumeToOperate != null && volumeToOperate!!.id >= 0L) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp).clickable {
                         commonConfirms.add(CommonConfirmAttrib(
                             title = context.getString(R.string.remove_volume) + "?",
                             message = context.getString(R.string.remove_volume_msg) + "\n" + volumeToOperate?.name,
-                            confirmRes = R.string.confirm_label,
+                            confirmRes = R.string.remove_volume,
                             cancelRes = R.string.cancel_label,
                             onConfirm = {
                                 Logd(TAG) { "removing volume: ${volumeToOperate?.name}" }
@@ -1742,7 +1407,7 @@ fun LibraryScreen() {
                                 }
                             }))
                     }) {
-                        Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), "remove volume")
+                        Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), stringResource(R.string.remove_volume))
                         Text(stringResource(id = R.string.remove_volume)) }
                     if (volumeToOperate?.isLocal == true) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp).clickable {
                         commonConfirms.add(CommonConfirmAttrib(
@@ -1832,12 +1497,33 @@ fun LibraryScreen() {
 
     OpenDialogs()
 
-    Scaffold(topBar = { TopBar() }) { innerPadding ->
+    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0), topBar = { TopBar() }) { innerPadding ->
         var selectedSize by remember { mutableIntStateOf(0) }
         var longPressIndex by remember { mutableIntStateOf(-1) }
         var refreshing by remember { mutableStateOf(false)}
 
-        PullToRefreshBox(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface), isRefreshing = refreshing, indicator = {}, onRefresh = {
+        if (libraryTab == 3) Box(Modifier.padding(innerPadding)) { SavedLibraryScreen() }
+        else if (tabFeedCount == null) Box(Modifier.padding(innerPadding)) {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp))
+        }
+        else if (libraryTab == 2 && feedList.isEmpty()) Box(Modifier.padding(innerPadding)) {
+            ArchiveEmpty(
+                title = if (hasTabFeeds) R.string.archive_no_collection_matches else R.string.archive_empty_collections,
+                message = if (hasTabFeeds) R.string.archive_no_collection_matches_body else R.string.archive_collection_help,
+                action = if (hasTabFeeds) R.string.archive_change_filters else R.string.archive_new_collection,
+                icon = R.drawable.rounded_books_movies_and_music_24
+            ) {
+                if (!hasTabFeeds) showNewSynthetic = true else showFilterDialog = true
+            }
+        }
+        else if (feedList.isEmpty() && (libraryTab != 1 || volumes.isEmpty())) Box(Modifier.padding(innerPadding)) {
+            when {
+                hasTabFeeds -> ArchiveEmpty(R.string.archive_no_source_matches, R.string.archive_no_source_matches_body, R.string.archive_change_filters) { showFilterDialog = true }
+                libraryTab == 1 -> ArchiveEmpty(R.string.archive_empty_folders, R.string.archive_empty_folders_body, R.string.archive_new_folder) { showNewVolume = true }
+                else -> ArchiveEmpty(R.string.archive_empty_library, R.string.archive_empty_library_body, R.string.archive_find_podcasts) { selectPrimary(FindFeeds, resetToRoot = true) }
+            }
+        }
+        else PullToRefreshBox(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface), isRefreshing = refreshing, indicator = {}, onRefresh = {
             refreshing = true
             commonConfirms.add(CommonConfirmAttrib(
                 title = context.getString(R.string.feed_refresh_title) + "?",
@@ -1851,8 +1537,8 @@ fun LibraryScreen() {
             refreshing = false
         }) {
             if (subPrefs.prefFeedGridLayout) {
-                LazyVerticalGrid(state = rememberLazyGridState(), columns = GridCells.Adaptive(80.dp), modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(start = 12.dp, top = 16.dp, end = 12.dp, bottom = 16.dp)) {
-                    if (feedIdsToUse.isEmpty() && !vm.showAllFeeds && volumes.isNotEmpty()) items(volumes, key = { it.id}) { volume ->
+                LazyVerticalGrid(state = rememberLazyGridState(), columns = GridCells.Adaptive(144.dp), modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(start = 12.dp, top = 16.dp, end = 12.dp, bottom = 16.dp)) {
+                    if (libraryTab == 1 && volumes.isNotEmpty()) items(volumes, key = { it.id}) { volume ->
                         Column(Modifier.background(MaterialTheme.colorScheme.surface)
                             .combinedClickable(onClick = { vm.curVolume = volume},
                                 onLongClick = {
@@ -1941,7 +1627,7 @@ fun LibraryScreen() {
                     }
                 }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(start = 5.dp, end = 5.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (feedIdsToUse.isEmpty() && !vm.showAllFeeds && volumes.isNotEmpty()) items(volumes, key = { v -> v.id}) { volume ->
+                    if (libraryTab == 1 && volumes.isNotEmpty()) items(volumes, key = { v -> v.id}) { volume ->
 //                        Logd(TAG) { "Volume: ${volume.name} ${volume.id}" }
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.combinedClickable(
                             onClick = { vm.curVolume = volume },
@@ -1965,7 +1651,7 @@ fun LibraryScreen() {
                             Logd(TAG) { "toggleSelected: selected: ${feedsSelected.size}" }
                         }
                         val imageSize = 60
-                        Row(Modifier.height(imageSize.dp).background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
+                        Row(Modifier.heightIn(min = 92.dp).padding(horizontal = 16.dp, vertical = 12.dp).background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
                             Box(modifier = Modifier.size(imageSize.dp)) {
                                 AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover",
                                     colorFilter = if (!feed.inNormalVolume) ColorFilter.tint(color = Color.Gray.copy(alpha = 0.5f), blendMode = BlendMode.SrcAtop) else null,
@@ -1973,12 +1659,12 @@ fun LibraryScreen() {
                                         Logd(TAG) { "icon clicked!" }
                                         if (!feed.isBuilding) {
                                             if (selectMode) toggleSelected()
-                                            else navTo(FeedDetails(feedId = feed.id, modeName = FeedScreenMode.Info.name))
+                                            else navTo(FeedDetails(feedId = feed.id, modeName = FeedScreenMode.List.name))
                                         }
                                     })
                                 if (feed.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = buttonColor, contentDescription = "rating", modifier = Modifier.size((imageSize/4).dp).align(Alignment.BottomStart).background(MaterialTheme.colorScheme.tertiaryContainer.copy(0.8f)))
                             }
-                            Box(Modifier.weight(1f).fillMaxHeight().padding(start = 10.dp).combinedClickable(onClick = {
+                            Column(Modifier.weight(1f).padding(start = 16.dp).combinedClickable(onClick = {
                                 if (!feed.isBuilding) {
                                     if (selectMode) toggleSelected()
                                     else navTo(FeedDetails(feedId = feed.id))
@@ -1998,13 +1684,13 @@ fun LibraryScreen() {
                                     }
                                 }
                             })) {
-                                Text(feed.title ?: "No title", color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), modifier = Modifier.align(Alignment.TopStart))
-                                Row(modifier = Modifier.align(Alignment.BottomStart)) {
+                                Text(feed.title ?: "No title", color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                                Row(modifier = Modifier.padding(top = 8.dp)) {
 //                                    Logd(TAG) { "episodesCount: ${feed.id} ${feed.episodesCount} ${feed.totleDuration}" }
                                     val measureString = remember(feed.episodesCount, feed.totleDuration) { formatWithGrouping(feed.episodesCount.toLong()) + " : " + durationInHours(feed.totleDuration/1000, false) }
-                                    Text(measureString, color = textColor, style = MaterialTheme.typography.bodyMedium)
+                                    Text(stringResource(R.string.archive_episode_count, feed.episodesCount), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                                     Spacer(modifier = Modifier.weight(1f))
-                                    Text(feed.sortInfo, color = textColor, style = MaterialTheme.typography.bodyMedium)
+
                                 }
                             }
                             if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = "error")
@@ -2090,4 +1776,59 @@ enum class FeedTimeSortIndex(val code: Int, val res: Int) {
     Min(1, R.string.min_duration),
     Max(2, R.string.max_duration),
     Average(3, R.string.average_duration);
+}
+
+@Composable
+fun ReceiveContentDialog(parentFolderId: Long = -1L, onClose: () -> Unit) {
+    val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var tcpPort by remember(appAttribs.transceivePort) { mutableIntStateOf(appAttribs.transceivePort) }
+    var udpPort by remember(appAttribs.udpPort) { mutableIntStateOf(appAttribs.udpPort) }
+    val ip = remember { getLocalIpAddress() }
+    var contentType by remember { mutableStateOf(ContentType.Feed) }
+    var receiver by remember { mutableStateOf<Receiver?>(null) }
+    var receiveJob by remember { mutableStateOf<Job?>(null) }
+    var broadcastJob by remember { mutableStateOf<Job?>(null) }
+
+    fun onDismiss() {
+        broadcastJob?.cancel()
+        broadcastJob = null
+        receiver?.stop()
+        receiveJob?.cancel()
+        onClose()
+    }
+    DisposableEffect(Unit) {
+        onDispose { broadcastJob?.cancel(); receiver?.stop(); receiveJob?.cancel() }
+    }
+    AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { onDismiss() },
+        title = { Text(stringResource(R.string.receive_contents), style = CustomTextStyles.titleCustom) },
+        text = {
+            Column {
+                Text(appAttribs.name + " at: " + (ip ?: "address unknown"))
+                Text(stringResource(R.string.ports_sum), style = MaterialTheme.typography.bodySmall)
+                if (receiveJob == null) Row(modifier = Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    TextField(value = udpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.broadcast_port)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { udpPort = it.toIntOrNull() ?: 0 })
+                    TextField(value = tcpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.port_label)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { tcpPort = it.toIntOrNull() ?: 0 })
+                } else Text("Receiving at port $tcpPort")
+                if (receiveJob == null) Row {
+                    Text(stringResource(R.string.content_type), modifier = Modifier.padding(end = 5.dp))
+                    Spinner(ContentType.entries.map { it.name }, ContentType.Feed.name) { index -> contentType = ContentType.entries.toTypedArray()[index] }
+                } else Text("Receiving: ${contentType.name}")
+            }
+        },
+        confirmButton = {
+            if (receiveJob == null && !ip.isNullOrBlank()) TextButton(onClick = {
+                if (udpPort != appAttribs.udpPort) upsertBlk(appAttribs) { it.udpPort = udpPort }
+                broadcastJob = scope.launch { broadcastPresence(udpPort, tcpPort) }
+                if (tcpPort != appAttribs.transceivePort) upsertBlk(appAttribs) { it.transceivePort = tcpPort }
+                receiver = when (contentType) {
+                    ContentType.Feed -> FeedReceiver(tcpPort, parentFolderId)
+                    ContentType.Catalog -> CatalogReceiver(tcpPort) { onDismiss() }
+                    ContentType.Episodes -> EpisodesReceiver(tcpPort) { onDismiss() }
+                }
+                receiveJob = scope.launch(Dispatchers.IO) { receiver!!.start() }
+            }) { Text(stringResource(R.string.start)) }
+        },
+        dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.stop)) } }
+    )
 }

@@ -182,7 +182,7 @@ class MainActivity : BaseActivity() {
                 PodciniTheme {
                     intentState?.let {
                         if (showUnrestrictedBackgroundPermissionDialog) UnrestrictedBackgroundPermissionDialog { showUnrestrictedBackgroundPermissionDialog = false }
-                        MainScreen()
+                        MainScreen(restoreLastScreen = it.getStringExtra("shortcut_route") != "DownloadLogs")
                     }
                 }
             }
@@ -399,9 +399,11 @@ class MainActivity : BaseActivity() {
                     "library" -> Library
                     "FindFeeds" -> FindFeeds
                     "Statistics" -> Statistics
+                    "DownloadLogs" -> ac.mdiq.podcini.ui.screens.DownloadLogs
                     else -> Library
                 }
                 navTo(screen)
+                if (route == "DownloadLogs") psState = PSState.PartiallyExpanded
             }
             else -> {
                 // deeplink

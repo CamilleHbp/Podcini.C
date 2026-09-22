@@ -135,7 +135,7 @@ fun UserInterfaceScreen() {
                         selected = level.code
                         upsertBlk(appPrefs) { p-> p.showLogLevel = level.code }
                     }
-                ) { Text(level.name, maxLines = 1) }
+                ) { Text(stringResource(when (level) { LogLevel.Debug -> R.string.archive_log_debug; LogLevel.Info -> R.string.archive_log_info; LogLevel.Error -> R.string.error_label; LogLevel.None -> R.string.archive_no_queue }), maxLines = 1) }
             }
         }
         Text(stringResource(R.string.pref_show_log_level_sum), color = textColor, style = MaterialTheme.typography.bodySmall,  modifier = Modifier.fillMaxWidth().padding(start = 16.dp))

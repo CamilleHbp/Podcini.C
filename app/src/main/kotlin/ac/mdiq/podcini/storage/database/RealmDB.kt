@@ -78,10 +78,14 @@ val config: RealmConfiguration by lazy {
         FacetsPrefs::class,
         SleepPrefs::class,
         SyncPrefs::class,
-    )).name("Podcini.realm").schemaVersion(166)
+    )).name("Podcini.realm").schemaVersion(168)
         .migration({ mContext ->
             val oldRealm = mContext.oldRealm // old realm using the previous schema
             val newRealm = mContext.newRealm // new realm using the new schema
+            if (oldRealm.schemaVersion() < 167) {
+                // Existing queues keep their previous circular playback behavior.
+                newRealm.query("PlayQueue").find().forEach { it.set("repeatQueue", true) }
+            }
             if (oldRealm.schemaVersion() < 157) {
                 migrationStep.value = "migrating for 157"
                 Log.d(TAG, "migrating DB from below 157")

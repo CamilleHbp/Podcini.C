@@ -120,34 +120,49 @@ suspend fun addToAssQueue(episodes: List<Episode>) {
     }
 }
 
-suspend fun addToQueue(episodes: List<Episode>, queue: PlayQueue) {
+suspend fun addToQueue(episodes: List<Episode>, queue: PlayQueue, location: EnqueueLocation? = null) {
     Logd(TAG) { "addToQueue( ... ) called" }
-    if (queue.isVirtual()) {
+    if (queue.isVirtual() && location == null) {
         Loge(TAG, "Current queue is virtual, ignored")
         return
     }
     val curPlaying = if (queue.id == actQueueFlow.value.id) theatres[0].mPlayerFlow.value?.curMediaFlow?.value else null
     realm.write {
-        for (e in episodes) {
-            var qes = queue.entries
-            if (qes.indexOfFirst { it.episodeId == e.id } >= 0) continue
-            val insertPosition = if (queue.autoSort) 0 else {
-                qes = queue.entries
-                calcPosition(qes, EnqueueLocation.fromCode(queue.enqueueLocation), curPlaying)
+        if (location != null) {
+            val existing = query(QueueEntry::class, "queueId == $0 SORT(position ASC)", queue.id).find().toList()
+            val chosen = episodes.map { it.id }.distinct()
+            val ordered = existing.map { it.episodeId }.filterNot { it in chosen }.toMutableList()
+            val index = when (location) {
+                EnqueueLocation.FRONT -> 0
+                EnqueueLocation.BACK -> ordered.size
+                EnqueueLocation.AFTER_CURRENTLY_PLAYING -> (ordered.indexOf(curPlaying?.id) + 1).coerceAtLeast(0)
+                EnqueueLocation.RANDOM -> Random.nextInt(ordered.size + 1)
             }
-            Logd(TAG) { "addToQueue insertPosition: $insertPosition" }
-            val qe = QueueEntry().apply {
+            ordered.addAll(index, chosen)
+            val byEpisode = existing.associateBy { it.episodeId }
+            ordered.forEachIndexed { order, id ->
+                val entry = byEpisode[id] ?: copyToRealm(QueueEntry().apply {
+                    this.id = getEntityId()
+                    queueId = queue.id
+                    episodeId = id
+                })
+                entry.position = (order + 1L) * QUEUE_POSITION_DELTA
+            }
+        } else for (e in episodes) {
+            val entries = query(QueueEntry::class, "queueId == $0 SORT(position ASC)", queue.id).find()
+            if (entries.any { it.episodeId == e.id }) continue
+            val insertPosition = if (queue.autoSort) 0 else calcPosition(entries, EnqueueLocation.fromCode(queue.enqueueLocation), curPlaying)
+            copyToRealm(QueueEntry().apply {
                 id = getEntityId()
                 queueId = queue.id
                 episodeId = e.id
                 position = insertPosition
-            }
-            copyToRealm(qe)
+            })
         }
     }
     val toSetStat = episodes.filter { it.playState < EpisodeState.QUEUE.code }
     if (toSetStat.isNotEmpty()) realm.write { for (e in toSetStat) findLatest(e)?.setPlayState(EpisodeState.QUEUE, false) }
-    if (queue.autoSort) queue.sort()
+    if (queue.autoSort && location == null) queue.sort()
 }
 
 suspend fun queueToVirtual(episode: Episode, episodes: List<Episode>, listIdentity: String, sortOrder: EpisodeSortOrder, playInSequence: Boolean = true) {

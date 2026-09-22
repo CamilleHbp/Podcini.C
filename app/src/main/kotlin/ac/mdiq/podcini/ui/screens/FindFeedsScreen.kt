@@ -2,6 +2,16 @@ package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.ui.compose.ArchiveTopBar
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
+import ac.mdiq.podcini.ui.screens.prefscreens.pfBackStack
+import ac.mdiq.podcini.ui.screens.prefscreens.PFNav
 import ac.mdiq.podcini.config.OpmlBackupAgent.Companion.performRestore
 import ac.mdiq.podcini.config.settings.OpmlTransporter.OpmlElement
 import ac.mdiq.podcini.sourcing.searcher.FeedSearchers
@@ -121,32 +131,38 @@ class FindFeedsVM: ViewModel() {
 //        search(searchText)
     }
 
-    @SuppressLint("StringFormatMatches")
+    private var searchGeneration = 0
+
     fun search(query: String) {
         if (query.isBlank()) return
-        if (searchJob != null) {
-            searchJob?.cancel()
-            searchResults = listOf()
-        }
+        searchJob?.cancel()
+        val generation = ++searchGeneration
+        searchResults = emptyList()
         errorText = ""
         retryQerry = ""
         showProgress = true
-        searchJob = viewModelScope.launch(Dispatchers.IO) {
-            fun feedId(r: FeedSearchResult): Long {
-                for (f in allFeeds) if (f.downloadUrl == r.feedUrl) return f.id
-                return 0L
-            }
+        searchJob = viewModelScope.launch {
             try {
-                val results = searchProvider.search(query)
-                for (r in results) r.feedId = feedId(r)
-                searchResults = results.sortedBy { it.title }
-                withContext(Dispatchers.Main) { showProgress = false }
+                val results = withContext(Dispatchers.IO) {
+                    searchProvider.search(query).onEach { result ->
+                        result.feedId = allFeeds.firstOrNull { it.downloadUrl == result.feedUrl }?.id ?: 0L
+                    }.sortedBy { it.title }
+                }
+                if (generation == searchGeneration) searchResults = results
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                showProgress = false
-                errorText = e.toString()
-                retryQerry = query
+                if (generation == searchGeneration) {
+                    errorText = e.toString()
+                    retryQerry = query
+                }
+            } finally {
+                if (generation == searchGeneration) {
+                    showProgress = false
+                    searchJob = null
+                }
             }
-        }.apply { invokeOnCompletion { searchJob = null } }
+        }
     }
 
     override fun onCleared() {
@@ -230,61 +246,61 @@ fun FindFeedsScreen() {
     @Composable
     fun TopBar() {
         val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
-        Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-            Row(modifier = Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_add), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 7.dp).clickable { drawerController?.open() })
-                SearchBarRow(R.string.search_podcast_hint, modifier = Modifier.weight(1f), defaultText = searchText, history = appAttribs.onlineSearchHistory) { str ->
+        Column {
+            ArchiveTopBar(stringResource(R.string.archive_discover)) {
+                IconButton(onClick = { navTo(Settings) }) { Icon(ImageVector.vectorResource(R.drawable.ic_settings), stringResource(R.string.archive_settings)) }
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                SearchBarRow(R.string.archive_search_hint, modifier = Modifier.weight(1f), defaultText = searchText, history = appAttribs.onlineSearchHistory) { str ->
                     if (str.isBlank()) return@SearchBarRow
                     searchText = str
                     upsertBlk(appAttribs) {
-                        if (str in it.onlineSearchHistory) it.onlineSearchHistory.remove(str)
+                        it.onlineSearchHistory.remove(str)
                         it.onlineSearchHistory.add(0, str)
-                        if (it.onlineSearchHistory.size > SearchHistorySize+4) it.onlineSearchHistory.apply { subList(SearchHistorySize, size).clear() }
+                        if (it.onlineSearchHistory.size > SearchHistorySize) it.onlineSearchHistory.subList(SearchHistorySize, it.onlineSearchHistory.size).clear()
                     }
-                    if (str.matches("http[s]?://.*".toRegex())) navTo(OnlineFeed(url=str))
-                    else vm.search(str)
+                    if (str.matches("http[s]?://.*".toRegex())) navTo(OnlineFeed(url = str)) else vm.search(str)
                 }
-                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), contentDescription = "Advanced", modifier = Modifier.padding(7.dp).clickable { showAdvanced = true })
             }
-            HorizontalDivider(modifier = Modifier.fillMaxWidth(), thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant)
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(onClick = { navTo(TopChart) }) { Text(stringResource(R.string.top_chart)) }
+                TextButton(onClick = { showAdvanced = true }) { Text(stringResource(R.string.archive_search_services)) }
+                TextButton(onClick = {
+                    try { addLocalFolderLauncher.launch(null) } catch (e: ActivityNotFoundException) { Logs(TAG, e, context.getString(R.string.unable_to_start_system_file_manager)) }
+                }) { Text(stringResource(R.string.archive_add_local)) }
+            }
         }
     }
 
-    Scaffold(topBar = { TopBar() }) { innerPadding ->
-        ConstraintLayout(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-            val (controlRow, gridView, progressBar, empty, txtvError, butRetry, powered) = createRefs()
-            Row(modifier = Modifier.padding(vertical = 8.dp, horizontal = 20.dp).fillMaxWidth().constrainAs(controlRow) { top.linkTo(parent.top) }) {
-                Text(stringResource(R.string.top_chart), color = actionColor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { navTo(TopChart) })
-                Spacer(Modifier.weight(1f))
-                Text(searchResults.size.toString(), color = textColor, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.weight(1f))
-                Text(stringResource(R.string.local_folder),color = actionColor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
-                    try { addLocalFolderLauncher.launch(null) } catch (e: ActivityNotFoundException) { Logs(TAG, e, context.getString(R.string.unable_to_start_system_file_manager)) }
-                })
-            }
-
-            if (vm.showProgress) CircularProgressIndicator(strokeWidth = 10.dp, modifier = Modifier.size(50.dp).constrainAs(progressBar) { centerTo(parent) })
-            if (searchResults.isNotEmpty()) LazyColumn(state = rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp).constrainAs(gridView) {
-                    top.linkTo(controlRow.bottom)
-                    bottom.linkTo(parent.bottom)
-                    start.linkTo(parent.start)
-                }) {
-                items(searchResults) { result ->
-                    val urlPrepared = remember(result.feedUrl) { prepareUrl(result.feedUrl!!) }
-                    val sLog = remember(urlPrepared, result.title, feedLogsMap) { feedLogsMap?.get(urlPrepared) ?: feedLogsMap?.get(result.title) }
-                    OnlineFeedItem(result, sLog)
+    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0), topBar = { TopBar() }) { innerPadding ->
+        Column(Modifier.padding(innerPadding).fillMaxSize()) {
+            when {
+                vm.showProgress -> {
+                    LinearProgressIndicator(Modifier.fillMaxWidth().padding(16.dp))
+                    Text(stringResource(R.string.archive_loading), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(24.dp))
                 }
-            } else Text(stringResource(R.string.no_results_for_query, searchText), color = textColor, modifier = Modifier.constrainAs(empty) { centerTo(parent) })
-            if (vm.errorText.isNotEmpty()) Text(vm.errorText, color = textColor, modifier = Modifier.constrainAs(txtvError) { centerTo(parent) })
-            if (vm.retryQerry.isNotEmpty()) Button(modifier = Modifier.padding(16.dp).constrainAs(butRetry) { top.linkTo(txtvError.bottom) }, onClick = { vm.search(vm.retryQerry) }) { Text(stringResource(id = R.string.retry)) }
-            Text(context.getString(R.string.search_powered_by, searchProvider.name), color = Color.Black, style = MaterialTheme.typography.labelSmall, modifier = Modifier.background(Color.LightGray)
-                .constrainAs(powered) {
-                    bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end)
-                })
+                vm.errorText.isNotBlank() -> ArchiveEmpty(R.string.archive_search_failed, R.string.archive_search_failed_body, R.string.archive_retry) { vm.search(vm.retryQerry.ifBlank { searchText }) }
+                searchText.isBlank() -> {
+                    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(stringResource(R.string.archive_find_podcast), style = MaterialTheme.typography.headlineSmall)
+                        Text(stringResource(R.string.archive_discover_body), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TextButton(onClick = { pfBackStack.add(PFNav.ImportExport); navTo(Settings) }) { Text(stringResource(R.string.archive_import)) }
+                    }
+                }
+                searchResults.isEmpty() -> Text(stringResource(R.string.no_results_for_query, searchText), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(24.dp))
+                else -> {
+                    Text(context.getString(R.string.search_powered_by, searchProvider.name), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                    LazyColumn(state = rememberLazyListState(), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                        items(searchResults) { result ->
+                            val urlPrepared = remember(result.feedUrl) { prepareUrl(result.feedUrl ?: "") }
+                            val sLog = remember(urlPrepared, result.title, feedLogsMap) { feedLogsMap?.get(urlPrepared) ?: feedLogsMap?.get(result.title) }
+                            OnlineFeedItem(result, sLog)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-private val TAG: String = Screens.FindFeeds.name
+private const val TAG = "FindFeedsScreen"

@@ -36,6 +36,11 @@ import ac.mdiq.podcini.storage.specs.VolumeAdaptionSetting
 import ac.mdiq.podcini.storage.utils.durationStringAdapt
 import ac.mdiq.podcini.storage.utils.durationStringFull
 import ac.mdiq.podcini.ui.actions.Combo
+import ac.mdiq.podcini.ui.compose.ArchiveCompactPlayer
+import ac.mdiq.podcini.ui.compose.ArchiveExpandedPlayer
+import ac.mdiq.podcini.ui.compose.ArchiveSeekBar
+import ac.mdiq.podcini.ui.compose.ArchiveTransport
+import androidx.activity.compose.BackHandler
 import ac.mdiq.podcini.ui.compose.ChooseRatingDialog
 import ac.mdiq.podcini.ui.compose.CommonPopupCard
 import ac.mdiq.podcini.ui.compose.EpisodeDetails
@@ -212,7 +217,7 @@ enum class PSState {
     }
 }
 
-private var actPlayerId by mutableIntStateOf(0)
+var actPlayerId by mutableIntStateOf(0)
 
 var allowSheetHide by mutableStateOf(false)
 var psState by mutableStateOf(PSState.PartiallyExpanded)
@@ -374,242 +379,21 @@ fun VolumeDialog(vm: AVPlayerVM, onDismiss: () -> Unit) {
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ControlUI(vm: AVPlayerVM) {
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val buttonColor1 = Color(0xEEAA7700)
-    val player_ by theatres[vm.playerId].mPlayerFlow.collectAsStateWithLifecycle()
-    val player = player_
-    val episode by player_?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
-
-    DisposableEffect(Unit) {
-        timeIt("$TAG start of DisposableEffect(Unit")
-        ensureAController()
-        timeIt("$TAG end of DisposableEffect(Unit")
-        onDispose {}
-    }
-
-    var showSpeedDialog by remember { mutableStateOf(false) }
-    if (showSpeedDialog) PlaybackSpeedFullDialog(vm.playerId, indexDefault = 0, maxSpeed = 3f, onDismiss = {showSpeedDialog = false})
-
-    var showVolumeDialog by remember { mutableStateOf(false) }
-    if (showVolumeDialog) VolumeDialog(vm) { showVolumeDialog = false }
-
-    var showSleepTimeDialog by remember { mutableStateOf(false) }
-    if (showSleepTimeDialog) SleepTimerDialog { showSleepTimeDialog = false }
-
-    @Composable
-    fun SpeedometerWithArc(speed: Float, maxSpeed: Float, trackColor: Color, modifier: Modifier) {
-        val needleAngleRad = remember(speed) { Math.toRadians(((speed / maxSpeed) * 270f - 225).toDouble()) }
-        Canvas(modifier = modifier) {
-            val radius = 1.3 * size.minDimension / 2
-            val strokeWidth = 6.dp.toPx()
-            val arcRect = Rect(left = strokeWidth / 2, top = strokeWidth / 2, right = size.width - strokeWidth / 2, bottom = size.height - strokeWidth / 2)
-            drawArc(color = trackColor, startAngle = 135f, sweepAngle = 270f, useCenter = false, style = Stroke(width = strokeWidth), topLeft = arcRect.topLeft, size = arcRect.size)
-            val needleEnd = Offset(x = size.center.x + (radius * 0.7f * cos(needleAngleRad)).toFloat(), y = size.center.y + (radius * 0.7f * sin(needleAngleRad)).toFloat())
-            drawLine(color = Color.Red, start = size.center, end = needleEnd, strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
-            drawCircle(color = Color.Cyan, center = size.center, radius = 3.dp.toPx())
-        }
-    }
-
-    var recordingStartTime by remember { mutableStateOf<Long?>(null) }
-
-    val velocityTracker = remember { VelocityTracker() }
-    val offsetX = remember(episode?.id) { Animatable(0f) }
-    val swipeVelocityThreshold = 1500f
-    val swipeDistanceThreshold = with(LocalDensity.current) { 150.dp.toPx() }
-    Row(Modifier.pointerInput(Unit) {
-        detectHorizontalDragGestures(
-            onDragStart = { velocityTracker.resetTracking() },
-            onHorizontalDrag = { change, dragAmount ->
-                Logd(TAG) { "detectHorizontalDragGestures onHorizontalDrag $dragAmount" }
-                if (abs(dragAmount) > 4) {
-                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                    scope.launch { offsetX.snapTo(offsetX.value + dragAmount) }
-                }
-            },
-            onDragEnd = {
-                Logd(TAG) { "detectHorizontalDragGestures onDragEnd" }
-                scope.launch {
-                    val velocity = velocityTracker.calculateVelocity().x
-                    val distance = offsetX.value
-                    Logd(TAG) { "detectHorizontalDragGestures velocity: $velocity distance: $distance" }
-                    val shouldSwipe = abs(distance) > swipeDistanceThreshold && abs(velocity) > swipeVelocityThreshold
-                    if (shouldSwipe) {
-                        if (distance < 0) {
-                            allowSheetHide = true
-                            psState = PSState.Hidden
-                        }
-                        else showSleepTimeDialog = true
-                    }
-//                    offsetX.animateTo(targetValue = 0f, animationSpec = tween(300))
-                }
-            },
-        )
-    }) {
-        AsyncImage(model = ImageRequest.Builder(context).data(episode?.images?.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.width(50.dp).height(50.dp).border(border = BorderStroke(1.dp, borderColor)).padding(start = 5.dp).combinedClickable(
-            onClick = {
-                Logd(TAG) { "playerUi icon was clicked $psState" }
-                actPlayerId = vm.playerId
-                if (psState == PSState.PartiallyExpanded) {
-                    episode?.let {
-                        if (playbackService == null) PlaybackStarter(it).start(vm.playerId)
-                        psState = PSState.Expanded
-                    }
-                } else psState = PSState.PartiallyExpanded
-            },
-            onLongClick = {
-                vm.episodeFeed?.let {
-                    navTo(FeedDetails(it.id))
-                    psState = PSState.PartiallyExpanded
-                }
-            }))
-        val buttonSize = 46.dp
-        Spacer(Modifier.weight(0.1f))
-        Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.size(50.dp).combinedClickable(onClick = { showSpeedDialog = true }, onLongClick = { showVolumeDialog = true })) {
-            SpeedometerWithArc(speed = vm.curPlaybackSpeed*100, maxSpeed = 300f, trackColor = buttonColor, modifier = Modifier.width(40.dp).height(40.dp).align(Alignment.Center))
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_volume_adaption), tint = buttonColor1, contentDescription = "Volume adaptation", modifier = Modifier.align(Alignment.Center))
-            Text(formatNumberKmp(vm.curPlaybackSpeed.toDouble()), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.BottomCenter))
-        }
-        Spacer(Modifier.weight(0.1f))
-        val isRecording by isRecordingFlow.collectAsStateWithLifecycle()
-        val recordColor = if (!isRecording) { if (episode != null && player?.isPlaying == true) buttonColor else Color.Gray } else Color.Red
-        Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_fiber_manual_record_24), tint = recordColor, contentDescription = "record",
-            modifier = Modifier.size(buttonSize).combinedClickable(
-                onClick = {
-                    if (episode != null && player?.isPlaying == true) {
-                        val pos = player.getPosition().toLong()
-                        runOnIOScope { upsert(episode!!) { it.marks.add(pos) } }
-                        Logt(TAG, "position $pos marked for ${episode?.title}")
-                    } else Loge(TAG, "Marking position only works during playback.") },
-                onLongClick = {
-                    if (episode != null && player?.isPlaying == true) {
-                        if (recordingStartTime == null) {
-                            recordingStartTime = player.getPosition().toLong()
-                            player.recordClip(recordingStartTime!!)
-                        } else {
-                            player.recordClip(recordingStartTime!!, player.getPosition().toLong())
-                            recordingStartTime = null
-                        }
-                    } else Loge(TAG, "Recording only works during playback.")
-                }))
-        Spacer(Modifier.weight(0.1f))
-        Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.size(50.dp).combinedClickable(
-            onClick = { player?.seekDelta(-rewindSecs * 1000) }, onLongClick = { player?.seekTo(0) })) {
-            val rewindSecs = remember(rewindSecs) { formatWithGrouping(rewindSecs.toLong()) }
-            Text(rewindSecs, color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.TopCenter))
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_skip_previous_24), tint = buttonColor, contentDescription = "rewind", modifier = Modifier.size(buttonSize).align(Alignment.Center))
-        }
-        Spacer(Modifier.weight(0.1f))
-        Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.size(50.dp).combinedClickable(
-            onClick = {
-                Logd(TAG) { "onClick Play/Pause: vm.playerId: ${vm.playerId}" }
-                if (episode != null) {
-//                    vm.showPlayButton = !vm.showPlayButton
-                    if (vm.showPlayButton && recordingStartTime != null) {
-                        player?.recordClip(recordingStartTime!!, (player.getPosition()).toLong())
-                        recordingStartTime = null
-                    }
-                    Logd(TAG) { "Play button clicked: status: ${player?.statusSimpleFlow?.value} is ready: ${playbackService?.isServiceReady()}" }
-                    PlaybackStarter(episode!!).shouldStreamThisTime(null).start(vm.playerId)
-                    if (episode?.mediaType == MediaType.VIDEO && player?.isPlaying != true && (vm.episodeFeed?.videoModePolicy != VideoMode.AUDIO_ONLY)) {
-                        if (!vm.showPlayButton && psState != PSState.Expanded) psState = PSState.Expanded
-                    }
-                }
-            },
-            onLongClick = {
-                if (player?.isPlaying == true) {
-                    val speedFB = fallbackSpeed
-                    if (speedFB > 0.1f) player.toggleFallbackSpeed(speedFB)
-                } })) {
-            val playButRes = if (vm.showPlayButton) R.drawable.ic_play_48dp else R.drawable.ic_pause
-            Icon(imageVector = ImageVector.vectorResource(playButRes), tint = buttonColor, contentDescription = "play", modifier = Modifier.size(buttonSize).align(Alignment.Center))
-            if (fallbackSpeed > 0.1f) Text(fallbackSpeed.toString(), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.BottomCenter))
-        }
-        Spacer(Modifier.weight(0.1f))
-        Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.size(50.dp).combinedClickable(
-            onClick = { player?.seekDelta(fastForwardSecs * 1000) }, onLongClick = {
-                if (player?.isPlaying == true) {
-                    val speedForward = speedforwardSpeed
-                    if (speedForward > 0.1f) player.speedForward(speedForward)
-                }
-            })) {
-            val fastForwardSecs = remember(fastForwardSecs) { formatWithGrouping(fastForwardSecs.toLong()) }
-            Text(fastForwardSecs, color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.TopCenter))
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_fast_forward), tint = buttonColor, contentDescription = "forward", modifier = Modifier.size(buttonSize).align(Alignment.Center))
-            if (speedforwardSpeed > 0.1f) Text(formatNumberKmp(speedforwardSpeed), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.BottomCenter))
-        }
-        Spacer(Modifier.weight(0.1f))
-        Box(contentAlignment = Alignment.BottomCenter, modifier = Modifier.size(50.dp).combinedClickable(
-            onClick = {
-                if (player?.isPlaying == true) {
-                    val speedForward = skipforwardSpeed
-                    if (speedForward > 0.1f) player.speedForward(speedForward)
-                } },
-            onLongClick = {
-                //                    context.sendBroadcast(MediaButtonReceiver.createIntent(context, KeyEvent.KEYCODE_MEDIA_NEXT))
-                if (player?.isPlaying == true || player?.isPaused == true) player.skip()
-            })) {
-            if (skipforwardSpeed > 0.1f) Text(formatNumberKmp(skipforwardSpeed), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.TopCenter))
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_skip_48dp), tint = buttonColor, contentDescription = "skip", modifier = Modifier.size(buttonSize).align(Alignment.Center))
-        }
-        Spacer(Modifier.weight(0.1f))
-    }
-}
+fun ControlUI(vm: AVPlayerVM) { ArchiveTransport(vm) }
 
 @Composable
-fun ProgressBar(vm: AVPlayerVM) {
-    val player_ by theatres[vm.playerId].mPlayerFlow.collectAsStateWithLifecycle()
-    val player = player_
-    val episode by player_?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
-    val bufferValue by player?.bufferedPercentFlow?.collectAsStateWithLifecycle() ?: remember { mutableIntStateOf(0) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        var sliderValue by remember(episode?.position) { mutableFloatStateOf((episode?.position?:0).toFloat()) }
-        val actColor = MaterialTheme.colorScheme.tertiary
-        val inActColor = MaterialTheme.colorScheme.secondaryFixedDim
-        val distColor = remember { distinctColorOf(actColor, inActColor) }
-        Slider(colors = SliderDefaults.colors(activeTrackColor = actColor,  inactiveTrackColor = inActColor), modifier = Modifier.height(12.dp).padding(top = 2.dp),
-            value = sliderValue, valueRange = 0f..( if ((episode?.duration?:0) > 0) episode?.duration?:0 else 30000).toFloat(),
-            onValueChange = { sliderValue = it }, onValueChangeFinished = { player?.seekTo(sliderValue.toInt()) })
-        LinearProgressIndicator(progress = { 0.01f*bufferValue }, color = distColor.copy(alpha = 0.3f), trackColor = inActColor, modifier = Modifier.height(4.dp).fillMaxWidth().align(Alignment.BottomStart))
-        Text(durationStringFull(episode?.duration?:0), color = distColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.BottomCenter))
-    }
-    Row {
-        val pastText = remember(episode?.position) { if (episode == null) "" else durationStringAdapt(episode!!.position) + " *" + durationStringAdapt(episode!!.timeSpent.toInt()) }
-        Text(pastText, color = textColor, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.weight(1f))
-        val bitrate by player?.bitrateFlow?.collectAsStateWithLifecycle() ?: remember { mutableIntStateOf(0) }
-        val resolution by player?.resolutionFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf("") }
-        val mimeType by player?.mimeTypeFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf("") }
-        val channelCount by player?.channelCountFlow?.collectAsStateWithLifecycle() ?: remember { mutableIntStateOf(0) }
-        val info = remember(mimeType, channelCount, bitrate, resolution) {
-            val mime = if (mimeType.isBlank()) "" else "$mimeType "
-            val bitrate = if (bitrate > 0) " ${formatLargeIntegerBrief(bitrate)}bps" else ""
-            "$mime$channelCount $bitrate $resolution"
-        }
-        Text(info, color = textColor, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.weight(1f))
-        val curPlayerSpeed by player?.curPlayerSpeedFlow?.collectAsStateWithLifecycle() ?: remember { mutableFloatStateOf(1f) }
-        val lengthText = remember(curPlayerSpeed, episode?.position) {  run {
-            if (episode == null) return@run ""
-            val remainingTime = max((episode!!.duration - episode!!.position), 0)
-            val onSpeed = if (curPlayerSpeed > 0 && abs(curPlayerSpeed-1f) > 0.001) (remainingTime / curPlayerSpeed).toInt() else 0
-            (if (onSpeed > 0) "*" + durationStringAdapt(onSpeed) else "") + " -" + durationStringAdapt(remainingTime)
-        } }
-        Text(lengthText, color = textColor, style = MaterialTheme.typography.bodySmall)
-    }
-}
+fun ProgressBar(vm: AVPlayerVM) { ArchiveSeekBar(vm) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AVPlayerScreen() {
+fun AVPlayerScreen(embedded: Boolean = false) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) { ensureAController() }
     val vm0: AVPlayerVM0 = viewModel()
     val vms: List<AVPlayerVM> = listOf(
         viewModel(key = "0", factory = viewModelFactory { initializer { AVPlayerVM(playerId = 0) } }),
@@ -750,21 +534,6 @@ fun AVPlayerScreen() {
         }
     }
 
-    @Composable
-    fun PlayerUI(vm: AVPlayerVM, modifier: Modifier) {
-        val player by theatres[vm.playerId].mPlayerFlow.collectAsStateWithLifecycle()
-        val episode by player?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
-//        Logd(TAG) { "PlayerUI vm.playerId: ${vm.playerId} ${episode?.id}" }
-        Box(modifier = modifier.fillMaxWidth().height(100.dp).border(1.dp, MaterialTheme.colorScheme.tertiary)) {
-            AsyncImage(model = (episode?.images?.firstOrNull() ?: episode?.feed?.images?.firstOrNull())?.href, imageLoader = imageLoader, contentDescription = "bgImage", contentScale = ContentScale.FillBounds, error = painterResource(R.drawable.teaser), modifier = Modifier.matchParentSize().blur(radiusX = 3.dp, radiusY = 3.dp))
-            Box(modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)))
-            Column {
-                Text(episode?.title ?: "No title", maxLines = 1, color = textColor, style = MaterialTheme.typography.bodyMedium)
-                ProgressBar(vm)
-                ControlUI(vm)
-            }
-        }
-    }
 
     var showShareDialog by remember { mutableStateOf(false) }
     if (showShareDialog && curMedia != null) ShareDialog(curMedia) {showShareDialog = false }
@@ -779,7 +548,8 @@ fun AVPlayerScreen() {
         val episode = episode_ ?: return
         val client = remember(episode.id) { clientByEpisode(episode) }
         if (vm.showActionBar) Row(modifier = modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_down), tint = textColor, contentDescription = "Collapse", modifier = Modifier.clickable { psState = PSState.PartiallyExpanded })
+            IconButton(onClick = { psState = PSState.PartiallyExpanded }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_down), contentDescription = stringResource(R.string.archive_close_player)) }
+            Text(stringResource(R.string.archive_now_playing), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             if (vm0.landscape) Column {
                 Text(text = episode.title?:"", fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(text = episode.feed?.title?:"", fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -857,7 +627,8 @@ fun AVPlayerScreen() {
         val mediaType = remember(episode.id) { episode.mediaType }
         val client = remember(episode.id) { clientByEpisode(episode) }
         Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_down), tint = textColor, contentDescription = "Collapse", modifier = Modifier.clickable { psState = PSState.PartiallyExpanded })
+            IconButton(onClick = { psState = PSState.PartiallyExpanded }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_down), contentDescription = stringResource(R.string.archive_close_player)) }
+            Text(stringResource(R.string.archive_now_playing), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             if (episode.captionCues.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = "transcript", modifier = Modifier.clickable { showTransDialog = true })
             if (mediaType == MediaType.VIDEO && client?.attributes?.hasSeparateAVs == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_fullscreen_24), tint = textColor, contentDescription = "Play video",
                 modifier = Modifier.clickable {
@@ -869,8 +640,7 @@ fun AVPlayerScreen() {
                 })
             if (client?.attributes?.hasMultiQualities == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_stream_24), contentDescription = "change stream", modifier = Modifier.clickable { showAVChooser = true })
 
-            val sleepRes = if (vm0.sleepTimerActive) R.drawable.ic_sleep_off else R.drawable.ic_sleep
-            Icon(imageVector = ImageVector.vectorResource(sleepRes), tint = textColor, contentDescription = "Sleep timer", modifier = Modifier.clickable { showSleepTimeDialog = true })
+
             (context as? BaseActivity)?.CastIconButton()
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                 IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
@@ -1302,54 +1072,32 @@ fun AVPlayerScreen() {
 
 //    Logd(TAG) { "landscape: ${vm.landscape}" }
 //    if ((landscape || curVideoMode == VideoMode.FULL_SCREEN || (curVideoMode == VideoMode.DEFAULT && appPrefs.videoPlaybackMode == VideoMode.FULL_SCREEN.code)) && playVideo && bsState == BSState.Expanded) {
+    var reading by remember(curMedia?.id) { mutableStateOf(false) }
+    DisposableEffect(reading) {
+        if (reading) handleBackSubScreens.add("ArchiveReader")
+        onDispose { handleBackSubScreens.remove("ArchiveReader") }
+    }
+    BackHandler(enabled = psState == PSState.Expanded) {
+        if (reading) reading = false else psState = PSState.PartiallyExpanded
+    }
     if (vm0.landscape && playingVideo && psState == PSState.Expanded) {
         Box {
             FullScreenVideoPlayer(vms[actPlayerId])
             VideoToolBar(vms[actPlayerId], modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter))
         }
-    } else Box(modifier = Modifier.fillMaxWidth().then(if (psState == PSState.PartiallyExpanded) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier.statusBarsPadding().navigationBarsPadding())) {
-        Column(Modifier.align(if (psState == PSState.PartiallyExpanded) Alignment.TopCenter else Alignment.BottomCenter).zIndex(1f)) {
-            Logd(TAG) { "activeTheatres: $theatresCount playerMinHeight: $playerMinHeight" }
-            if (theatresCount == 2) {
-                PlayerUI(vms[1], Modifier)
-                var sliderValue by remember { mutableFloatStateOf(0.5f) }
-                Slider(modifier = Modifier.height(12.dp).padding(top = 2.dp), value = sliderValue, onValueChange = { sliderValue = it },
-                    onValueChangeFinished = {
-                        when {
-                            sliderValue > 0.51 -> {
-                                val v = ((1f - sliderValue) / 0.5f).pow(2)
-                                player1?.setVolume(1f, 1f)
-                                player0?.setVolume(v, v)
-                            }
-                            sliderValue < 0.49 -> {
-                                val v = (sliderValue / 0.5f).pow(2)
-                                player1?.setVolume(v, v)
-                                player0?.setVolume(1f, 1f)
-                            }
-                            else -> {
-                                player0?.setVolume(1f, 1f)
-                                player1?.setVolume(1f, 1f)
-                            }
-                        }
-                    })
-            }
-            PlayerUI(vms[0], Modifier)
-        }
-        if (psState == PSState.Expanded) {
-            Column(Modifier.padding(bottom = playerMinHeight.dp)) {
-                if (playingVideo) {
-                    VideoToolBar(vms[actPlayerId])
-                    VideoPlayer(vms[actPlayerId])
-                } else Toolbar(vms[actPlayerId])
-                Row(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.playlist_play), tint = buttonColor, contentDescription = "queues icon", modifier = Modifier.width(24.dp).height(24.dp))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_left_alt_24), tint = textColor, contentDescription = "left_arrow", modifier = Modifier.width(24.dp).height(24.dp))
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), tint = textColor, contentDescription = "right_arrow", modifier = Modifier.width(24.dp).height(24.dp))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_feed), tint = buttonColor, contentDescription = "feed icon", modifier = Modifier.width(24.dp).height(24.dp))
-                }
-                DetailUI(vms[actPlayerId], modifier = Modifier.fillMaxSize())
-            }
+    } else if (psState != PSState.Expanded && !embedded) {
+        ArchiveCompactPlayer(vms[actPlayerId])
+    } else {
+        Column(Modifier.fillMaxSize().statusBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (embedded || curMedia == null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (!embedded) IconButton(onClick = { psState = PSState.PartiallyExpanded }) { Icon(ImageVector.vectorResource(R.drawable.ic_arrow_down), stringResource(R.string.archive_close_player)) }
+                Text(stringResource(R.string.archive_now_playing), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(horizontal = 16.dp))
+                if (embedded) TextButton(onClick = { psState = PSState.Expanded }) { Text(stringResource(R.string.archive_open_player)) }
+            } else if (playingVideo) VideoToolBar(vms[actPlayerId]) else Toolbar(vms[actPlayerId])
+            if (reading) {
+                TextButton(onClick = { reading = false }) { Text(stringResource(R.string.archive_now_playing)) }
+                DetailUI(vms[actPlayerId], Modifier.weight(1f).navigationBarsPadding())
+            } else ArchiveExpandedPlayer(vms[actPlayerId], singleColumn = embedded, onDetails = { reading = true }, video = if (playingVideo) ({ VideoPlayer(vms[actPlayerId]) }) else null)
         }
     }
 }

@@ -32,6 +32,7 @@ import ac.mdiq.podcini.ui.compose.EpisodeLazyColumn
 import ac.mdiq.podcini.ui.compose.EpisodeScreen
 import ac.mdiq.podcini.ui.compose.EpisodeSortDialog
 import ac.mdiq.podcini.ui.compose.InforBar
+import ac.mdiq.podcini.ui.compose.EpisodeListInfoBar
 import ac.mdiq.podcini.ui.compose.LayoutMode
 import ac.mdiq.podcini.ui.compose.PlayRandom
 import ac.mdiq.podcini.ui.compose.SearchBarRow
@@ -278,6 +279,7 @@ fun SearchScreen() {
     val scope = rememberCoroutineScope()
 
     val vm: SearchVM = viewModel()
+    val episodes by vm.episodesFlow.collectAsStateWithLifecycle()
 
     var swipeActions by remember { mutableStateOf(SwipeActions(TAG)) }
 
@@ -359,7 +361,7 @@ fun SearchScreen() {
                         if (vm.selectedTabIndex == 2) scope.launch(Dispatchers.IO) { vm.searchRemoteMedia() }
                         saveToSearchHistory()
                     }
-                    if (vm.selectedTabIndex in listOf(0, 2)) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
+                    if ((vm.selectedTabIndex == 0 && episodes.isNotEmpty()) || (vm.selectedTabIndex == 2 && vm.remoteMedia.isNotEmpty())) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
                 } },
                 navigationIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back or drawer", modifier = Modifier.padding(horizontal = 7.dp).clickable { if (!navBack()) drawerController?.open()  }) },
                 actions = {
@@ -385,7 +387,7 @@ fun SearchScreen() {
                                 showRemoteSearchers = true
                                 expanded = false
                             })
-                            if (!vm.searchingRemote) DropdownMenuItem(text = { Text(stringResource(R.string.reserve_all)) }, onClick = {
+                            if (!vm.searchingRemote && vm.remoteMedia.isNotEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.reserve_all)) }, onClick = {
                                 showReserveAllDialog = true
                                 expanded = false
                             })
@@ -396,7 +398,6 @@ fun SearchScreen() {
         }
     }
 
-    val episodes by vm.episodesFlow.collectAsStateWithLifecycle()
     val assFeeds by vm.assFeedsFlow.collectAsStateWithLifecycle()
 
     val infoBarText = remember(episodes.size) { mutableStateOf("${episodes.size} episodes") }
@@ -446,7 +447,7 @@ fun SearchScreen() {
                             item { Text(text = stringResource(R.string.feeds_from_search), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
                             items(items = vm.feeds, key = { "vm_${it.id}" }) { feed -> FeedRow(feed) }
                         }
-                        item { HorizontalDivider(modifier = Modifier.fillMaxWidth()) }
+                        if (vm.feeds.isNotEmpty() && assFeeds.isNotEmpty()) item { HorizontalDivider(modifier = Modifier.fillMaxWidth()) }
                         if (assFeeds.isNotEmpty()) {
                             item { Text(stringResource(R.string.associated_feeds_from_episodes), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) }
                             items(items = assFeeds, key = { "ass_${it.id}" }) { feed -> FeedRow(feed) }
@@ -475,11 +476,7 @@ fun SearchScreen() {
 
                 when (vm.selectedTabIndex) {
                     0 -> {
-                        InforBar(swipeActions) {
-                            Text(infoBarText.value, style = MaterialTheme.typography.bodyMedium)
-                            Spacer(modifier = Modifier.weight(0.1f))
-                            PlayRandom(episodes)
-                        }
+                        EpisodeListInfoBar(episodes, infoBarText.value, swipeActions)
                         EpisodeLazyColumn(episodes, swipeActions = swipeActions, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, EpisodeSortOrder.DATE_DESC) } })
                     }
                     1 -> FeedsColumn()

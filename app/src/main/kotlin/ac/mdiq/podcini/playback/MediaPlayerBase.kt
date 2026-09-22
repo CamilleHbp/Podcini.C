@@ -94,6 +94,8 @@ abstract class MediaPlayerBase {
     internal var status = PlayerStatus.STOPPED
 
     val statusSimpleFlow = MutableStateFlow(PlayerStatusSimple.OTHER)
+    val loadingFlow = MutableStateFlow(false)
+    val playbackErrorFlow = MutableStateFlow(false)
 
     val isPlaying: Boolean
         get() = status == PlayerStatus.PLAYING
@@ -170,6 +172,7 @@ abstract class MediaPlayerBase {
     val mimeTypeFlow = MutableStateFlow("")
     val channelCountFlow = MutableStateFlow(0)
     val shouldRepeatFlow = MutableStateFlow(false)
+    val clipStartFlow = MutableStateFlow<Long?>(null)
 
     private var positionSaverJob: Job? = null
     private var bufferPollingJob: Job? = null
@@ -213,6 +216,7 @@ abstract class MediaPlayerBase {
 
     fun setAsCurMedia(episode: Episode?) {
         if (episode != null && episode.id == curMediaFlow.value?.id) return
+        cancelClipRecording()
         curMediaScope?.cancel()
         val episode_ = if (episode != null) {
             val e = episodeById(episode.id)
@@ -262,6 +266,9 @@ abstract class MediaPlayerBase {
         //        showStackTrace()
         oldStatus = status
         status = newStatus
+        if (newStatus == PlayerStatus.ERROR) playbackErrorFlow.value = true
+        if (newStatus in listOf(PlayerStatus.ERROR, PlayerStatus.PREPARED, PlayerStatus.PLAYING)) loadingFlow.value = false
+        if (newStatus == PlayerStatus.PLAYING) playbackErrorFlow.value = false
         statusSimpleFlow.value = PlayerStatusSimple.fromStatus(status)
 
         //        currentMediaType = mediaType
@@ -435,6 +442,8 @@ abstract class MediaPlayerBase {
             Logd(TAG) { "prepareMedia Method call was ignored: media file already playing." }
             return
         }
+        playbackErrorFlow.value = false
+        loadingFlow.value = true
         dataSourceJob?.cancel()
         if (curMediaFlow.value != null && curMediaFlow.value?.id != playable.id) {
             prevMedia = curMediaFlow.value
@@ -606,9 +615,9 @@ abstract class MediaPlayerBase {
 
     internal abstract fun notifyWidget()
 
-    private fun getNextInQueue(): Episode? {
+    private fun getNextInQueue(manualAdvance: Boolean = false): Episode? {
         Logd(TAG) { "getNextInQueue called curMediaFlow.value: ${curMediaFlow.value?.getEpisodeTitle()}" }
-        if (!actQueueFlow.value.playInSequence) {
+        if (!manualAdvance && !actQueueFlow.value.playInSequence) {
             Logd(TAG) { "getNextInQueue(), but follow queue is not enabled." }
             saveCurState()
             return null
@@ -629,6 +638,7 @@ abstract class MediaPlayerBase {
             when {
                 !isCurMedia(qes[curIndex].episodeId) -> qes[curIndex]
                 qes.size == 1 -> return null
+                curIndex == qes.lastIndex && !actQueueFlow.value.repeatQueue -> return null
                 else -> {
                     var j = if (curIndex < qes.size - 1) curIndex + 1 else 0
                     val start = j
@@ -647,7 +657,7 @@ abstract class MediaPlayerBase {
         return nextItem
     }
 
-    internal fun endPlayback(hasEnded: Boolean, wasSkipped: Boolean, shouldContinue: Boolean = true) {
+    internal fun endPlayback(hasEnded: Boolean, wasSkipped: Boolean, shouldContinue: Boolean = true, manualAdvance: Boolean = false) {
         showStackTrace()
         if (curMediaFlow.value == null) {
             Logd(TAG) { "endPlayback curMediaFlow.value is null, return" }
@@ -671,7 +681,7 @@ abstract class MediaPlayerBase {
             shouldContinue -> {
                 // Load next episode if previous episode was in the queue and if there is an episode in the queue left.
                 // Start playback immediately if continuous playback is enabled
-                val nextMedia = getNextInQueue()
+                val nextMedia = getNextInQueue(manualAdvance)
                 if (nextMedia == null) {
                     currentMedia?.let { onPostPlayback(it, hasEnded, wasSkipped, false) }
                     stopPlayer()
@@ -715,11 +725,11 @@ abstract class MediaPlayerBase {
 
     open fun setAudioTrack(track: Int) {}
 
-    fun skip() {
+    fun skip(force: Boolean = false) {
 //        in first second of playback, ignoring skip
-        if (getPosition() < 1000) return
+        if (!force && getPosition() < 1000) return
         isSkipping = true
-        endPlayback(hasEnded = false, wasSkipped = !shouldRepeatFlow.value)
+        endPlayback(hasEnded = false, wasSkipped = force || !shouldRepeatFlow.value, manualAdvance = force)
     }
 
     protected fun positionWithRewind(currentPosition: Int, lastPlayedTime: Long): Int {
@@ -971,6 +981,8 @@ abstract class MediaPlayerBase {
         Logd(TAG) { "setVideoSpec use video quality: ${videoSpec.resolution}" }
         return videoSpec
     }
+
+    open fun cancelClipRecording() { clipStartFlow.value = null }
 
     abstract fun recordClip(startPositionMs: Long, endPositionMs: Long? = null)
 

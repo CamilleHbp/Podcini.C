@@ -14,9 +14,18 @@ import ac.mdiq.podcini.ui.compose.commonMessage
 import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Loge
 import ac.mdiq.podcini.utils.Logt
+import ac.mdiq.podcini.utils.EventFlow
+import ac.mdiq.podcini.utils.FlowEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import ac.mdiq.podcini.ui.compose.ArchiveNavigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -53,6 +62,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalConfiguration
@@ -69,6 +79,8 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,155 +93,132 @@ var playerMinHeight by mutableIntStateOf(100)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val context by rememberUpdatedState(LocalContext.current)
-    val lcScope = rememberCoroutineScope()
-    val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            Logd(TAG) { "DisposableEffect LifecycleEventObserver: $event" }
-            when (event) {
-                Lifecycle.Event.ON_CREATE -> {
-                    if (appAttribsFlow!!.value.restoreLastScreen) {
-                        val restored: List<NavKey> = Json.decodeFromString(appAttribsFlow!!.value.backstack)
-                        if (restored.isNotEmpty()) backStack.addAll(restored.take(10))
-                    }
-                }
-                Lifecycle.Event.ON_START -> {}
-                Lifecycle.Event.ON_RESUME -> {}
-                Lifecycle.Event.ON_STOP -> {}
-                Lifecycle.Event.ON_DESTROY -> {}
-                else -> {}
-            }
+fun MainScreen(restoreLastScreen: Boolean = true) {
+    val windowView = androidx.compose.ui.platform.LocalView.current
+    val lightSystemBars = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    fun syncSystemBarAppearance() {
+        val window = (windowView.context as? android.app.Activity)?.window ?: return
+        androidx.core.view.WindowCompat.getInsetsController(window, windowView).apply {
+            isAppearanceLightStatusBars = lightSystemBars
+            isAppearanceLightNavigationBars = lightSystemBars
+        }
+    }
+    androidx.compose.runtime.SideEffect { syncSystemBarAppearance() }
+    DisposableEffect(lifecycleOwner, lightSystemBars) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) syncSystemBarAppearance()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {}
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
-    val sheetState = rememberBottomSheetScaffoldState(bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.PartiallyExpanded,
-        confirmValueChange = { targetValue -> if (targetValue == SheetValue.Hidden) allowSheetHide else true }, skipHiddenState = false))
-    val player0 by theatres[0].mPlayerFlow.collectAsStateWithLifecycle()
-    val curMedia0 by player0?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
-
-    LaunchedEffect(Unit) { snapshotFlow { sheetState.bottomSheetState.targetValue }.distinctUntilChanged().collect { targetValue ->
-        val state = PSState.fromSheet(targetValue)
-        if (psState != state) psState = state
-    } }
-
-    LaunchedEffect(curMedia0?.id, psState) {
-        Logd(TAG) { "LaunchedEffect(curMedia0?.id, psState) curMedia0: ${curMedia0?.id} ${psState.name}" }
-        if ((curMedia0?.id ?: -1L) <= 0) {
-            allowSheetHide = true
-            if (sheetState.bottomSheetState.targetValue != SheetValue.Hidden) sheetState.bottomSheetState.hide()
-            allowSheetHide = false
-            return@LaunchedEffect
-        }
-        val targetSheetValue = when (psState) {
-            PSState.Expanded -> SheetValue.Expanded
-            PSState.PartiallyExpanded -> SheetValue.PartiallyExpanded
-            PSState.Hidden -> SheetValue.Hidden
-        }
-        if (sheetState.bottomSheetState.targetValue != targetSheetValue) {
-            when (targetSheetValue) {
-                SheetValue.Expanded -> sheetState.bottomSheetState.expand()
-                SheetValue.PartiallyExpanded -> sheetState.bottomSheetState.partialExpand()
-                SheetValue.Hidden -> sheetState.bottomSheetState.hide()
+    val scope = rememberCoroutineScope()
+    val downloadSnackbar = remember { SnackbarHostState() }
+    val downloadDetailsLabel = stringResource(R.string.download_error_details)
+    LaunchedEffect(downloadDetailsLabel) {
+        EventFlow.events.filterIsInstance<FlowEvent.DownloadMessageEvent>().collectLatest { event ->
+            val result = downloadSnackbar.showSnackbar(event.message,
+                actionLabel = downloadDetailsLabel, withDismissAction = true)
+            if (result == SnackbarResult.ActionPerformed) {
+                psState = if (theatres.any { it.mPlayerFlow.value?.curMediaFlow?.value != null }) PSState.PartiallyExpanded else PSState.Hidden
+                navTo(DownloadLogs)
             }
-            allowSheetHide = false
         }
     }
-
-    val bottomInsets = WindowInsets.ime.union(WindowInsets.navigationBars)
-    val bottomInsetPadding = bottomInsets.asPaddingValues().calculateBottomPadding()
-    val dynamicBottomPadding = when (sheetState.bottomSheetState.targetValue) {
-        SheetValue.Expanded -> bottomInsetPadding + 300.dp
-        SheetValue.PartiallyExpanded -> bottomInsetPadding + playerMinHeight.dp
-        else -> bottomInsetPadding
-    }
-    var savedDrawerValue by rememberSaveable { mutableStateOf(DrawerValue.Closed) }
-
-    val drawerState = rememberDrawerState(initialValue = savedDrawerValue)
-
-    val configuration = LocalConfiguration.current
-    LaunchedEffect(configuration.orientation) {
-        Logd(TAG) { "LaunchedEffect(configuration.orientation)" }
-        withFrameNanos { }
-        drawerState.snapTo(savedDrawerValue)
-    }
-
-    LaunchedEffect(drawerState.currentValue) { savedDrawerValue = drawerState.currentValue }
-    val drawerCtrl = remember {
+    val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
+    val player0 by theatres[0].mPlayerFlow.collectAsStateWithLifecycle()
+    val player1 by theatres[1].mPlayerFlow.collectAsStateWithLifecycle()
+    val media0 by player0?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
+    val media1 by player1?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
+    val hasMedia = media0 != null || media1 != null
+    val destinationState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val paired = LocalConfiguration.current.screenWidthDp >= 840 && hasMedia && backStack.lastOrNull() == Listen && psState != PSState.Expanded
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerController = remember(drawerState) {
         object : DrawerController {
             override fun isOpen() = drawerState.isOpen
-            override fun open() {
-                lcScope.launch { drawerState.open() }
-            }
-            override fun close() {
-                lcScope.launch { drawerState.close() }
-            }
-            override fun toggle() {
-                lcScope.launch {
-                    if (drawerState.isOpen) drawerState.close()
-                    else drawerState.open()
-                }
-            }
+            override fun open() { scope.launch { drawerState.open() } }
+            override fun close() { scope.launch { drawerState.close() } }
+            override fun toggle() { if (isOpen()) close() else open() }
         }
     }
-
-    CommonToast(onDismiss = { })
-    if (commonConfirms.isNotEmpty()) CommonConfirmDialog(commonConfirms[0])
-    if (commonMessage != null) LargePoster(commonMessage!!)
-
-    var lastLogTime by remember { mutableLongStateOf(0L) }
-    if (appPrefs.customFolderUnavailable) {
-        val currentTime = nowInMillis()
-        if (currentTime - lastLogTime > 60000L) {
-            Loge(TAG, stringResource(R.string.custum_folder_warning))
-            lastLogTime = currentTime
-        }
-    }
-
     LaunchedEffect(Unit) {
+        ac.mdiq.podcini.playback.ensureAController()
+        if (restoreLastScreen && appAttribsFlow!!.value.restoreLastScreen) {
+            runCatching { Json.decodeFromString<List<NavKey>>(appAttribsFlow!!.value.backstack) }
+                .getOrNull()?.takeIf { it.isNotEmpty() }?.let { restored ->
+                    backStack.clear()
+                    backStack.addAll(restored.takeLast(10))
+                }
+        }
         snapshotFlow { backStack.toList() }.debounce(200.milliseconds).collect { stack ->
             val json = Json.encodeToString(stack)
             withContext(Dispatchers.IO) { upsert(appAttribsFlow!!.value) { it.backstack = json } }
         }
     }
+    LaunchedEffect(hasMedia) {
+        if (hasMedia && psState == PSState.Hidden) psState = PSState.PartiallyExpanded
+    }
 
-    val windowInfo = LocalWindowInfo.current
-    val screenWidth = windowInfo.containerSize.width.dp
-//    Logd(TAG) { "before CompositionLocalProvider" }
-    CompositionLocalProvider(LocalDrawerController provides drawerCtrl, LocalDrawerState provides drawerState) {
-        ModalNavigationDrawer(drawerState = drawerState, modifier = Modifier.fillMaxHeight(), drawerContent = { NavDrawerScreen() }) {
-            BottomSheetScaffold(sheetContent = { AVPlayerScreen() }, scaffoldState = sheetState, sheetMaxWidth = screenWidth, sheetPeekHeight = bottomInsetPadding + playerMinHeight.dp, sheetDragHandle = {}, sheetShape = RectangleShape, topBar = {}) { paddingValues ->
-                Box(modifier = Modifier.background(MaterialTheme.colorScheme.surface).fillMaxSize().padding(top = paddingValues.calculateTopPadding(), bottom = dynamicBottomPadding)) {
-                    NavDisplay(backStack = backStack, onBack = { navBack() }, entryProvider = myEntryProvider, entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator()))
-                    if ((curMedia0?.id ?: -1L) > 0 && psState == PSState.Hidden) Text(stringResource(R.string.player_in_drawer), color = Color.Yellow, style = MaterialTheme.typography.labelSmall, modifier = Modifier.background(Color.DarkGray).align(Alignment.BottomCenter).clickable { psState = PSState.PartiallyExpanded })
+    CommonToast(onDismiss = {})
+    if (commonConfirms.isNotEmpty()) CommonConfirmDialog(commonConfirms[0])
+    if (commonMessage != null) LargePoster(commonMessage!!)
+    LaunchedEffect(appPrefs.customFolderUnavailable) {
+        if (appPrefs.customFolderUnavailable) Loge(TAG, ac.mdiq.podcini.PodciniApp.Companion.getAppContext().getString(R.string.custum_folder_warning))
+    }
+
+    CompositionLocalProvider(LocalDrawerController provides drawerController, LocalDrawerState provides drawerState) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = drawerState.isOpen,
+            drawerContent = { NavDrawerScreen() }
+        ) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+                Row(Modifier.fillMaxSize()) {
+                    if (wide) ArchiveNavigation(rail = true)
+                    Scaffold(
+                        modifier = Modifier.weight(1f),
+                        snackbarHost = { SnackbarHost(downloadSnackbar) },
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                        bottomBar = {
+                            Column {
+                                if (hasMedia && psState != PSState.Expanded && !paired) AVPlayerScreen()
+                                if (!wide) ArchiveNavigation(rail = false)
+                                else Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                            }
+                        }
+                    ) { padding ->
+                        Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+                            Box(Modifier.weight(if (paired) 0.56f else 1f).fillMaxHeight()) {
+                            destinationState.SaveableStateProvider(primaryDestination().toString()) {
+                            NavDisplay(
+                                backStack = backStack,
+                                onBack = { navBack() },
+                                entryProvider = myEntryProvider,
+                                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(), rememberViewModelStoreNavEntryDecorator())
+                            )
+                            }
+                            }
+                            if (paired) {
+                                androidx.compose.material3.VerticalDivider()
+                                Box(Modifier.weight(0.44f).fillMaxHeight()) { AVPlayerScreen(embedded = true) }
+                            }
+                        }
+                    }
+                }
+                if (hasMedia && psState == PSState.Expanded) {
+                    Surface(Modifier.fillMaxSize()) { AVPlayerScreen() }
+                    SnackbarHost(downloadSnackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
                 }
             }
         }
     }
-
-    BackHandler(enabled = handleBackSubScreens.isEmpty()) {
-        Logd(TAG) { "BackHandler isBSExpanded: $psState" }
-        val openDrawer = appPrefs.backButtonOpensDrawer
-        val defPage = defaultNavKey
-        Logd(TAG) { "BackHandler curruntRoute0: defPage: $defPage" }
+    BackHandler(enabled = handleBackSubScreens.isEmpty() && (drawerState.isOpen || psState == PSState.Expanded || backStack.size > 1)) {
         when {
-            drawerState.isOpen -> drawerCtrl.close()
+            drawerState.isOpen -> drawerController.close()
             psState == PSState.Expanded -> psState = PSState.PartiallyExpanded
-            backStack.size > 1 -> {
-                Logd(TAG) { "BackHandler nav to back" }
-                navBack()
-            }
-            backStack.size == 1 && defPage != backStack[0] -> {
-                Logd(TAG) { "BackHandler nav to defPage: $defPage" }
-                navTo(defPage)
-            }
-            openDrawer -> drawerCtrl.open()
-            else -> Logt(TAG, context.getString(R.string.no_more_screens_back))
+            else -> navBack()
         }
     }
 }

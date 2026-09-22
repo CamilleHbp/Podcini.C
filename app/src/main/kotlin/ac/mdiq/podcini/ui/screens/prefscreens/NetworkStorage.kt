@@ -129,7 +129,7 @@ import java.net.SocketAddress
 private const val TAG = "NetworkPreferences"
 
 @Composable
-fun NetworkStorageScreen() {
+fun NetworkStorageScreen(section: String = "downloads") {
     val context by rememberUpdatedState(LocalContext.current)
     val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
 
@@ -345,7 +345,7 @@ fun NetworkStorageScreen() {
 
     var refreshInterval by remember { mutableStateOf(appPrefs.autoUpdateInterval.toString()) }
     Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
+        if (section == "providers") Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
             val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.identifier), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold, modifier = Modifier.wrapContentWidth())
@@ -364,10 +364,11 @@ fun NetworkStorageScreen() {
             }
             Text(stringResource(R.string.network_identifier_sum), color = textColor, style = MaterialTheme.typography.bodySmall)
         }
-        TitleSummarySwitchRow(R.string.pref_use_external_apps, R.string.pref_use_external_app_sum, appPrefs.loadExternalApp) {
+        if (section == "providers") TitleSummarySwitchRow(R.string.pref_use_external_apps, R.string.pref_use_external_app_sum, appPrefs.loadExternalApp) {
             val appPrefs_ = upsertBlk(appPrefs) { p-> p.loadExternalApp = it}
             AppGatewayRegistry.initialize(appPrefs_.loadExternalApp, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
         }
+        if (section == "automation") {
         Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.feed_refresh_title), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -394,6 +395,8 @@ fun NetworkStorageScreen() {
         TitleSummarySwitchRow(R.string.pref_fetch_media_size, R.string.pref_fetch_media_size_sum, appPrefs.fetchmediaSizes) {
             upsertBlk(appPrefs) { p-> p.fetchmediaSizes = it}
         }
+        }
+        if (section == "downloads") {
         TitleSummarySwitchRow(R.string.pref_watch_storage_title, R.string.pref_watch_storage_sum, appPrefs.checkAvailableSpace) {
             upsertBlk(appPrefs) { p-> p.checkAvailableSpace = it}
         }
@@ -454,6 +457,8 @@ fun NetworkStorageScreen() {
             if (appPrefs.useCustomMediaFolder) TextButton(onClick = { showResetCustomFolderDialog = true }) { Text(stringResource(R.string.reset)) }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.onTertiaryContainer, thickness = 1.dp)
+        }
+        if (section == "automation") {
         TitleSummarySwitchRow(R.string.pref_automatic_download_title, R.string.pref_automatic_download_sum, appPrefs.enableAutoDl) {
             upsertBlk(appPrefs) { p -> p.enableAutoDl = it }
         }
@@ -506,6 +511,8 @@ fun NetworkStorageScreen() {
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.onTertiaryContainer, thickness = 1.dp)
 
+        }
+        if (section == "downloads") {
         var showMeteredNetworkOptions by remember { mutableStateOf(false) }
         TitleSummaryActionColumn(R.string.pref_metered_network_title, R.string.pref_mobileUpdate_sum) { showMeteredNetworkOptions = true }
         if (showMeteredNetworkOptions) {
@@ -548,7 +555,7 @@ fun NetworkStorageScreen() {
         }
         TitleSummaryActionColumn(R.string.pref_proxy_title, R.string.pref_proxy_sum) { showProxyDialog = true }
         HorizontalDivider(color = MaterialTheme.colorScheme.onTertiaryContainer, thickness = 1.dp)
-        SynchronizationScreen()
+        }
     }
 }
 

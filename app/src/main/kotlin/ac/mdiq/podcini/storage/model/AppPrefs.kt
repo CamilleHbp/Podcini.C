@@ -31,7 +31,7 @@ class AppPrefs: RealmObject {
     var showSkip: Boolean = true
     var showDownloadReport: Boolean = true
 
-    var defaultPage: String = DefaultPages.Library.name
+    var defaultPage: String = DefaultPages.Listen.name
 
     var backButtonOpensDrawer: Boolean = false
 
@@ -40,6 +40,7 @@ class AppPrefs: RealmObject {
     var dont_ask_again_unrestricted_background: Boolean = false
 
     // Playback
+    var twoPlayers: Boolean = false
     var pauseOnHeadsetDisconnect: Boolean = true
     var unpauseOnHeadsetReconnect: Boolean = true
     var unpauseOnBluetoothReconnect: Boolean = false

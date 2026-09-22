@@ -1,6 +1,9 @@
 package ac.mdiq.podcini.ui.screens.prefscreens
 
 import ac.mdiq.podcini.PodciniApp.Companion.forceRestart
+import ac.mdiq.podcini.playback.activeTheatresCount
+import ac.mdiq.podcini.playback.PlaybackService.Companion.playbackService
+import ac.mdiq.podcini.ui.screens.actPlayerId
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.forcePlaybackReset
 import ac.mdiq.podcini.sourcing.clientsHaveMultiQ
@@ -107,6 +110,13 @@ fun PlaybackScreen() {
     val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
+        val players by activeTheatresCount.collectAsStateWithLifecycle()
+        TitleSummarySwitchRow(R.string.archive_two_players, R.string.archive_two_players_summary, players == 2) { enabled ->
+            if (!enabled) { playbackService?.shutdownPlayer(1); actPlayerId = 0 }
+            upsertBlk(appPrefs) { it.twoPlayers = enabled }
+            activeTheatresCount.value = if (enabled) 2 else 1
+            playbackService?.switchPlayersMode()
+        }
         Text(stringResource(R.string.interruptions), color = textColor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         TitleSummarySwitchRow(R.string.pref_pauseOnHeadsetDisconnect_title, R.string.pref_pauseOnDisconnect_sum, appPrefs.pauseOnHeadsetDisconnect) {
             upsertBlk(appPrefs) { p-> p.pauseOnHeadsetDisconnect = it }

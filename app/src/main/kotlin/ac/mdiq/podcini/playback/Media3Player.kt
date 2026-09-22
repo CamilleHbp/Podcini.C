@@ -207,6 +207,8 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                 private var isSeeking = false
                 private var wasPlayingBeforeSeek = false
                 override fun onPlaybackStateChanged(playbackState: @State Int) {
+                    loadingFlow.value = playbackState == STATE_BUFFERING
+                    if (playbackState == STATE_READY) playbackErrorFlow.value = false
                     Logd(TAG) { "exoplayerListener onPlaybackStateChanged $playbackState" }
                     Logd(TAG) { "onPlaybackStateChanged state=$playbackState " + "playWhenReady=${exoPlayer?.playWhenReady} " + "isPlaying=${exoPlayer?.isPlaying} " + "position=${exoPlayer?.currentPosition} " + "buffered=${exoPlayer?.bufferedPosition} " + "bufferedDuration=${exoPlayer?.totalBufferedDuration} " + "isLoading=${exoPlayer?.isLoading}" }
                     when (playbackState) {
@@ -306,6 +308,8 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     handlePlayerStatus(if (isPlaying) PlayerStatus.PLAYING else PlayerStatus.PAUSED, media)
                 }
                 override fun onPlayerError(error: PlaybackException) {
+                    playbackErrorFlow.value = true
+                    loadingFlow.value = false
                     fun handleTerminalError(message: String) {
                         LogeFor(TAG, curMediaFlow.value?.id, message)
                         castPlayer?.stop()
@@ -698,7 +702,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             if (muxedSpecs.isNotEmpty()) {
                 curMuxedSpec = chooseVideoSpec(muxedSpecs, media)
                 if (!curMuxedSpec?.url.isNullOrBlank()) {
-                    val vSource = DefaultMediaSourceFactory(context).createMediaSource(MediaItem.Builder().setMediaMetadata(metadata).setTag(metadata).setUri(curMuxedSpec!!.url!!.toSafeUri()).build())
+                    val vSource = DefaultMediaSourceFactory(context).createMediaSource(MediaItem.Builder().setMediaId(media.id.toString()).setMediaMetadata(metadata).setTag(metadata).setUri(curMuxedSpec!!.url!!.toSafeUri()).build())
 //                    mSource = MergingMediaSource(true, vSource)
                     mSource = vSource
                     playingVideoFlow.value = true
@@ -743,7 +747,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             chooseAudioSpec(audioSpecs, media)?.let {
                 curAudioSpec = it
                 if (!it.url.isNullOrBlank()) {
-                    aSource = ProgressiveMediaSource.Factory(recordingFactory!!).createMediaSource(MediaItem.Builder().setMediaMetadata(metadata).setTag(metadata).setUri(it.url!!.toSafeUri()).setCustomCacheKey(media.id.toString()).build())
+                    aSource = ProgressiveMediaSource.Factory(recordingFactory!!).createMediaSource(MediaItem.Builder().setMediaId(media.id.toString()).setMediaMetadata(metadata).setTag(metadata).setUri(it.url!!.toSafeUri()).setCustomCacheKey(media.id.toString()).build())
                     Logd(TAG) { "mediaSourceFromClient aSource set to: ${it.url}" }
                 } else Loge(TAG, "eligible audioStream or its url is null or blank")
             }
@@ -759,7 +763,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             if (videoSpecs.isNotEmpty()) {
                 curVideoSpec = chooseVideoSpec(videoSpecs, media)
                 if (!curVideoSpec?.url.isNullOrBlank()) {
-                    val vSource = DefaultMediaSourceFactory(context).createMediaSource(MediaItem.Builder().setMediaMetadata(metadata).setTag(metadata).setUri(curVideoSpec!!.url!!.toSafeUri()).build())
+                    val vSource = DefaultMediaSourceFactory(context).createMediaSource(MediaItem.Builder().setMediaId(media.id.toString()).setMediaMetadata(metadata).setTag(metadata).setUri(curVideoSpec!!.url!!.toSafeUri()).build())
                     val mediaSources: MutableList<MediaSource> = mutableListOf()
                     mediaSources.add(vSource)
                     mediaSources.add(aSource)
@@ -818,7 +822,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
         Logd(TAG) { "prepareDataSource: $mediaUrl" }
         val uri = mediaUrl.toSafeUri()
         Logd(TAG) { "prepareDataSource position: ${media.position} uri: $uri" }
-        mediaItem = MediaItem.Builder().setUri(uri).setCustomCacheKey(media.id.toString()).setMediaMetadata(metadata).build()
+        mediaItem = MediaItem.Builder().setMediaId(media.id.toString()).setUri(uri).setCustomCacheKey(media.id.toString()).setMediaMetadata(metadata).build()
         setSourceCredentials(user, password)
     }
 
@@ -1032,6 +1036,13 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             if (coveredUntil >= endByte) return true
         }
         return false
+    }
+
+    override fun cancelClipRecording() {
+        val temporary = curDataSource?.stopRecording(getPosition().toLong())
+        curDataSource = null
+        clipStartFlow.value = null
+        if (temporary != null) runOnIOScope { temporary.delete() }
     }
 
     override fun recordClip(startPositionMs: Long, endPositionMs: Long?) {

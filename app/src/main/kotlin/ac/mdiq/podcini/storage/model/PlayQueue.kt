@@ -35,6 +35,8 @@ class PlayQueue : RealmObject {
 
     var playInSequence: Boolean = true
 
+    var repeatQueue: Boolean = false
+
     var identity: String = ""
 
     var updated: Long = nowInMillis()
@@ -137,6 +139,7 @@ class PlayQueue : RealmObject {
 
         if (id != other.id) return false
         if (playInSequence != other.playInSequence) return false
+        if (repeatQueue != other.repeatQueue) return false
         if (updated != other.updated) return false
         if (enqueueLocation != other.enqueueLocation) return false
         if (launchAutoEQDlWhenEmpty != other.launchAutoEQDlWhenEmpty) return false
@@ -156,6 +159,7 @@ class PlayQueue : RealmObject {
     override fun hashCode(): Int {
         var result = id.hashCode()
         result = 31 * result + playInSequence.hashCode()
+        result = 31 * result + repeatQueue.hashCode()
         result = 31 * result + updated.hashCode()
         result = 31 * result + enqueueLocation
         result = 31 * result + launchAutoEQDlWhenEmpty.hashCode()

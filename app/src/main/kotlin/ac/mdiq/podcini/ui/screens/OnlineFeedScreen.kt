@@ -1,6 +1,10 @@
 package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import androidx.compose.material3.IconButton
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.LinearProgressIndicator
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.sourcing.download.EpisodeAdrDLManager
 import ac.mdiq.podcini.sourcing.searcher.CombinedSearcher
@@ -46,7 +50,7 @@ import ac.mdiq.podcini.ui.compose.CustomTextStyles
 import ac.mdiq.podcini.ui.compose.EpisodeLazyColumn
 import ac.mdiq.podcini.ui.compose.EpisodeScreen
 import ac.mdiq.podcini.ui.compose.EpisodeSortDialog
-import ac.mdiq.podcini.ui.compose.InforBar
+import ac.mdiq.podcini.ui.compose.EpisodeListInfoBar
 import ac.mdiq.podcini.ui.compose.NumberEditor
 import ac.mdiq.podcini.ui.compose.episodeForInfo
 import ac.mdiq.podcini.ui.compose.textColor
@@ -222,7 +226,7 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
                         if (fipc != null) {
                             var exist = findExisting(preparedUrl)
                             if (exist != null) {
-                                setExist(exist, R.string.open)
+                                setExist(exist, R.string.archive_view_episodes)
                                 return true
                             }
                             exist = findExisting(fipc.toFeed())
@@ -405,7 +409,7 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
             feedId != 0L -> {
                 Logd(TAG) { "handleUpdatedFeedStatus feedId != 0L" }
                 enableSubscribe = true
-                subButTextRes = R.string.open
+                subButTextRes = R.string.archive_view_episodes
                 if (subscribePress) {
                     subscribePress = false
                     runOnIOScope {
@@ -519,7 +523,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                 Logd(TAG) { "fipc.title: ${fipc.title} ${fipc.downloadUrl}" }
                                 var exist = vm.findExisting(url)
                                 if (exist != null) {
-                                    vm.setExist(exist, R.string.open)
+                                    vm.setExist(exist, R.string.archive_view_episodes)
                                     return@launch
                                 }
                                 exist = vm.findExisting(fipc.toFeed())
@@ -564,41 +568,35 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
         Scaffold(topBar = {
             Box {
                 TopAppBar(title = {  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Online feed", modifier = Modifier.weight(1f))
-                    if (vm.showEpisodes) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
+                    Text(text = stringResource(R.string.archive_discover), modifier = Modifier.weight(1f))
+                    if (vm.showEpisodes && vm.episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
                 } },
                     navigationIcon = {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back or drawer", modifier = Modifier.padding(7.dp).clickable {
-                            if (vm.showEpisodes) vm.showEpisodes = false
-                            else if (!navBack()) drawerController?.open()
-                        })
+                        IconButton(onClick = { if (vm.showEpisodes) vm.showEpisodes = false else navBack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.archive_back))
+                        }
                     })
                 HorizontalDivider(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(), thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant)
             }
         }) { innerPadding ->
-            if (vm.showEpisodes) Column(modifier = Modifier.padding(innerPadding).fillMaxSize().padding(start = 5.dp, end = 5.dp).background(MaterialTheme.colorScheme.surface)) {
-                InforBar(swipeActions) { Text(vm.infoBarText.value, style = MaterialTheme.typography.bodyMedium) }
+            if (vm.feed == null && vm.showProgress) Column(Modifier.padding(innerPadding).fillMaxSize().padding(24.dp)) {
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+                Text(stringResource(R.string.archive_loading_source), modifier = Modifier.padding(top = 24.dp), style = MaterialTheme.typography.bodyLarge)
+            } else if (vm.feed == null && vm.errorMessage.isNotBlank()) Box(Modifier.padding(innerPadding)) {
+                ArchiveEmpty(R.string.archive_source_failed, R.string.archive_source_failed_body, R.string.archive_back) { navBack() }
+            } else if (vm.showEpisodes) Column(modifier = Modifier.padding(innerPadding).fillMaxSize().padding(start = 5.dp, end = 5.dp).background(MaterialTheme.colorScheme.surface)) {
+                EpisodeListInfoBar(vm.episodes, vm.infoBarText.value, swipeActions, showRandom = false)
                 EpisodeLazyColumn(vm.episodes, isExternal = true, swipeActions = swipeActions, actionButtonCB = { _, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) actQueueFlow.value = tmpQueue() })
             } else Column(modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 10.dp, end = 10.dp).background(MaterialTheme.colorScheme.surface)) {
-                ConstraintLayout(modifier = Modifier.fillMaxWidth().height(110.dp).background(MaterialTheme.colorScheme.surface)) {
-                    val (coverImage, taColumn, buttons) = createRefs()
-                    AsyncImage(model = vm.feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, contentDescription = "coverImage", error = painterResource(R.drawable.ic_launcher_foreground), modifier = Modifier.width(80.dp).height(80.dp).constrainAs(coverImage) {
-                        centerVerticallyTo(parent)
-                        start.linkTo(parent.start)
-                    })
-                    Column(Modifier.padding(start = 5.dp).constrainAs(taColumn) {
-                        top.linkTo(parent.top)
-                        start.linkTo(coverImage.end)
-                    }) {
-                        Text(vm.feed?.title ?: "No title", color = textColor, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(vm.feed?.author ?: "", color = textColor, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 16.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(model = vm.feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, contentDescription = null, error = painterResource(R.drawable.archive_headphones), modifier = Modifier.size(80.dp))
+                        Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                            Text(vm.feed?.title ?: stringResource(R.string.archive_no_title), style = MaterialTheme.typography.titleLarge)
+                            Text(vm.feed?.author.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
-                    Row(Modifier.constrainAs(buttons) {
-                        start.linkTo(coverImage.end)
-                        bottom.linkTo(parent.bottom)
-                        end.linkTo(parent.end)
-                    }) {
-                        Spacer(modifier = Modifier.weight(0.2f))
+                    FlowRow(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (vm.showFeedDisplay && vm.enableSubscribe) Button(onClick = {
                             if (vm.feedId != 0L) {
                                 if (vm.isShared) {
@@ -606,7 +604,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                     if (log != null) upsertBlk(log) { it.status = ShareLog.Status.EXISTING.code }
                                 }
                                 if (vm.updatedFeedUrl.isNotBlank() && vm.feed != null) upsertBlk(vm.feed!!) { it.downloadUrl = vm.updatedFeedUrl }
-                                navTo(FeedDetails(feedId = vm.feedId, modeName = FeedScreenMode.Info.name))
+                                navTo(FeedDetails(feedId = vm.feedId, modeName = FeedScreenMode.List.name))
                             } else {
                                 if (vm.feed == null) return@Button
                                 vm.enableSubscribe = false
@@ -623,20 +621,20 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                             vm.subscribePress = true
                                             vm.feedId = vm.feed?.id ?: 0L
                                             vm.enableSubscribe = true
-                                            vm.subButTextRes = R.string.open
+                                            vm.subButTextRes = R.string.archive_view_episodes
                                             vm.handleSubscribeStatus()
                                         }
                                     }
                                 }
                             }
                         }) { Text(stringResource(vm.subButTextRes)) }
-                        Spacer(modifier = Modifier.weight(0.1f))
+
                         when {
                             vm.showEpisodes -> Button(onClick = { vm.showEpisodes = false }) { Text(stringResource(R.string.feed)) }
-                            vm.enableEpisodes && vm.feed != null && vm.numEpisodes > 0 -> Button(onClick = { vm.showEpisodes() }) { Text(stringResource(R.string.episodes_label)) }
+                            vm.feedId == 0L && vm.enableEpisodes && vm.feed != null && vm.numEpisodes > 0 -> Button(onClick = { vm.showEpisodes() }) { Text(stringResource(R.string.episodes_label)) }
                             else -> {}
                         }
-                        Spacer(modifier = Modifier.weight(0.2f))
+
                     }
                 }
                 Column(Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary)) {
@@ -698,7 +696,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                     }
                 }
             }
-            if (vm.showProgress) Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            if (vm.showProgress && vm.feed != null) Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(innerPadding).fillMaxSize()) {
                 CircularProgressIndicator(strokeWidth = 10.dp, color = textColor, modifier = Modifier.size(50.dp).align(Alignment.Center))
             }
         }

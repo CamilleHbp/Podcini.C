@@ -71,8 +71,15 @@ class PlaybackStarter(private val media: Episode) {
         }
 
         fun processTask() {
+            val player = theatres[playerId].mPlayerFlow.value
+            sameMedia = !forcePlaybackReset && player?.curMediaFlow?.value?.id == media_.id
             if (player == null) {
                 Loge(TAG, "processTask mPlayerFlow.value == null")
+                return
+            }
+            if (shouldStreamThisTime && !isStreamingCapable(media_)) {
+                player.playbackErrorFlow.value = true
+                player.loadingFlow.value = false
                 return
             }
             Logd(TAG) { "aCtrlFuture: ${aCtrlFuture != null} player status: ${player.status}" }
@@ -118,7 +125,6 @@ class PlaybackStarter(private val media: Episode) {
         aCtrlFuture?.let { future ->
             if (future.isDone && aController?.isConnected == true) {
                 Logd(TAG) { "aCtrlFuture aController ready, play, ${player?.status} $shouldStreamThisTime" }
-                if (shouldStreamThisTime && !isStreamingCapable(media)) return
                 processTask()
             } else {
                 Logd(TAG) { "aCtrlFuture starting PlaybackService" }

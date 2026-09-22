@@ -17,6 +17,9 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
 
     fun add(filter: EpisodeFilter): EpisodeFilter {
         propertySet.addAll(filter.propertySet)
+        durationFloor = filter.durationFloor
+        durationCeiling = filter.durationCeiling
+        titleText = filter.titleText
         return this
     }
 
@@ -96,7 +99,7 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
         val tagsQuerys = mutableListOf<String>()
         val tags = propertySet.filter { it.startsWith(States.tags.name) }
             .mapNotNull { it.removePrefix("${States.tags.name} ").takeIf(String::isNotBlank) }
-        for (t in tags) tagsQuerys.add(" ANY tags == '$t' ")
+        for (t in tags) tagsQuerys.add(" ANY tags == ${filterQuote(t)} ")
         assembleSubQueries(tagsQuerys)
 
         val textQuerys = mutableListOf<String>()
@@ -150,8 +153,8 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
         if (titleText.isNotBlank()) {
             when {
                 propertySet.contains(States.title_off.name) -> {}
-                propertySet.contains(States.title_include.name) -> statements.add("title CONTAINS[c] '$titleText' ")
-                propertySet.contains(States.title_exclude.name) -> statements.add("NOT (title CONTAINS[c] '$titleText') ")
+                propertySet.contains(States.title_include.name) -> statements.add("title CONTAINS[c] ${filterQuote(titleText)} ")
+                propertySet.contains(States.title_exclude.name) -> statements.add("NOT (title CONTAINS[c] ${filterQuote(titleText)}) ")
             }
         }
 
@@ -199,12 +202,14 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
             .mapNotNull { it.removePrefix("${States.text.name} ").takeIf(String::isNotBlank) }
         if (tqs.isEmpty()) return ""
 
-        val regex = Regex("""(?i)(\bNOT\b)?\s*\(?\s*[^()]*?\bcontains\[[^\]]*]\s*'([^']+)'""")
+        val regex = Regex("""(?i)(\bNOT\b)?\s*\(?\s*[^()]*?\bcontains\[[^\]]*]\s*(?:B64"([a-z0-9/+=]*)"|'([^']*)')""")
         val termPositivity = LinkedHashMap<String, Boolean>()
 
         for (m in regex.findAll(tqs[0])) {
             val notGroup = m.groups[1]?.value
-            val value = m.groups[2]!!.value.trim()
+            val value = m.groups[2]?.value?.let {
+                runCatching { String(java.util.Base64.getDecoder().decode(it), Charsets.UTF_8) }.getOrNull()
+            } ?: m.groups[3]?.value ?: continue
             val isNegated = notGroup != null && notGroup.isNotBlank()
             val isPositive = !isNegated
 

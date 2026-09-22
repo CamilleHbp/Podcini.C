@@ -58,8 +58,6 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import com.google.android.gms.cast.framework.CastSession
-import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -328,6 +326,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         AppConfig.initialize()
+        activeTheatresCount.value = if (appPrefsFlow!!.value.twoPlayers) 2 else 1
 
         Logd(TAG) { "onCreate Service created." }
         timeIt("$TAG onCreate Service")

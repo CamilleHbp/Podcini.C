@@ -5,6 +5,7 @@ import ac.mdiq.podcini.storage.model.Episode
 import ac.mdiq.podcini.storage.model.Feed
 import ac.mdiq.podcini.storage.model.PAFeed
 import ac.mdiq.podcini.storage.specs.EpisodeSortOrder
+import ac.mdiq.podcini.storage.specs.filterQuote
 import ac.mdiq.podcini.storage.specs.EpisodeSortOrder.Companion.sortPairOf
 import ac.mdiq.podcini.ui.compose.NonlazyGrid
 import ac.mdiq.podcini.ui.screens.SearchBy
@@ -35,15 +36,12 @@ class SearchAlgo {
         searchBIES.addAll(SearchBy.entries)
     }
     fun isSelected(by: SearchBy) = searchBIES.contains(by)
-    private fun setSelected(by: SearchBy, selected: Boolean) {
+    internal fun setSelected(by: SearchBy, selected: Boolean) {
         if (selected) searchBIES.add(by) else searchBIES.remove(by)
     }
 
     fun contains(s: String): String {
-        return if (s.startsWith('-')) {
-            val s1 = s.substring(1).trim()
-            "contains[c] '$s1'"
-        } else "contains[c] '$s'"
+        return "contains[c] ${filterQuote(s.removePrefix("-").trim())}"
     }
 
     fun episodesQueryString(feedID: Long, queryWords: List<String>): String {

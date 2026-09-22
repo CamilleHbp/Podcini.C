@@ -2,6 +2,10 @@ package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.storage.specs.EpisodeFilter
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.material3.LinearProgressIndicator
 import ac.mdiq.podcini.storage.database.feedsMap
 import ac.mdiq.podcini.storage.database.realm
 import ac.mdiq.podcini.storage.database.upsertBlk
@@ -208,6 +212,14 @@ fun StatisticsScreen() {
     val drawerController = LocalDrawerController.current
 
     val vm: StatisticsVM = viewModel()
+    val historyCount by remember {
+        realm.query(Episode::class, getStatsQueryText(0L, Long.MAX_VALUE)).count().asFlow()
+    }.collectAsStateWithLifecycle(initialValue = null)
+    val downloadCount by remember {
+        realm.query(Episode::class, EpisodeFilter(EpisodeFilter.States.downloaded.name).queryString()).count().asFlow()
+    }.collectAsStateWithLifecycle(initialValue = null)
+    val hasHistory = (historyCount ?: 0L) > 0L
+    val hasDateFilter = vm.timeFilterFrom > 0L || vm.timeFilterTo < Long.MAX_VALUE
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -240,13 +252,13 @@ fun StatisticsScreen() {
         Box {
             TopAppBar(title = { Text("") }, navigationIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_chart_box), contentDescription = "Open Drawer", modifier = Modifier.padding(7.dp).clickable { drawerController?.open() }) },
                 actions = {
-                if (vm.selectedTabIndex.intValue <= 2) {
+                if (vm.selectedTabIndex.intValue <= 2 && (hasHistory || hasDateFilter)) {
                     IconButton(onClick = { vm.showFilter = true }) {
                         val filterColor = if (vm.timeFilterFrom > 0L || vm.timeFilterTo < Long.MAX_VALUE) buttonAltColor else buttonColor
                         Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = filterColor, contentDescription = "filter")
                     }
                 }
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                if (vm.selectedTabIndex.intValue <= 1 && hasHistory) IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                     if (vm.selectedTabIndex.intValue == 0 || vm.selectedTabIndex.intValue == 1) DropdownMenuItem(text = { Text(stringResource(R.string.statistics_reset_data)) }, onClick = {
                         vm.showResetDialog.value = true
@@ -262,6 +274,7 @@ fun StatisticsScreen() {
     fun HorizontalLineChart(lineChartData: LineChartData) {
         val data = lineChartData.values
         val total = data.sum()
+        if (total <= 0f) return
         Canvas(modifier = Modifier.fillMaxWidth().height(20.dp).padding(start = 20.dp, end = 20.dp)) {
             val canvasWidth = size.width
             val canvasHeight = size.height
@@ -600,11 +613,17 @@ fun StatisticsScreen() {
                     )
                 }
             }
-            when (vm.selectedTabIndex.intValue) {
-                0 -> Overview()
-                1 -> Subscriptions()
-                2 -> MonthlyStats()
-                3 -> DownloadStats()
+            val contentCount = if (vm.selectedTabIndex.intValue == 3) downloadCount else historyCount
+            when {
+                contentCount == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                contentCount == 0L && vm.selectedTabIndex.intValue == 3 -> ArchiveEmpty(R.string.archive_empty_downloads, R.string.archive_empty_downloads_body, R.string.archive_listen) { selectPrimary(Listen) }
+                contentCount == 0L -> ArchiveEmpty(R.string.archive_empty_statistics, R.string.archive_empty_statistics_body, R.string.archive_listen) { selectPrimary(Listen) }
+                else -> when (vm.selectedTabIndex.intValue) {
+                    0 -> Overview()
+                    1 -> Subscriptions()
+                    2 -> MonthlyStats()
+                    3 -> DownloadStats()
+                }
             }
         }
     }
@@ -862,5 +881,4 @@ fun FeedStatisticsDialog(title: String, feedId: Long, timeFrom: Long, timeTo: Lo
         dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.cancel_label)) } }
     )
 }
-
 

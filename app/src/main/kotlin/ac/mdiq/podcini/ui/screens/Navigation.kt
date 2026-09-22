@@ -27,6 +27,7 @@ enum class PopMode {
 }
 
 fun navTo(key: NavKey, popMode: PopMode = PopMode.None) {
+    if (key == Listen || key == Library || key == FindFeeds) { selectPrimary(key); return }
     if (popMode != PopMode.None) {
         val from = if (popMode == PopMode.UpTo) {
             val index = backStack.indexOfFirst { it.javaClass == key.javaClass }
@@ -50,6 +51,9 @@ fun navBack(): Boolean {
 
 @Serializable
 sealed class NavKey
+
+@Serializable
+data object Listen : NavKey()
 
 @Serializable
 data object Library : NavKey()
@@ -83,6 +87,8 @@ data object FindFeeds : NavKey()
 
 @Serializable
 data object Logs : NavKey()
+@Serializable
+data object DownloadLogs : NavKey()
 
 @Serializable
 data object Statistics : NavKey()
@@ -92,17 +98,18 @@ data object Settings : NavKey()
 
 val defaultNavKey: NavKey
     get() {
-        if (allFeeds.isEmpty()) return FindFeeds
+        if (allFeeds.isEmpty()) return Listen
         val value = appPrefsFlow!!.value.defaultPage
         Logd(TAG) { "get defaultScreen defaultPage: [$value]" }
         fun isValid(): Boolean = runCatching { Screens.valueOf(value) }.isSuccess
-        if (value.isBlank() || !isValid()) return Library
+        if (value.isBlank() || !isValid()) return Listen
         Logd(TAG) { "get defaultScreen value: [$value]" }
         return toNavKey(value)
     }
 
 @OptIn(ExperimentalMaterial3Api::class)
 val myEntryProvider = entryProvider {
+    entry<Listen>{ ListenScreen() }
     entry<Library>{ LibraryScreen() }
     entry<Queues>{ k-> QueuesScreen(k.id) }
     entry<FeedDetails>{ k-> FeedDetailsScreen(k.feedId, k.modeName) }
@@ -114,11 +121,13 @@ val myEntryProvider = entryProvider {
     entry<OnlineFeed>{ k-> OnlineFeedScreen(k.url, k.source, k.shared) }
     entry<FindFeeds>{ FindFeedsScreen() }
     entry<Logs>{ LogsScreen() }
+    entry<DownloadLogs>{ LogsScreen(initialMode = LogsModes.Downloads) }
     entry<Statistics>{ StatisticsScreen() }
     entry<Settings>{ PrefsScreen() }
 }
 
 enum class DefaultPages(val res: Int) {
+    Listen(R.string.archive_listen),
     Library(R.string.library),
     Queues(R.string.queue_label),
     Facets(R.string.facets),
@@ -129,6 +138,7 @@ enum class DefaultPages(val res: Int) {
         @Suppress("RemoveRedundantQualifierName")
         fun toNavKey(p: String): NavKey {
             return when (p) {
+                Listen.name -> ac.mdiq.podcini.ui.screens.Listen
                 Library.name -> ac.mdiq.podcini.ui.screens.Library
                 Queues.name -> Queues()
                 Facets.name -> Facets()
@@ -141,6 +151,7 @@ enum class DefaultPages(val res: Int) {
 }
 
 enum class Screens {
+    Listen,
     Library,
     FeedDetails,
     FeedsSettings,
@@ -154,4 +165,25 @@ enum class Screens {
     Logs,
     Statistics,
     Settings
+}
+
+private val primaryStacks = mutableMapOf<NavKey, List<NavKey>>()
+
+fun primaryDestination(): NavKey {
+    return backStack.lastOrNull { it == Listen || it == Library || it == FindFeeds }
+        ?: when(backStack.firstOrNull()) { is FeedDetails, FeedsSettings -> Library; is OnlineFeed, TopChart -> FindFeeds; else -> Listen }
+}
+
+fun selectPrimary(destination: NavKey, resetToRoot: Boolean = false) {
+    val current = primaryDestination()
+    ac.mdiq.podcini.ui.compose.episodeForInfo = null
+    if (resetToRoot) primaryStacks.remove(destination)
+    if (current == destination) {
+        if (backStack.lastOrNull() != destination) { backStack.clear(); backStack.add(destination) }
+        return
+    }
+    val rootIndex = backStack.indexOfLast { it == current }.coerceAtLeast(0)
+    primaryStacks[current] = backStack.drop(rootIndex)
+    backStack.clear()
+    backStack.addAll(primaryStacks[destination] ?: listOf(destination))
 }

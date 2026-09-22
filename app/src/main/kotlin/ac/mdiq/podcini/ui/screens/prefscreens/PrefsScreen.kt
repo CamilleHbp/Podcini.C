@@ -1,6 +1,12 @@
 package ac.mdiq.podcini.ui.screens.prefscreens
 
 import ac.mdiq.podcini.BuildConfig
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import ac.mdiq.podcini.ui.screens.navBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import ac.mdiq.podcini.ui.screens.ReceiveContentDialog
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.BugReportActivity
 import ac.mdiq.podcini.config.settings.developerEmail
@@ -102,6 +108,9 @@ sealed class PFNavKey
 object PFNav {
     @Serializable
     data object Portal : PFNavKey()
+    @Serializable data object Automation : PFNavKey()
+    @Serializable data object Providers : PFNavKey()
+    @Serializable data object Sync : PFNavKey()
 
     @Serializable
     data object Interface : PFNavKey()
@@ -128,6 +137,25 @@ object PFNav {
 @OptIn(ExperimentalMaterial3Api::class)
 val pfEntryProvider = entryProvider {
     entry<PFNav.Portal>{ PrefPortalScreen() }
+    entry<PFNav.Automation>{ NetworkStorageScreen("automation") }
+    entry<PFNav.Providers>{ NetworkStorageScreen("providers") }
+    entry<PFNav.Sync>{
+        var receive by remember { mutableStateOf(false) }
+        if (receive) ReceiveContentDialog { receive = false }
+        BackHandler { pfNavBack() }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            Text(stringResource(R.string.archive_transfer_backup), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.archive_transfer_backup_body), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = { pfBackStack.add(PFNav.ImportExport) }) { Text(stringResource(R.string.archive_transfer_backup)) }
+            Text(stringResource(R.string.archive_device_transfer), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.archive_device_transfer_body), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = { receive = true }) { Text(stringResource(R.string.receive_contents)) }
+            HorizontalDivider(Modifier.padding(vertical = 16.dp))
+            Text(stringResource(R.string.archive_server_sync), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.archive_server_sync_body), style = MaterialTheme.typography.bodyMedium)
+            SynchronizationScreen()
+        }
+    }
     entry<PFNav.Interface>{ UserInterfaceScreen() }
     entry<PFNav.NetworkStorage>{ NetworkStorageScreen() }
     entry<PFNav.ImportExport>{ ImportExportScreen() }
@@ -144,68 +172,64 @@ val pfAnyEntryProvider: (Any) -> NavEntry<Any> = { key ->
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrefsScreen() {
-    var topAppBarTitle by remember { mutableStateOf("Settings") }
-    val viewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) { "No ViewModelStoreOwner was provided via LocalViewModelStoreOwner" }
-    val drawerController = LocalDrawerController.current
-
-    Scaffold(topBar = { TopAppBar(title = { Text(topAppBarTitle) },
-        navigationIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), contentDescription = "Back", modifier = Modifier.padding(7.dp).clickable { if (!pfNavBack()) drawerController?.open() } ) }) }) { innerPadding ->
-        CompositionLocalProvider(LocalViewModelStoreOwner provides viewModelStoreOwner) {
-            NavDisplay(backStack = pfBackStack, onBack = { pfNavBack() }, entryProvider = pfAnyEntryProvider, modifier = Modifier.padding(innerPadding))
+    val title = when(pfBackStack.lastOrNull()) {
+        PFNav.Interface -> R.string.archive_appearance
+        PFNav.Playback -> R.string.playback_pref
+        PFNav.NetworkStorage -> R.string.archive_storage
+        PFNav.Automation -> R.string.archive_library_automation
+        PFNav.Providers -> R.string.archive_providers
+        PFNav.Sync -> R.string.archive_sync_backup
+        PFNav.ImportExport -> R.string.import_export_pref
+        PFNav.Notification -> R.string.notification_pref_fragment
+        PFNav.About -> R.string.about_pref
+        PFNav.Licenses -> R.string.licenses
+        else -> R.string.archive_settings
+    }
+    val owner = checkNotNull(LocalViewModelStoreOwner.current)
+    Scaffold(contentWindowInsets = WindowInsets(0,0,0,0), topBar = {
+        TopAppBar(title = { Text(stringResource(title)) }, navigationIcon = {
+            IconButton(onClick = { if (!pfNavBack()) navBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.archive_back)) }
+        })
+    }) { padding ->
+        CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+            NavDisplay(backStack = pfBackStack, onBack = { if (!pfNavBack()) navBack() }, entryProvider = pfAnyEntryProvider, modifier = Modifier.padding(padding))
         }
     }
 }
 
 @Composable
 fun PrefPortalScreen() {
-    val context by rememberUpdatedState(LocalContext.current)
-    BackHandler(enabled = true) {
-        pfBackStack.removeRange(0, pfBackStack.size-1)
-        navTo(defaultNavKey, PopMode.Clear)
-    }
-
-    @Composable
-    fun IconTitleSummaryScreenRow(vecRes: Int, titleRes: Int, summaryRes: Int, screen: PFNavKey) {
-        
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
-            Icon(imageVector = ImageVector.vectorResource(vecRes), contentDescription = "", tint = textColor, modifier = Modifier.size(40.dp).padding(end = 15.dp))
-            Column(modifier = Modifier.weight(1f).clickable { pfBackStack.add(screen) }) {
-                Text(stringResource(titleRes), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-                Text(stringResource(summaryRes), color = textColor, style = MaterialTheme.typography.bodySmall)
-            }
+    val context = LocalContext.current
+    var search by rememberSaveable { mutableStateOf("") }
+    BackHandler { navBack() }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        OutlinedTextField(value = search, onValueChange = { search = it }, singleLine = true,
+            label = { Text(stringResource(R.string.archive_search_settings)) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
+        @Composable fun Setting(title: Int, summary: Int, icon: Int, action: () -> Unit) {
+            val name = stringResource(title)
+            val detail = if(summary != 0) stringResource(summary) else ""
+            if (search.isBlank() || (name + detail).contains(search, ignoreCase = true)) ListItem(
+                headlineContent = { Text(name) }, supportingContent = if(detail.isNotBlank()) {{ Text(detail) }} else null,
+                leadingContent = { Icon(ImageVector.vectorResource(icon), null) },
+                modifier = Modifier.clickable(onClick = action).heightIn(min = 72.dp))
         }
-    }
-    @Composable
-    fun IconTitleActionRow(vecRes: Int, titleRes: Int, callback: ()-> Unit) {
-        
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
-            Icon(imageVector = ImageVector.vectorResource(vecRes), contentDescription = "", tint = textColor, modifier = Modifier.size(40.dp).padding(end = 15.dp))
-            Column(modifier = Modifier.weight(1f).clickable { callback() }) {
-                Text(stringResource(titleRes), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-            }
+        Setting(R.string.playback_pref, R.string.playback_pref_sum, R.drawable.ic_play_24dp) { pfBackStack.add(PFNav.Playback) }
+        Setting(R.string.archive_storage, R.string.archive_storage_summary, R.drawable.ic_download) { pfBackStack.add(PFNav.NetworkStorage) }
+        Setting(R.string.archive_library_automation, R.string.archive_automation_summary, R.drawable.ic_subscriptions) { pfBackStack.add(PFNav.Automation) }
+        Setting(R.string.archive_appearance, R.string.archive_appearance_summary, R.drawable.ic_appearance) { pfBackStack.add(PFNav.Interface) }
+        Setting(R.string.archive_providers, R.string.archive_provider_summary, R.drawable.archive_explore) { pfBackStack.add(PFNav.Providers) }
+        Setting(R.string.archive_sync_backup, R.string.archive_sync_summary, R.drawable.ic_storage) { pfBackStack.add(PFNav.Sync) }
+        Setting(R.string.notification_pref_fragment, 0, R.drawable.ic_notifications) { pfBackStack.add(PFNav.Notification) }
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        Setting(R.string.about_pref, 0, R.drawable.ic_info) { pfBackStack.add(PFNav.About) }
+        Setting(R.string.documentation_support, 0, R.drawable.ic_questionmark) { openInSystemDefault(githubAddress) }
+        Setting(R.string.archive_help_diagnostics, 0, R.drawable.ic_bug) { context.startActivity(Intent(context, BugReportActivity::class.java)) }
+        Setting(R.string.whats_new, 0, R.drawable.ic_questionmark) { openInSystemDefault("${githubAddress}/blob/main/changelog.md") }
+        Setting(R.string.pref_contribute, 0, R.drawable.ic_contribute) { openInSystemDefault(githubAddress) }
+        if (search.isBlank()) {
+            val notice = remember { getCopyrightNoticeText() }
+            if(notice.isNotBlank()) Text(notice, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
         }
-    }
-    
-    Column(modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp).verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
-        val copyrightNoticeText by remember { mutableStateOf(getCopyrightNoticeText()) }
-        if (copyrightNoticeText.isNotBlank()) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
-                Icon(imageVector = Icons.Filled.Info, contentDescription = "", tint = Color.Red, modifier = Modifier.size(40.dp).padding(end = 15.dp))
-                Text(copyrightNoticeText, color = textColor)
-            }
-        }
-        IconTitleSummaryScreenRow(R.drawable.ic_appearance, R.string.user_interface_label, R.string.user_interface_sum, PFNav.Interface)
-        IconTitleSummaryScreenRow(R.drawable.ic_play_24dp, R.string.playback_pref, R.string.playback_pref_sum, PFNav.Playback)
-        IconTitleSummaryScreenRow(R.drawable.ic_download, R.string.network_storage_pref, R.string.downloads_pref_sum, PFNav.NetworkStorage)
-        IconTitleSummaryScreenRow(R.drawable.ic_storage, R.string.import_export_pref, R.string.import_export_summary, PFNav.ImportExport)
-        IconTitleActionRow(R.drawable.ic_notifications, R.string.notification_pref_fragment) { pfBackStack.add(PFNav.Notification) }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
-        Text(stringResource(R.string.project_pref), color = textColor, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 15.dp))
-        IconTitleActionRow(R.drawable.ic_questionmark, R.string.whats_new) { openInSystemDefault("${githubAddress}/blob/main/changelog.md") }
-        IconTitleActionRow(R.drawable.ic_questionmark, R.string.documentation_support) { openInSystemDefault(githubAddress) }
-        IconTitleActionRow(R.drawable.ic_contribute, R.string.pref_contribute) { openInSystemDefault(githubAddress) }
-        IconTitleActionRow(R.drawable.ic_bug, R.string.bug_report_title) { context.startActivity(Intent(context, BugReportActivity::class.java)) }
-        IconTitleActionRow(R.drawable.ic_info, R.string.about_pref) { pfBackStack.add(PFNav.About) }
     }
 }
 

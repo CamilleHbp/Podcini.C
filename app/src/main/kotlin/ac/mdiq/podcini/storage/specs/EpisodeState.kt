@@ -20,6 +20,24 @@ enum class EpisodeState(val code: Int, val res: Int, val color: Color?, val user
     PASSED(17, R.drawable.baseline_low_priority_24, null, true),
     IGNORED(20, R.drawable.baseline_visibility_off_24, null, true);
 
+    val labelRes: Int get() = when (this) {
+        UNSPECIFIED -> R.string.unspecified
+        ERROR -> R.string.error_label
+        BUILDING -> R.string.building
+        NEW -> R.string.new_label
+        UNPLAYED -> R.string.unplayed
+        LATER -> R.string.later
+        SOON -> R.string.soon
+        QUEUE -> R.string.in_queue
+        PROGRESS -> R.string.progressing
+        AGAIN -> R.string.again
+        FOREVER -> R.string.forever
+        SKIPPED -> R.string.skipped
+        PLAYED -> R.string.played
+        PASSED -> R.string.passed
+        IGNORED -> R.string.ignored
+    }
+
     companion object {
         fun fromCode(code: Int): EpisodeState {
             return EpisodeState.entries.firstOrNull { it.code == code } ?: UNSPECIFIED

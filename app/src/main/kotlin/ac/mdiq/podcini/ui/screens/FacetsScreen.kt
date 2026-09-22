@@ -1,6 +1,7 @@
 package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.config.settings.MediaFilesTransporter
 import ac.mdiq.podcini.shared.nowInMillis
 import ac.mdiq.podcini.storage.database.appAttribsFlow
@@ -39,8 +40,7 @@ import ac.mdiq.podcini.ui.compose.EpisodeLazyColumn
 import ac.mdiq.podcini.ui.compose.EpisodeScreen
 import ac.mdiq.podcini.ui.compose.EpisodeSortDialog
 import ac.mdiq.podcini.ui.compose.EpisodesFilterDialog
-import ac.mdiq.podcini.ui.compose.InforBar
-import ac.mdiq.podcini.ui.compose.PlayRandom
+import ac.mdiq.podcini.ui.compose.EpisodeListInfoBar
 import ac.mdiq.podcini.ui.compose.StatusRowMode
 import ac.mdiq.podcini.ui.compose.borderColor
 import ac.mdiq.podcini.ui.compose.episodeForInfo
@@ -135,6 +135,29 @@ import kotlinx.coroutines.withContext
 
 enum class QuickAccess {
     New, Planned, Repeats, Due, Liked, Todos, Timers, Commented, Tagged, Recorded, Queued, Downloaded, Captions, Transcript, History, Archived, Frozen, All, Custom, None;
+
+    val labelRes: Int get() = when (this) {
+        New -> R.string.browse_new
+        Planned -> R.string.browse_planned
+        Repeats -> R.string.browse_repeats
+        Due -> R.string.browse_due
+        Liked -> R.string.browse_liked
+        Todos -> R.string.browse_todos
+        Timers -> R.string.browse_timers
+        Commented -> R.string.browse_commented
+        Tagged -> R.string.browse_tagged
+        Recorded -> R.string.browse_recorded
+        Queued -> R.string.browse_queued
+        Downloaded -> R.string.browse_downloaded
+        Captions -> R.string.browse_captions
+        Transcript -> R.string.browse_transcript
+        History -> R.string.browse_history
+        Archived -> R.string.browse_archived
+        Frozen -> R.string.browse_frozen
+        All -> R.string.browse_all
+        Custom -> R.string.browse_custom
+        None -> R.string.browse_none
+    }
 }
 
 var facetsMode by mutableStateOf(QuickAccess.None)
@@ -180,9 +203,19 @@ class FacetsVM(modeName_: String): ViewModel() {
 
     var filterChanged by mutableIntStateOf(0)
     var filter: EpisodeFilter
-        get() = EpisodeFilter(facetsPrefs.filtersMap[facetsMode.name] ?: "")
+        get() = EpisodeFilter(facetsPrefs.filtersMap[facetsMode.name] ?: "", andOr = facetsPrefs.filtersMap["${facetsMode.name}.join"] ?: "AND").apply {
+            durationFloor = facetsPrefs.filtersMap["${facetsMode.name}.floor"]?.toIntOrNull() ?: 0
+            durationCeiling = facetsPrefs.filtersMap["${facetsMode.name}.ceiling"]?.toIntOrNull() ?: Int.MAX_VALUE
+            titleText = facetsPrefs.filtersMap["${facetsMode.name}.title"].orEmpty()
+        }
         set(f) {
-            facetsPrefs = upsertBlk(facetsPrefs) { it.filtersMap[facetsMode.name] = f.propertySet.joinToString() }
+            facetsPrefs = upsertBlk(facetsPrefs) {
+                it.filtersMap[facetsMode.name] = f.propertySet.joinToString()
+                it.filtersMap["${facetsMode.name}.join"] = f.andOr
+                it.filtersMap["${facetsMode.name}.floor"] = f.durationFloor.toString()
+                it.filtersMap["${facetsMode.name}.ceiling"] = f.durationCeiling.toString()
+                it.filtersMap["${facetsMode.name}.title"] = f.titleText
+            }
         }
 
     suspend fun updateToolbar(episodes: List<Episode>) {
@@ -323,13 +356,13 @@ class FacetsVM(modeName_: String): ViewModel() {
             }
             else -> {   // All or None
                 listIdentity += ".${sortOrder.name}"
-                getEpisodesAsFlow(EpisodeFilter(facetsPrefs.filtersMap[QuickAccess.All.name] ?: ""), sortOrder).map { it.list }
+                getEpisodesAsFlow(filter, sortOrder).map { it.list }
             }
         }
         return realmFlow
     }
 
-    val episodesFlow: StateFlow<List<Episode>> = snapshotFlow { Triple(facetsMode, filterChanged, sortOrder) }.distinctUntilChanged().flatMapLatest { buildFlow() }
+    val episodesFlow: StateFlow<List<Episode>> = snapshotFlow { listOf(facetsMode, filterChanged, sortOrder, historyStartDate, historyEndDate) }.distinctUntilChanged().flatMapLatest { buildFlow() }
         .distinctUntilChanged().stateIn(scope = viewModelScope, started = SharingStarted.Eagerly, initialValue = emptyList())
 
     val feedsAssFlow: StateFlow<List<Feed>> = combine(episodesFlow, snapshotFlow { showFeeds }) { episodes, showFeeds -> Pair(episodes, showFeeds) }.distinctUntilChanged().flatMapLatest { (episodes, showFeeds) ->
@@ -473,7 +506,6 @@ class FacetsVM(modeName_: String): ViewModel() {
                     facetsMode = QuickAccess.valueOf(spinnerTexts[curIndex])
                 }
                 upsertBlk(facetsPrefs) { it.screenMode = facetsMode.name }
-                filter = EpisodeFilter(facetsPrefs.filtersMap[facetsMode.name] ?: "")
             }
             else -> curIndex = QuickAccess.Custom.ordinal
         }
@@ -510,6 +542,10 @@ fun FacetsScreen(modeName: String = "") {
 
     val episodes by vm.episodesFlow.collectAsStateWithLifecycle()
     val feedsAssociated by vm.feedsAssFlow.collectAsStateWithLifecycle()
+    val hasFilters = vm.filter.propertySet.isNotEmpty()
+    val historyCount by remember {
+        realm.query(Episode::class, "lastPlayedTime > 0 OR playbackCompletionTime > 0").count().asFlow()
+    }.collectAsStateWithLifecycle(initialValue = 0L)
 
     fun resetSwipes() {
         swipeActions = SwipeActions("${TAG}_${facetsMode.name}")
@@ -545,22 +581,22 @@ fun FacetsScreen(modeName: String = "") {
         var expanded by remember { mutableStateOf(false) }
         Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 10.dp).clickable { drawerController?.open() })
-            Text(facetsMode.name, maxLines=1, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.scale(scaleX = 1f, scaleY = 1.8f).clickable { showChooseMode = true })
+            Text(stringResource(facetsMode.labelRes), maxLines=1, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.scale(scaleX = 1f, scaleY = 1.8f).clickable { showChooseMode = true })
             Spacer(Modifier.weight(1f))
             val feedsIconRes = remember(vm.showFeeds) { if (vm.showFeeds) R.drawable.baseline_list_alt_24 else R.drawable.baseline_dynamic_feed_24 }
-            IconButton(onClick = { vm.showFeeds = !vm.showFeeds }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = "feeds") }
-            if (facetsMode != QuickAccess.History) IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "sort") }
-            if (facetsMode !in listOf(QuickAccess.Recorded, QuickAccess.Due, QuickAccess.Timers, QuickAccess.Archived, QuickAccess.Frozen)) IconButton(onClick = { showFilterDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = if (vm.filterButtonColor.value == Color.White) textColor else vm.filterButtonColor.value, contentDescription = "filter") }
-            if (vm.showFeeds) IconButton(onClick = {
+            if (episodes.isNotEmpty() || vm.showFeeds) IconButton(onClick = { vm.showFeeds = !vm.showFeeds }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = "feeds") }
+            if (episodes.isNotEmpty() && facetsMode != QuickAccess.History && !vm.showFeeds) IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "sort") }
+            if ((episodes.isNotEmpty() || hasFilters) && !vm.showFeeds && facetsMode !in listOf(QuickAccess.Recorded, QuickAccess.Captions, QuickAccess.Transcript, QuickAccess.Due, QuickAccess.Timers, QuickAccess.Archived, QuickAccess.Frozen)) IconButton(onClick = { showFilterDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = if (vm.filterButtonColor.value == Color.White) textColor else vm.filterButtonColor.value, contentDescription = "filter") }
+            if (vm.showFeeds && feedsAssociated.isNotEmpty()) IconButton(onClick = {
                 feedIdsToUse = feedsAssociated.map { it.id }
                 navTo(Library)
             }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = "library") }
             IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = "search") }
-            if (facetsMode in listOf(QuickAccess.History, QuickAccess.Downloaded, QuickAccess.New)) {
+            if (facetsMode == QuickAccess.Downloaded || (facetsMode == QuickAccess.History && historyCount > 0L) || (facetsMode == QuickAccess.New && episodes.isNotEmpty())) {
                 Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                     IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
                     DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
-                        if (episodes.isNotEmpty() && facetsMode == QuickAccess.History) {
+                        if (facetsMode == QuickAccess.History) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.between_dates)) }, onClick = {
                                 showDatesFilterDialog = true
                                 expanded = false
@@ -596,7 +632,7 @@ fun FacetsScreen(modeName: String = "") {
             return if (facetsMode == QuickAccess.Downloaded) mutableSetOf(EpisodeFilter.EpisodesFilterGroup.DOWNLOADED)
             else mutableSetOf()
         }
-        if (showFilterDialog) EpisodesFilterDialog(filter_ = vm.filter, disabledSet = filtersDisabled(), showAndOr = facetsMode in listOf(QuickAccess.All, QuickAccess.Custom), onDismiss = { showFilterDialog = false }) { filter ->
+        if (showFilterDialog) EpisodesFilterDialog(filter_ = vm.filter, disabledSet = filtersDisabled(), preview = facetsMode in listOf(QuickAccess.All, QuickAccess.None), showAndOr = facetsMode in listOf(QuickAccess.All, QuickAccess.Custom), onDismiss = { showFilterDialog = false }) { filter ->
             Logd(TAG) { "EpisodesFilterDialog cb: filter: ${filter.propertySet}" }
             vm.filter = filter
             vm.filterChanged++
@@ -622,7 +658,7 @@ fun FacetsScreen(modeName: String = "") {
                 Card(modifier = Modifier.width(300.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, borderColor), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                         for (index in vm.spinnerTexts.indices) {
-                            FilterChip(label = { Text(vm.spinnerTexts[index]) }, selected = vm.curIndex == index, border = filterChipBorder(vm.curIndex == index),
+                            FilterChip(label = { Text(stringResource(QuickAccess.valueOf(vm.spinnerTexts[index]).labelRes)) }, selected = vm.curIndex == index, border = filterChipBorder(vm.curIndex == index),
                                 onClick = {
                                     vm.curIndex = index
                                     facetsMode = QuickAccess.valueOf(vm.spinnerTexts[vm.curIndex])
@@ -662,15 +698,19 @@ fun FacetsScreen(modeName: String = "") {
                 val info = remember(vm.infoBarText, vm.progressing, facetsMode) {
                     (if (facetsMode == QuickAccess.Custom) "$facetsCustomTag | " else "") + vm.infoBarText + (if (vm.progressing) " - ${context.getString(R.string.progressing_label)}" else "")
                 }
-                InforBar(swipeActions) {
-                    Text(info, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.weight(0.1f))
-                    PlayRandom(episodes)
-                }
-                EpisodeLazyColumn(episodes, statusRowMode = statusMode, showActionButtons = facetsMode != QuickAccess.Commented, swipeActions = swipeActions, actionButtonType = actionButtonType, lazyListState = lazyListState, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, vm.sortOrder) } })
+                EpisodeListInfoBar(episodes, info, swipeActions)
+                if (episodes.isEmpty()) {
+                    when {
+                        hasFilters -> ArchiveEmpty(R.string.archive_no_filter_matches, R.string.archive_no_filter_matches_body, R.string.archive_clear_filters) {
+                            vm.filter = EpisodeFilter("")
+                            vm.filterChanged++
+                        }
+                        facetsMode == QuickAccess.History && historyCount > 0L -> ArchiveEmpty(R.string.archive_no_history_dates, R.string.archive_no_history_dates_body, R.string.between_dates) { showDatesFilterDialog = true }
+                        else -> ArchiveEmpty(R.string.archive_empty_episode_list, R.string.archive_empty_episode_list_body, R.string.archive_browse_library) { selectPrimary(Library) }
+                    }
+                } else EpisodeLazyColumn(episodes, statusRowMode = statusMode, showActionButtons = facetsMode != QuickAccess.Commented, swipeActions = swipeActions, actionButtonType = actionButtonType, lazyListState = lazyListState, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, vm.sortOrder) } })
             }
         }
         if (episodeForInfo != null) EpisodeScreen(episodeForInfo!!, listFlow = vm.episodesFlow, allowOpenFeed = true)
     }
 }
-

@@ -1,6 +1,7 @@
 package ac.mdiq.podcini.ui.compose
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import androidx.compose.foundation.selection.selectable
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.automation.cancel
 import ac.mdiq.podcini.automation.cancelTimer
@@ -738,15 +739,18 @@ fun RelatedEpisodesDialog(episode: Episode, onDismiss: () -> Unit) {
 @Composable
 fun ChooseRatingDialog(selected: List<Episode>, onDismiss: () -> Unit) {
     CommonPopupCard(onDismiss = onDismiss) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(stringResource(R.string.archive_choose_rating), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.archive_rate_help), style = MaterialTheme.typography.bodyMedium)
             for (rating in Rating.entries.reversed()) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(4.dp)
-                    .clickable {
+                    .selectable(selected = selected.isNotEmpty() && selected.all { it.rating == rating.code }, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = {
                         runOnIOScope { for (e in selected) upsert(e) { it.setRating(rating) } }
                         onDismiss()
-                    }) {
-                    Icon(imageVector = ImageVector.vectorResource(id = rating.res), "")
-                    Text(rating.name, Modifier.padding(start = 4.dp))
+                    })) {
+                    RadioButton(selected = selected.isNotEmpty() && selected.all { it.rating == rating.code }, onClick = null)
+                    Icon(imageVector = ImageVector.vectorResource(id = rating.res), null)
+                    Text(stringResource(rating.labelRes), Modifier.padding(start = 4.dp))
                 }
             }
         }
@@ -807,7 +811,7 @@ fun PlayStateDialog(selected: List<Episode>, onDismiss: () -> Unit, futureCB: (E
                         onDismiss()
                     }) {
                         Icon(imageVector = ImageVector.vectorResource(id = state.res), "")
-                        Text(state.name, Modifier.padding(start = 4.dp))
+                        Text(stringResource(state.labelRes), Modifier.padding(start = 4.dp))
                     }
                 }
             }
@@ -863,6 +867,7 @@ fun ShelveDialog(selected: List<Episode>, onDismiss: () -> Unit) {
     val synthetics = allFeeds.filter { it.id in 100..1000 }
     CommonPopupCard(onDismiss = onDismiss) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(stringResource(R.string.shelve_label), style = MaterialTheme.typography.titleLarge)
             var removeChecked by remember { mutableStateOf(false) }
             var toFeed by remember { mutableStateOf<Feed?>(null) }
             if (synthetics.isNotEmpty()) {
@@ -882,7 +887,7 @@ fun ShelveDialog(selected: List<Episode>, onDismiss: () -> Unit) {
                 Button(onClick = {
                     runOnIOScope { shelveToFeed(selected, toFeed!!, removeChecked) }
                     onDismiss()
-                }) { Text(stringResource(R.string.confirm_label)) }
+                }) { Text(stringResource(if (removeChecked) R.string.archive_move else R.string.archive_add)) }
             }
         }
     }
@@ -901,7 +906,7 @@ fun EraseEpisodesDialog(selected: List<Episode>, feed: Feed?, onDismiss: () -> U
             Button(onClick = {
                 CoroutineScope(Dispatchers.IO).launch { eraseEpisodes(selected, textState.text) }
                 onDismiss()
-            }) { Text(stringResource(R.string.confirm_label)) }
+            }) { Text(stringResource(R.string.archive_remove_library)) }
         }
     }
 }
@@ -1148,258 +1153,11 @@ fun FutureStateDialog(selected: List<Episode>, state: EpisodeState, onDismiss: (
 }
 
 @Composable
-fun EpisodesFilterDialog(filter_: EpisodeFilter, disabledSet: MutableSet<EpisodesFilterGroup> = mutableSetOf(), showAndOr: Boolean = true, onDismiss: () -> Unit, onFilterChanged: (EpisodeFilter) -> Unit) {
-    //    val filterValuesSet = remember {  filter.propertySet ?: mutableSetOf() }
-    Dialog(properties = DialogProperties(usePlatformDefaultWidth = false), onDismissRequest = { onDismiss() }) {
-        val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
-        dialogWindowProvider?.window?.setGravity(Gravity.BOTTOM)
-        Surface(modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 10.dp).height(350.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, borderColor)) {
-            val buttonAltColor = lerp(MaterialTheme.colorScheme.tertiary, Color.Green, 0.5f)
-            val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                val filter by remember { mutableStateOf(filter_.apply { if (andOr.isBlank()) andOr = "AND" }) }
-                var andOr by remember { mutableStateOf(filter.andOr.ifBlank { "AND" }) }
-                if (showAndOr) {
-                    Row(modifier = Modifier.padding(start = 5.dp).fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.join_categories_with) + " :", style = MaterialTheme.typography.bodyMedium , color = textColor, modifier = Modifier.padding(end = 10.dp))
-                        Spacer(Modifier.width(30.dp))
-                        OutlinedButton(
-                            modifier = Modifier.padding(0.dp), border = BorderStroke(2.dp, if (andOr == "OR") borderColor else buttonAltColor),
-                            onClick = {
-                                andOr = "AND"
-                                filter.andOr = andOr
-                                onFilterChanged(filter)
-                            },
-                        ) { Text(text = "AND", color = textColor) }
-                        Spacer(Modifier.width(20.dp))
-                        OutlinedButton(
-                            modifier = Modifier.padding(0.dp), border = BorderStroke(2.dp, if (andOr == "AND") borderColor else buttonAltColor),
-                            onClick = {
-                                andOr = "OR"
-                                filter.andOr = andOr
-                                onFilterChanged(filter)
-                            },
-                        ) { Text(text = "OR", color = textColor) }
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onTertiaryContainer, thickness = 1.dp)
-                }
-                var selectNone by remember { mutableStateOf(false) }
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    var expandRow by remember { mutableStateOf(false) }
-                    val searchAlgo = remember { SearchAlgo() }
-                    var queryText by remember { mutableStateOf(filter.extractText()) }
-                    var showSearchBy by remember { mutableStateOf(false) }
-                    LaunchedEffect(Unit) { searchAlgo.setSearchByAll() }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                        Text(stringResource(R.string.text_label) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (queryText.isBlank()) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                        Spacer(Modifier.width(20.dp))
-                        if (expandRow) Text(stringResource(R.string.show_criteria), color = buttonColor, modifier = Modifier.clickable {showSearchBy = !showSearchBy})
-                    }
-                    if (expandRow) {
-                        SearchBarRow(R.string.search_hint, defaultText = queryText, modifier = Modifier.fillMaxWidth().padding(start = 10.dp)) { query ->
-                            Logd(TAG) { "SearchBarRow cb query: $query" }
-                            if (query.isNotBlank()) {
-                                selectNone = false
-                                val queryWords = (if (query.contains(",")) query.split(",").map { it.trim() } else query.split("\\s+".toRegex())).dropWhile { it.isEmpty() }
-                                val queryString = searchAlgo.episodesQueryString(0L, queryWords)
-                                Logd(TAG) { "SearchBarRow cb queryString: $queryString" }
-                                filter.addTextQuery(queryString)
-                            } else filter.addTextQuery("")
-                            queryText = query
-                            onFilterChanged(filter)
-                        }
-                        if (showSearchBy) searchAlgo.SearchByGrid(setOf(SearchBy.AUTHOR))
-                    }
-                }
-                if (appAttribs.episodeTagSet.isNotEmpty()) {
-                    val tagList = remember { appAttribs.episodeTagSet.toList().sorted() }
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        val selectedList = remember { MutableList(tagList.size) { mutableStateOf(false) } }
-                        val tagsSel = remember { mutableStateListOf<String>() }
-                        var expandRow by remember { mutableStateOf(false) }
-                        Row(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                            Text(stringResource(R.string.tags_label) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = if (tagsSel.size == tagList.size) buttonColor else buttonAltColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                            if (expandRow) {
-                                val cb = {
-                                    for (i in tagList.indices) {
-                                        if (selectedList[i].value) {
-                                            filter.addTag(tagList[i])
-                                            tagsSel.add(tagList[i])
-                                        }
-                                        else {
-                                            filter.removeTag(tagList[i])
-                                            tagsSel.remove(tagList[i])
-                                        }
-                                    }
-                                    onFilterChanged(filter)
-                                }
-                                SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                            }
-                        }
-                        if (expandRow) ScrollRowGrid(columns = 3, itemCount = tagList.size, modifier = Modifier.padding(start = 10.dp)) { index ->
-                            LaunchedEffect(Unit) { if (filter.containsTag(tagList[index])) selectedList[index].value = true }
-                            OutlinedButton(
-                                modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                onClick = {
-                                    selectNone = false
-                                    selectedList[index].value = !selectedList[index].value
-                                    if (selectedList[index].value) filter.addTag(tagList[index])
-                                    else filter.removeTag(tagList[index])
-                                    onFilterChanged(filter)
-                                },
-                            ) { Text(text = tagList[index], maxLines = 1, color = textColor) }
-                        }
-                    }
-                }
-                for (item in EpisodesFilterGroup.entries) {
-                    if (item in disabledSet) continue
-                    if (item.properties.size == 2) {
-                        Row(modifier = Modifier.padding(start = 5.dp).fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
-                            var selectedIndex by remember { mutableIntStateOf(-1) }
-                            if (selectNone) selectedIndex = -1
-                            LaunchedEffect(Unit) {
-                                if (item.properties[0].filterId in filter.propertySet) selectedIndex = 0
-                                else if (item.properties[1].filterId in filter.propertySet) selectedIndex = 1
-                            }
-                            Text(stringResource(item.nameRes) + " :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge , color = textColor, modifier = Modifier.padding(end = 10.dp))
-                            Spacer(Modifier.width(30.dp))
-                            OutlinedButton(modifier = Modifier.padding(0.dp), border = BorderStroke(2.dp, if (selectedIndex != 0) borderColor else buttonAltColor),
-                                onClick = {
-                                    if (selectedIndex != 0) {
-                                        selectNone = false
-                                        selectedIndex = 0
-                                        filter.add(item.properties[0].filterId)
-                                        filter.remove(item.properties[1].filterId)
-                                    } else {
-                                        selectedIndex = -1
-                                        filter.remove(item.properties[0].filterId)
-                                    }
-                                    Logd("EpisodesFilterDialog") { "selectedIndex: $selectedIndex filterValues = [${filter.propertySet}]" }
-                                    onFilterChanged(filter)
-                                },
-                            ) { Text(text = stringResource(item.properties[0].displayName), color = textColor) }
-                            Spacer(Modifier.width(20.dp))
-                            OutlinedButton(
-                                modifier = Modifier.padding(0.dp), border = BorderStroke(2.dp, if (selectedIndex != 1) borderColor else buttonAltColor),
-                                onClick = {
-                                    if (selectedIndex != 1) {
-                                        selectNone = false
-                                        selectedIndex = 1
-                                        filter.add(item.properties[1].filterId)
-                                        filter.remove(item.properties[0].filterId)
-                                    } else {
-                                        selectedIndex = -1
-                                        filter.remove(item.properties[1].filterId)
-                                    }
-                                    onFilterChanged(filter)
-                                },
-                            ) { Text(text = stringResource(item.properties[1].displayName), color = textColor) }
-                            //                            Spacer(Modifier.weight(0.5f))
-                        }
-                    } else {
-                        Column(modifier = Modifier.padding(start = 5.dp, bottom = 2.dp).fillMaxWidth()) {
-                            val selectedList = remember { MutableList(item.properties.size) { mutableStateOf(false)} }
-                            var expandRow by remember { mutableStateOf(false) }
-                            when (item) {
-                                EpisodesFilterGroup.DURATION -> {
-                                    Text(stringResource(item.nameRes) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = buttonColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                    if (expandRow) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            var showIcon by remember { mutableStateOf(false) }
-                                            var floor by remember { mutableIntStateOf(filter.durationFloor/1000) }
-                                            var ceiling by remember { mutableIntStateOf(filter.durationCeiling/1000) }
-                                            NumberEditor(floor, stringResource(R.string.floor_seconds), nz = true, instant = true, modifier = Modifier.weight(0.4f)) {
-                                                floor = it
-                                                showIcon = true
-                                            }
-                                            NumberEditor(ceiling, stringResource(R.string.ceiling_seconds), nz = true, instant = true, modifier = Modifier.weight(0.4f)) {
-                                                ceiling = it
-                                                showIcon = true
-                                            }
-                                            if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon",
-                                                modifier = Modifier.size(30.dp).padding(start = 10.dp).clickable {
-                                                    val f = floor
-                                                    val c = if (ceiling == 0) Int.MAX_VALUE else ceiling
-                                                    filter.durationFloor = f * 1000
-                                                    filter.durationCeiling = if (c < Int.MAX_VALUE) c * 1000 else c
-                                                    showIcon = false
-                                                })
-                                        }
-                                    }
-                                }
-                                EpisodesFilterGroup.TITLE_TEXT -> {
-                                    Text(stringResource(item.nameRes) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = buttonColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                    if (expandRow) {
-                                        var showIcon by remember { mutableStateOf(false) }
-                                        var titleText by remember { mutableStateOf((filter.titleText)) }
-                                        TextField(value = titleText, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), label = { Text("Text in titles") }, singleLine = true,
-                                            onValueChange = {
-                                                titleText = it
-                                                showIcon = true
-                                            },
-                                            trailingIcon = {
-                                                if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon",
-                                                    modifier = Modifier.size(30.dp).clickable {
-                                                        filter.titleText = titleText
-                                                        showIcon = false
-                                                    })
-                                            })
-                                    }
-                                }
-                                else -> {
-                                    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Absolute.Left, verticalAlignment = Alignment.CenterVertically) {
-                                        Text(stringResource(item.nameRes) + "… :", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge, color = buttonColor, modifier = Modifier.clickable { expandRow = !expandRow })
-                                        if (expandRow) {
-                                            val cb = {
-                                                for (i in item.properties.indices) {
-                                                    if (selectedList[i].value) filter.add(item.properties[i].filterId)
-                                                    else filter.remove(item.properties[i].filterId)
-                                                }
-                                                onFilterChanged(filter)
-                                            }
-                                            SelectLowerAllUpper(selectedList, lowerCB = cb, allCB = cb, upperCB = cb)
-                                        }
-                                    }
-                                }
-                            }
-                            if (expandRow) ScrollRowGrid(columns = 3, itemCount = item.properties.size) { index ->
-                                if (selectNone) selectedList[index].value = false
-                                LaunchedEffect(Unit) { if (item.properties[index].filterId in filter.propertySet) selectedList[index].value = true }
-                                OutlinedButton(
-                                    modifier = Modifier.padding(0.dp).heightIn(min = 20.dp).widthIn(min = 20.dp).wrapContentWidth(), border = BorderStroke(2.dp, if (selectedList[index].value) buttonAltColor else borderColor),
-                                    onClick = {
-                                        selectNone = false
-                                        selectedList[index].value = !selectedList[index].value
-                                        if (selectedList[index].value) {
-                                            filter.add(item.properties[index].filterId)
-                                            if (item.exclusive) for (i in selectedList.indices) {
-                                                if (i != index) {
-                                                    selectedList[i].value = false
-                                                    filter.remove(item.properties[i].filterId)
-                                                }
-                                            }
-                                        } else filter.remove(item.properties[index].filterId)
-                                        onFilterChanged(filter)
-                                    },
-                                ) { Text(text = stringResource(item.properties[index].displayName), maxLines = 1, color = textColor) }
-                            }
-                        }
-                    }
-                }
-                Row {
-                    Spacer(Modifier.weight(0.3f))
-                    Button(onClick = {
-                        selectNone = true
-                        filter.propertySet.clear()
-                        onFilterChanged(filter)
-                    }) { Text(stringResource(R.string.reset)) }
-                    Spacer(Modifier.weight(0.4f))
-                    Button(onClick = { onDismiss() }) { Text(stringResource(R.string.close)) }
-                    Spacer(Modifier.weight(0.3f))
-                }
-            }
-        }
-    }
+fun EpisodesFilterDialog(filter_: EpisodeFilter, disabledSet: MutableSet<EpisodesFilterGroup> = mutableSetOf(), showAndOr: Boolean = true,
+                         scopeQuery: String = "id > 0", subtitle: String? = null, preview: Boolean = true,
+                         onDismiss: () -> Unit, onFilterChanged: (EpisodeFilter) -> Unit) {
+    EpisodeFilterEditor(filter = filter_, disabled = disabledSet, showAndOr = showAndOr, scopeQuery = scopeQuery, subtitle = subtitle,
+        preview = preview, onDismiss = onDismiss, onApply = onFilterChanged)
 }
 
 @Composable

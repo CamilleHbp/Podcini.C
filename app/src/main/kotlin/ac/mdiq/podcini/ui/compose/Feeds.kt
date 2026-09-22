@@ -119,7 +119,7 @@ fun ChooseRatingDialog(selected: List<Feed>, onDismiss: () -> Unit) {
                     onDismiss()
                 }) {
                     Icon(imageVector = ImageVector.vectorResource(id = rating.res), "")
-                    Text(rating.name, Modifier.padding(start = 4.dp))
+                    Text(stringResource(rating.labelRes), Modifier.padding(start = 4.dp))
                 }
             }
         }
@@ -168,7 +168,7 @@ fun RemoveFeedDialog(feeds: List<Feed>, onDismiss: () -> Unit, callback: ()->Uni
                 }
                 callback()
                 onDismiss()
-            }) { Text(stringResource(R.string.confirm_label)) }
+            }) { Text(stringResource(R.string.remove_feed_label)) }
         }
     }
 }
@@ -248,7 +248,7 @@ fun OnlineFeedItem(result: FeedSearchResult, log: SubscriptionLog? = null) {
 fun AmendSyntheticFeed(feed_: Feed? = null, name_: String? = null, volume: Volume? = null, onDismiss: () -> Unit, cb: (Feed)->Unit) {
     CommonPopupCard(onDismiss = { onDismiss() }) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Text(stringResource(R.string.rename_feed_label), color = textColor, style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(if (feed_ == null) R.string.archive_new_collection else R.string.rename_feed_label), color = textColor, style = MaterialTheme.typography.bodyLarge)
             var name by remember { mutableStateOf(feed_?.title ?: name_ ?: "") }
             TextField(value = name,  singleLine = true, onValueChange = { name = it }, label = { Text(stringResource(R.string.new_namee)) })
             var hasVideo by remember { mutableStateOf(true) }
@@ -262,7 +262,7 @@ fun AmendSyntheticFeed(feed_: Feed? = null, name_: String? = null, volume: Volum
             for (type in FeedType.entries + listOf(null)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = type == feedType, onCheckedChange = { feedType = type })
-                    Text(text = type?.name?:"null", style = MaterialTheme.typography.bodyMedium, color = textColor, modifier = Modifier.padding(start = 10.dp))
+                    Text(text = type?.name ?: stringResource(R.string.archive_automatic), style = MaterialTheme.typography.bodyMedium, color = textColor, modifier = Modifier.padding(start = 10.dp))
                 }
             }
             Row {

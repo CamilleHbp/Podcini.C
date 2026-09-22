@@ -69,10 +69,11 @@ fun getEpisodesAsFlow(filter: EpisodeFilter?, sortOrder: EpisodeSortOrder?, feed
     return realm.query(Episode::class).query(queryString).sort(sortPairOf(sortOrder)).asFlow()
 }
 
-fun getEpisodesAsListFlow(filter: EpisodeFilter?, sortOrder: EpisodeSortOrder?, feedId: Long = -1): Flow<List<Episode>> {
+fun getEpisodesAsListFlow(filter: EpisodeFilter?, sortOrder: EpisodeSortOrder?, feedId: Long = -1, scopeQuery: String? = null): Flow<List<Episode>> {
     var queryString = filter?.queryString()
     if (queryString.isNullOrBlank()) queryString = "id > 0"
     if (feedId >= 0) queryString += " AND feedId == $feedId "
+    if (!scopeQuery.isNullOrBlank()) queryString = "($queryString) AND ($scopeQuery)"
     Logd(TAG) { "getEpisodesAsFlow queryString: $queryString sortOrder: $sortOrder" }
     if (sortOrder != null && sortOrder != DATE_DESC)
         return realm.query(Episode::class).query(queryString).asFlow().map { result ->
@@ -116,7 +117,9 @@ suspend fun deleteEpisodesWarnLocalRepeat(items: Iterable<Episode>) {
     val repeatItems: MutableList<Episode> = mutableListOf()
     suspend fun deleteItems(items_: List<Episode>) {
         for (episode in items_) {
-            if (episode.feed != null && !episode.feed!!.isLocal) {
+            if (episode.feed?.isLocal == true) {
+                if (!episode.fileUrl.isNullOrBlank()) deleteMedia(episode)
+            } else if (episode.feed != null) {
                 EpisodeAdrDLManager.manager.cancel(episode)
                 if (episode.downloaded) deleteMedia(episode)
             }
@@ -129,7 +132,7 @@ suspend fun deleteEpisodesWarnLocalRepeat(items: Iterable<Episode>) {
             localItems.add(item)
             toConfirm = true
         }
-        if (item.playState == EpisodeState.AGAIN.code || item.playState == EpisodeState.FOREVER.code) {
+        if (item.feed?.isLocal != true && (item.playState == EpisodeState.AGAIN.code || item.playState == EpisodeState.FOREVER.code)) {
             repeatItems.add(item)
             toConfirm = true
         }
@@ -140,9 +143,9 @@ suspend fun deleteEpisodesWarnLocalRepeat(items: Iterable<Episode>) {
     if (localItems.isNotEmpty()) {
         withContext(Dispatchers.Main) {
             commonConfirms.add(CommonConfirmAttrib(
-                title = context.getString(R.string.delete_episode_label),
-                message = context.getString(R.string.delete_local_feed_warning_body),
-                confirmRes = R.string.delete_label,
+                title = context.getString(R.string.archive_delete_local),
+                message = context.getString(R.string.archive_remove_local_warning),
+                confirmRes = R.string.archive_delete_local_confirm,
                 cancelRes = R.string.cancel_label,
                 onConfirm = {
                    runOnIOScope {
@@ -160,7 +163,7 @@ suspend fun deleteEpisodesWarnLocalRepeat(items: Iterable<Episode>) {
             commonConfirms.add(CommonConfirmAttrib(
                 title = context.getString(R.string.delete_episode_label),
                 message = context.getString(R.string.delete_repeat_warning_msg),
-                confirmRes = R.string.delete_label,
+                confirmRes = R.string.delete_episode_label,
                 cancelRes = R.string.cancel_label,
                 onConfirm = {
                     runOnIOScope { deleteItems(repeatItems) }

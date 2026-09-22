@@ -1,7 +1,11 @@
 package ac.mdiq.podcini.ui.screens
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import ac.mdiq.podcini.ui.compose.ArchiveTopBar
+import ac.mdiq.podcini.ui.compose.ArchiveFilterChips
+import androidx.compose.material3.*
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.playback.theatres
 import ac.mdiq.podcini.shared.nowInMillis
 import ac.mdiq.podcini.sourcing.download.RequestType
@@ -357,7 +361,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
 
         if (feed != null && showFilterDialog) {
             vm.showHeader = false
-            EpisodesFilterDialog(filter_ = feed!!.episodeFilter, onDismiss = {
+            EpisodesFilterDialog(filter_ = feed!!.episodeFilter, scopeQuery = "feedId == ${feed!!.id}", subtitle = feed!!.title, onDismiss = {
                 vm.showHeader = true
                 showFilterDialog = false
             }) { filter ->
@@ -408,60 +412,12 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
         }
     }
 
-    val maxHeaderHeight = 60.dp
-    val density = LocalDensity.current
-    val maxHeaderPx = with(density) { maxHeaderHeight.toPx() }
-    val minHeaderPx = with(density) { 0.dp.toPx() }
-    val headerHeightPx = remember { mutableFloatStateOf(with(density) { maxHeaderHeight.toPx() }) }
-    val currentHeaderDp = with(density) { headerHeightPx.floatValue.toDp() }
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                val newHeight = headerHeightPx.floatValue + delta
-                headerHeightPx.floatValue = newHeight.coerceIn(minHeaderPx, maxHeaderPx)
-                return if (headerHeightPx.floatValue > minHeaderPx && headerHeightPx.floatValue < maxHeaderPx) Offset(x = 0f, y = delta) else { Offset.Zero }
-            }
-        }
-    }
-
     @Composable
     fun TopHeader() {
         var expanded by remember { mutableStateOf(false) }
-        val buttonAltColor = lerp(MaterialTheme.colorScheme.tertiary, Color.Green, 0.5f)
-
-        Box(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-            AsyncImage(model = feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, error = painterResource(R.drawable.teaser), contentDescription = "bgImage", contentScale = ContentScale.FillBounds, modifier = Modifier.matchParentSize().blur(radiusX = 5.dp, radiusY = 5.dp))
-            Box(modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)))
-            Column {
-                Row(modifier = Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(ImageVector.vectorResource(R.drawable.outline_square_dot_24), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 10.dp).clickable { drawerController?.open() } )
-                    AsyncImage(model = feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, alignment = Alignment.TopStart, contentDescription = "imgvCover", error = painterResource(R.drawable.ic_launcher_foreground), modifier = Modifier.width(24.dp).height(24.dp).border(2.dp, MaterialTheme.colorScheme.tertiary).combinedClickable(
-                        onClick = { if (feed != null) vm.screenModeFlow.value = if (screenMode == FeedScreenMode.List) FeedScreenMode.Info else FeedScreenMode.List },
-                        onLongClick = { onImgLongClick() }))
-                    Spacer(Modifier.weight(1f))
-                    if (screenMode == FeedScreenMode.List) {
-                        val isFiltered = remember(feed?.filterString, feed?.episodeFilter?.propertySet) { !feed?.filterString.isNullOrBlank() && !feed?.episodeFilter?.propertySet.isNullOrEmpty() }
-                        IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort") }
-                        val filterButtonColor = if (vm.enableFilter) if (isFiltered) buttonAltColor else textColor else Color.Red
-                        if (feed != null) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter_white), tint = filterButtonColor, contentDescription = "butFilter", modifier = Modifier.padding(horizontal = 5.dp).combinedClickable(
-                            onClick = { if (vm.enableFilter) showFilterDialog = true },
-                            onLongClick = { if (isFiltered) vm.enableFilter = !vm.enableFilter })
-                        )
-                    }
-                    val histColor = if (screenMode != FeedScreenMode.History) textColor else buttonAltColor
-                    if (feed != null) IconButton(onClick = {
-                        vm.screenModeFlow.value = when(screenMode) {
-                            FeedScreenMode.List -> FeedScreenMode.History
-                            FeedScreenMode.History -> FeedScreenMode.List
-                            else -> FeedScreenMode.History
-                        }
-                    }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_history), tint = histColor, contentDescription = "history") }
-                    if (feed?.queue != null) IconButton(onClick = {
-                        navTo(Queues(id=feed?.queue?.id ?: -1L))
-                        psState = PSState.PartiallyExpanded
-                    }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.playlist_play), contentDescription = "queue") }
-                    IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = "search") }
+        Column {
+            ArchiveTopBar(feed?.title ?: stringResource(R.string.archive_no_title), back = true) {
+                IconButton(onClick = { navTo(Search) }) { Icon(ImageVector.vectorResource(R.drawable.ic_search), stringResource(R.string.archive_search)) }
                     if (feed != null) {
                         Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
                             IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
@@ -499,7 +455,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                                     }
                                     expanded = false
                                 })
-                                DropdownMenuItem(text = { Text(stringResource(R.string.clean_up)) }, onClick = {
+                                if (vm.feedEpisodesSize > 0) DropdownMenuItem(text = { Text(stringResource(R.string.clean_up)) }, onClick = {
                                     feedOperationText = context.getString(R.string.clean_up)
                                     runOnIOScope {
                                         val f = realm.copyFromRealm(feed!!)
@@ -525,26 +481,21 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                         }
                     }
                 }
-                Box(modifier = Modifier.fillMaxWidth().height(currentHeaderDp)) {
-                    Text(feed?.title ?: "No title", color = textColor, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(start = 10.dp, top = 4.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (feed != null) {
-                        val ratingIconRes = remember(feed?.rating) {  Rating.fromCode(feed?.rating?:0).res }
-                        Icon(imageVector = ImageVector.vectorResource(ratingIconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating", modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 5.dp).background(MaterialTheme.colorScheme.tertiaryContainer).clickable { showChooseRatingDialog = true })
-                    }
+            PrimaryTabRow(selectedTabIndex = when(screenMode) { FeedScreenMode.Info -> 1; FeedScreenMode.History -> 2; else -> 0 }) {
+                listOf(R.string.episodes_label, R.string.archive_about_short, R.string.archive_history_short).forEachIndexed { index, label ->
+                    Tab(selected = when(index) { 1 -> screenMode == FeedScreenMode.Info; 2 -> screenMode == FeedScreenMode.History; else -> screenMode == FeedScreenMode.List }, onClick = { vm.screenModeFlow.value = when(index) { 1 -> FeedScreenMode.Info; 2 -> FeedScreenMode.History; else -> FeedScreenMode.List } }, text = { Text(stringResource(label)) })
                 }
-                if (screenMode != FeedScreenMode.Info) InforBar(swipeActions) {
-                    if (feedOperationText.isNotBlank()) Text(feedOperationText, style = MaterialTheme.typography.bodyMedium)
-                    else {
-                        val scoreText = remember(feed?.score, feed?.scoreCount) { if (feed != null) (feed!!.score).toString() + " (" + feed!!.scoreCount + ") " else "" }
-                        if (scoreText.isNotBlank()) {
-                            Text(scoreText, style = MaterialTheme.typography.bodyMedium)
-                            Spacer(modifier = Modifier.weight(0.1f))
-                        }
-                        Text(vm.listInfoText, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(modifier = Modifier.weight(0.1f))
-                        PlayRandom(episodes)
-                    }
-                }
+            }
+            if (screenMode == FeedScreenMode.List && (vm.feedEpisodesSize > 0 || feedOperationText.isNotBlank())) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if(feedOperationText.isNotBlank()) feedOperationText else stringResource(R.string.archive_episode_count, episodes.size), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                if (episodes.isNotEmpty()) TextButton(onClick = { showSortDialog = true }) { Text(stringResource(R.string.archive_sort)) }
+                if (vm.feedEpisodesSize > 0) TextButton(onClick = { showFilterDialog = true; vm.enableFilter = true }) { Text(stringResource(R.string.archive_filter)) }
+            }
+            if (screenMode == FeedScreenMode.List && vm.enableFilter && !feed?.filterString.isNullOrBlank()) {
+                ArchiveFilterChips(feed!!.episodeFilter, onRemove = { key ->
+                    val updated = feed!!.episodeFilter.apply { propertySet.remove(key) }
+                    runOnIOScope { upsert(feed!!) { it.episodeFilter = updated } }
+                }, onClear = { runOnIOScope { upsert(feed!!) { it.episodeFilter = EpisodeFilter() } } })
             }
         }
     }
@@ -599,9 +550,9 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
             }
 
             val curVolumeName = remember(feed?.volumeId) { if (feed?.volumeId == -1L) "None" else allVolumes.find { it.id == feed?.volumeId }?.name ?: "None" }
-            Text("Parent volume: $curVolumeName", color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
+            Text(stringResource(R.string.archive_parent_folder_value, curVolumeName), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
-            Text("Associated queue: ${feed?.queue?.name?:"None"}", color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
+            Text(stringResource(R.string.archive_default_queue_value, feed?.queue?.name ?: stringResource(R.string.archive_no_queue)), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
             Text("Tags: ${feed?.tagsAsString?:""}", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
             Text(stringResource(R.string.comments) + if (feed?.comment.isNullOrBlank()) " (Add)" else "", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom,
@@ -688,7 +639,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(topBar = { TopHeader() }) { innerPadding ->
             if (screenMode in listOf(FeedScreenMode.List, FeedScreenMode.History)) {
-                Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface).nestedScroll(nestedScrollConnection)) {
+                Column(modifier = Modifier.padding(innerPadding).fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
                     val player0 by theatres[0].mPlayerFlow.collectAsStateWithLifecycle()
                     val player1 by theatres[1].mPlayerFlow.collectAsStateWithLifecycle()
                     val curMedia0 by player0?.curMediaFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(null) }
@@ -713,7 +664,11 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                             }
                         }
                     }
-                    EpisodeLazyColumn(
+                    if (episodes.isEmpty()) {
+                        if (screenMode == FeedScreenMode.List && vm.enableFilter && !feed?.filterString.isNullOrBlank() && vm.feedEpisodesSize > 0)
+                            ArchiveEmpty(R.string.archive_no_filter_matches, R.string.archive_no_filter_matches_body, R.string.archive_change_filters) { showFilterDialog = true }
+                        else ArchiveEmpty(R.string.archive_empty_episode_list, if (screenMode == FeedScreenMode.History) R.string.archive_empty_feed_history_body else R.string.archive_empty_feed_body)
+                    } else EpisodeLazyColumn(
                         episodes, feed = feed, layoutMode = if (feed?.useWideLayout == true) LayoutMode.WideImage.code else LayoutMode.Normal.code,
                         swipeActions = swipeActions, lazyListState = lazyListState, scrollToOnStart = scrollToOnStart,
                         refreshCB = {

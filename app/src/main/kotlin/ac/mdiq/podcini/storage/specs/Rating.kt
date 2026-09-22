@@ -10,6 +10,15 @@ enum class Rating(val code: Int, val res: Int) {
     GOOD(1, R.drawable.baseline_thumb_up_24),
     SUPER(2, R.drawable.ic_star);
 
+    val labelRes: Int get() = when (this) {
+        UNRATED -> R.string.unrated
+        TRASH -> R.string.trash
+        BAD -> R.string.bad
+        OK -> R.string.OK
+        GOOD -> R.string.good
+        SUPER -> R.string.Super
+    }
+
     companion object {
         fun fromCode(code: Int): Rating {
             return Rating.entries.firstOrNull { it.code == code } ?: UNRATED

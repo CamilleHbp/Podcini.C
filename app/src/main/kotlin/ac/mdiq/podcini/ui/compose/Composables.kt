@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.compose
 
+import androidx.compose.foundation.selection.toggleable
+
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.shared.nowInMillis
 import ac.mdiq.podcini.storage.database.appAttribsFlow
@@ -255,16 +257,14 @@ fun TitleSummaryActionColumn(titleRes: Int, summaryRes: Int, callback: ()-> Unit
 
 @Composable
 fun TitleSummarySwitchRow(titleRes: Int, summaryRes: Int, initVal: Boolean, cb: (Boolean)->Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()
+        .toggleable(value = initVal, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = cb)
+        .padding(start = 16.dp, top = 10.dp, bottom = 10.dp)) {
         Column(modifier = Modifier.weight(1f)) {
             Text(stringResource(titleRes), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
             Text(stringResource(summaryRes), color = textColor, style = MaterialTheme.typography.bodySmall)
         }
-        var isChecked by remember { mutableStateOf(initVal) }
-        Switch(checked = isChecked, onCheckedChange = {
-            isChecked = it
-            cb.invoke(it)
-        })
+        Switch(checked = initVal, onCheckedChange = null)
     }
 }
 
@@ -371,7 +371,7 @@ fun LargePoster(c: CommonMessageAttrib) {
 }
 
 @Composable
-fun ConfirmDialog(titleRes: Int, message: String, showDialog: MutableState<Boolean>, cancellable: Boolean = true, onConfirm: () -> Unit) {
+fun ConfirmDialog(titleRes: Int, message: String, showDialog: MutableState<Boolean>, cancellable: Boolean = true, confirmRes: Int = R.string.confirm_label, onConfirm: () -> Unit) {
     if (showDialog.value) {
         AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { showDialog.value = false },
             title = { if (titleRes != 0) Text(stringResource(titleRes)) },
@@ -380,7 +380,7 @@ fun ConfirmDialog(titleRes: Int, message: String, showDialog: MutableState<Boole
                 TextButton(onClick = {
                     onConfirm()
                     showDialog.value = false
-                }) { Text(stringResource(R.string.confirm_label)) }
+                }) { Text(stringResource(confirmRes)) }
             },
             dismissButton = { if (cancellable) TextButton(onClick = { showDialog.value = false }) { Text(stringResource(R.string.cancel_label)) } }
         )

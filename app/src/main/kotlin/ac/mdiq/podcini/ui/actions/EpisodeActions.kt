@@ -216,7 +216,7 @@ class AddToAssociatedQueue : EpisodeAction() {
     override val id: String
         get() = "ADD_TO_ASSOCIATED"
     override val title: String
-        get() = getAppContext().getString(R.string.add_to_associated_queue)
+        get() = onEpisode?.feed?.queue?.name?.let { getAppContext().getString(R.string.archive_add_named_queue, it) } ?: getAppContext().getString(R.string.add_to_associated_queue)
 
     override val iconRes:  Int = R.drawable.ic_playlist_play
     override val color: Color = Color(0xFF5599FF)
@@ -236,7 +236,7 @@ class AddToActiveQueue : EpisodeAction() {
     override val id: String
         get() = "ADD_TO_ACT_QUEUE"
     override val title: String
-        get() = getAppContext().getString(R.string.add_to_active_queue)
+        get() = getAppContext().getString(R.string.archive_add_named_queue, actQueueFlow.value.name)
 
     override val iconRes:  Int = R.drawable.ic_playlist_play
     override val color: Color = Color(0xFF55BBFF)
@@ -459,7 +459,7 @@ class Download : EpisodeAction() {
     override val iconRes:  Int = R.drawable.ic_download
     override val color: Color = Color(0xFF55FF00)
 
-    override fun enabled(): Boolean = onEpisode?.downloaded == false && onEpisode?.feed != null && !onEpisode!!.feed!!.isLocal
+    override fun enabled(): Boolean = onEpisode?.let { !it.downloaded && it.feed?.isLocal != true && !it.downloadUrl.isNullOrBlank() && ac.mdiq.podcini.storage.database.isMediaDownloadable(it) } == true
 
 
     override fun performAction(e: Episode) {
@@ -492,12 +492,12 @@ class Delete : EpisodeAction() {
     override val id: String
         get() = "DELETE"
     override val title: String
-        get() = getAppContext().getString(R.string.delete_episode_label)
+        get() = getAppContext().getString(if (onEpisode?.feed?.isLocal == true) R.string.archive_delete_local else R.string.delete_episode_label)
 
     override val iconRes:  Int = R.drawable.ic_delete
     override val color: Color = Color(0xFFFF3388)
 
-    override fun enabled(): Boolean = onEpisode?.downloaded == true
+    override fun enabled(): Boolean = onEpisode?.let { !it.fileUrl.isNullOrBlank() && (it.downloaded || it.feed?.isLocal == true) } == true
 
     override fun performAction(e: Episode) {
         var item_ = e

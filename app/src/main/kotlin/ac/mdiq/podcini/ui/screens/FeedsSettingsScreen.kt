@@ -396,7 +396,7 @@ fun FeedsSettingsScreen() {
                             for (type in FeedType.entries + listOf(null)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Checkbox(checked = type == feedType, onCheckedChange = { feedType = type })
-                                    Text(text = type?.name ?: "null", style = MaterialTheme.typography.bodyMedium, color = textColor, modifier = Modifier.padding(start = 10.dp))
+                                    Text(text = type?.name ?: stringResource(R.string.archive_automatic), style = MaterialTheme.typography.bodyMedium, color = textColor, modifier = Modifier.padding(start = 10.dp))
                                 }
                             }
                             Row {
@@ -417,7 +417,7 @@ fun FeedsSettingsScreen() {
                         })
                     }
                 }
-                Text(text = (feedType?.name?:"null") + " : " + stringResource(R.string.pref_feed_type_sum), style = MaterialTheme.typography.bodyMedium, color = textColor)
+                Text(text = (feedType?.name ?: stringResource(R.string.archive_automatic)) + " : " + stringResource(R.string.pref_feed_type_sum), style = MaterialTheme.typography.bodyMedium, color = textColor)
             }
 
             // audio type
@@ -636,7 +636,7 @@ fun FeedsSettingsScreen() {
                 Card(modifier = Modifier.width(300.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, borderColor), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                         for (action in actions) {
-                            FilterChip(label = { Text(action) }, selected = curAction == action, border = filterChipBorder(curAction == action),
+                            FilterChip(label = { Text(stringResource(if (action == "Auto") R.string.archive_automatic else ButtonTypes.valueOf(action).labelRes)) }, selected = curAction == action, border = filterChipBorder(curAction == action),
                                 onClick = {
                                     if (action == "Auto") runOnIOScope { realm.write { for (f in feedsToSet) { findLatest(f)?.let { it.prefActionType = null } } } }
                                     else {
@@ -825,7 +825,7 @@ fun FeedsSettingsScreen() {
             // filtering
             var showFilterDialog by remember {  mutableStateOf(false) }
             if (showFilterDialog) {
-                EpisodesFilterDialog(filter_ = feedToSet.episodeFilter, onDismiss = { showFilterDialog = false }) { filter ->
+                EpisodesFilterDialog(filter_ = feedToSet.episodeFilter, scopeQuery = "feedId IN ${feedsToSet.map { it.id }.joinToString(prefix = "{", postfix = "}")}", onDismiss = { showFilterDialog = false }) { filter ->
                     runOnIOScope { realm.write { for (f in feedsToSet) { findLatest(f)?.let { f -> f.episodeFilter = filter } } } }
                 }
             }
