@@ -4,6 +4,9 @@ class DownloadStatus(
          val state: Int,
          val progress: Int) {
 
+    val activeProgress: Int?
+        get() = if (state < State.COMPLETED.code) progress else null
+
     enum class State(val code: Int) {
         UNKNOWN(0),
         QUEUED(1),

@@ -2,6 +2,7 @@ package ac.mdiq.podcini.sourcing.download
 
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.activity.MainActivity
 import ac.mdiq.podcini.config.CHANNEL_ID
 import ac.mdiq.podcini.config.AppConfig.initialize
 import ac.mdiq.podcini.config.NotificationIds
@@ -32,7 +33,9 @@ import ac.mdiq.podcini.utils.Loge
 import ac.mdiq.podcini.utils.Logs
 import android.app.Notification
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
 import androidx.work.Constraints.Builder
@@ -145,59 +148,52 @@ class EpisodesDownloadWorker(context: Context, params: WorkerParameters) : Corou
     override suspend fun doWork(): Result = coroutineScope {
         initialize()
         getForegroundInfo()
-
-        Logd(TAG) { "starting doWork" }
-        val ids = appAttribsFlow!!.value.episodeIdsToDownload
-        if (ids.isEmpty()) return@coroutineScope Result.Success()
-
+        val ids = appAttribsFlow!!.value.episodeIdsToDownload.toList()
+        if (ids.isEmpty()) return@coroutineScope Result.success()
         val medias = realm.query(Episode::class).query("id IN $0", ids).find()
-        if (medias.isEmpty()) {
-            Loge(TAG, "no media is available for download")
-            return@coroutineScope Result.failure()
-        }
+        var retryPending = false
+        var failed = false
         for (media in medias) {
             val request = requestFor(media).build()
-            val progressUpdaterJob = CoroutineScope(Dispatchers.IO).launch {
+            val progressUpdaterJob = launch(Dispatchers.IO) {
                 val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 while (isActive) {
-                    try {
-                        synchronized(notificationProgress) { notificationProgress.put(media.getEpisodeTitle(), request.progressPercent) }
-                        withTimeoutOrNull(5000.milliseconds) {
-                            setProgressAsync(Data.Builder().putInt(WORK_DATA_PROGRESS, request.progressPercent).build()).get()
-                            nm.notify(NotificationIds.downloading, generateProgressNotification())
-                        }
-                        delay(1000.milliseconds)
-                    } catch (e: CancellationException) { return@launch
-                    } catch (e: Exception) {
-                        Loge(TAG, e, "Episode download progressUpdaterJob exception")
-                        return@launch
+                    synchronized(notificationProgress) { notificationProgress[media.getEpisodeTitle()] = request.progressPercent }
+                    setProgress(Data.Builder().putInt(WORK_DATA_PROGRESS, request.progressPercent).build())
+                    nm.notify(NotificationIds.downloading, generateProgressNotification())
+                    delay(1000)
+                }
+            }
+            var outcome: Result? = null
+            try {
+                outcome = performTasks(request)
+                when (outcome) {
+                    Result.retry() -> retryPending = true
+                    Result.failure() -> failed = true
+                    else -> {}
+                }
+                // Leave retryable episodes pending for WorkManager's next attempt.
+                if (outcome != Result.retry()) upsert(appAttribsFlow!!.value) { it.episodeIdsToDownload.remove(media.id) }
+            } catch (e: CancellationException) {
+                throw e
+            } finally {
+                progressUpdaterJob.cancel()
+                if (outcome == Result.failure()) quietlyDeleteFile(request.destination.toSafeUri())
+                downloader?.cancel()
+                synchronized(notificationProgress) {
+                    notificationProgress.remove(media.getEpisodeTitle())
+                    if (notificationProgress.isEmpty()) {
+                        val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        nm.cancel(NotificationIds.downloading)
                     }
                 }
             }
-            var result: Result = Result.failure()
-            try {
-                result = performTasks(request)
-                if (result == Result.failure()) return@coroutineScope result
-            } catch (e: Exception) {
-                Logs(TAG, e)
-                return@coroutineScope Result.failure()
-            } finally {
-                if (result == Result.failure() && downloader?.request?.destination != null) quietlyDeleteFile(downloader!!.request.destination.toSafeUri())
-                downloader?.cancel()
-            }
-            progressUpdaterJob.cancel()
-            progressUpdaterJob.join()
-            synchronized(notificationProgress) {
-                notificationProgress.remove(media.getEpisodeTitle())
-                if (notificationProgress.isEmpty()) {
-                    val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    nm.cancel(NotificationIds.downloading)
-                }
-            }
-            upsert(appAttribsFlow!!.value) { it.episodeIdsToDownload.remove(media.id) }
-            Logd(TAG) { "Worker for " + media.downloadUrl + " returned." }
         }
-        return@coroutineScope Result.Success()
+        when {
+            retryPending -> Result.retry()
+            failed -> Result.failure()
+            else -> Result.success()
+        }
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo {
@@ -205,86 +201,61 @@ class EpisodesDownloadWorker(context: Context, params: WorkerParameters) : Corou
     }
 
     private suspend fun performTasks(request: DownloadRequest): Result {
-        Logd(TAG) { "starting performDownload: ${request.destination}" }
-        if (request.destination.isBlank()) {
-            Loge(TAG, "performDownload request.destination is null or blank")
-            return Result.failure()
-        }
-
-        Logd(TAG) { "request.destination: ${request.destination}" }
+        if (request.destination.isBlank()) return Result.failure()
         request.ensureMediaFileExists()
-        downloader = Downloader.downloaderFor(request)
-        if (downloader == null) {
-            Loge(TAG, "performDownload Unable to create downloader")
-            return Result.failure()
-        }
-
-        fun sendErrorNotification(title: String) {
-            val builder = NotificationCompat.Builder(applicationContext, CHANNEL_ID.error.name)
-            builder.setTicker(applicationContext.getString(R.string.download_report_title))
-                .setContentTitle(applicationContext.getString(R.string.download_report_title))
-                .setContentText(applicationContext.getString(R.string.download_error_tap_for_details))
-                .setSmallIcon(R.drawable.ic_notification_sync_error)
-                //                .setContentIntent(getDownloadLogsIntent(applicationContext))
-                .setAutoCancel(true)
-            builder.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            nm.notify(NotificationIds.download_report, builder.build())
-        }
-        fun retry3times(): Result {
-            if (isLastRunAttempt) {
-                Loge(TAG, "retry3times failure on isLastRunAttempt")
-                sendErrorNotification(downloader!!.request.title?:"")
-                return Result.failure()
-            } else return Result.retry()
-        }
-        fun sendMessage(episodeTitle_: String, isImmediateFail: Boolean) {
-            var episodeTitle = episodeTitle_
-            val retrying = !isLastRunAttempt && !isImmediateFail
-            if (episodeTitle.length > 20) episodeTitle = episodeTitle.takeCodePoints(19) + "…"
-
-            // TODO: the action may need to be changed
-            EventFlow.postEvent(FlowEvent.MessageEvent(
-                applicationContext.getString(if (retrying) R.string.download_error_retrying else R.string.download_error_not_retrying, episodeTitle),
-                { ctx: Context -> {
-                    //                    mainNavController.navigate(Screens.Logs.name)
-                } },
-                applicationContext.getString(R.string.download_error_details)))
-        }
-        Logd(TAG) { "starting downloader" }
-        try { downloader!!.download()
+        val episodeDownloader = Downloader.downloaderFor(request) ?: return Result.failure()
+        downloader = episodeDownloader
+        try {
+            episodeDownloader.download()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Logs(TAG, e, "failed performDownload exception on downloader!!.call()")
-            logDownloadResult(downloader!!.result)
-            sendErrorNotification(request.title?:"")
-            return Result.failure()
+            android.util.Log.e(TAG, "Episode download failed", e)
+            episodeDownloader.result.reason = DownloadError.ERROR_IO_ERROR
+            episodeDownloader.result.addDetail(e.message ?: e.javaClass.simpleName)
         }
-        // This also happens when the worker was preempted, not just when the user canceled it
-        if (downloader!!.cancelled) return Result.success()
-        val status = downloader!!.result
-
+        if (episodeDownloader.cancelled) return Result.success()
+        val status = episodeDownloader.result
         if (status.isSuccessful) {
             updateDB(request)
-            logDownloadResult(downloader!!.result)
+            logDownloadResult(status)
             return Result.success()
         }
-        if (status.reason == DownloadError.ERROR_HTTP_DATA_ERROR && status.reasonDetailed.toInt() == 416) {
-            Logd(TAG) { "Requested invalid range, restarting download from the beginning" }
-            Logd(TAG) { "${downloader?.request?.destination}" }
-            if (downloader?.request?.destination != null) quietlyDeleteFile(downloader!!.request.destination.toSafeUri())
-            sendMessage(request.title?:"", false)
-            return retry3times()
-        }
-        Loge(TAG, "Episode download failed ${request.title} ${status.reason}")
+        val restart = status.reason == DownloadError.ERROR_HTTP_DATA_ERROR && status.reasonDetailed.trim() == "416"
+        if (restart) quietlyDeleteFile(request.destination.toSafeUri())
         logDownloadResult(status)
-        if (status.reason in listOf(DownloadError.ERROR_FORBIDDEN, DownloadError.ERROR_NOT_FOUND, DownloadError.ERROR_UNAUTHORIZED, DownloadError.ERROR_IO_BLOCKED)) {
-            Loge(TAG, "performDownload failure on various reasons ${status.reason?.name}")
-            // Fail fast, these are probably unrecoverable
-            sendErrorNotification(request.title?:"")
-            return Result.failure()
+        val immediateFailure = status.reason in listOf(
+            DownloadError.ERROR_FORBIDDEN, DownloadError.ERROR_NOT_FOUND, DownloadError.ERROR_UNAUTHORIZED,
+            DownloadError.ERROR_IO_BLOCKED, DownloadError.ERROR_FILE_TYPE, DownloadError.ERROR_MALFORMED_URL,
+            DownloadError.ERROR_NOT_ENOUGH_SPACE, DownloadError.ERROR_CERTIFICATE
+        )
+        val retrying = !isLastRunAttempt && !immediateFailure
+        val title = request.title ?: applicationContext.getString(R.string.download_log_title_unknown)
+        val message = applicationContext.getString(
+            if (retrying) R.string.download_error_retrying else R.string.download_error_not_retrying, title
+        )
+        // Keep diagnostics in the download log; show one actionable, non-modal message.
+        if (runAttemptCount == 0 || !retrying)
+            EventFlow.postEvent(FlowEvent.DownloadMessageEvent(message))
+        if (!retrying) {
+            val intent = Intent(applicationContext, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra("shortcut_route", "DownloadLogs")
+            val pendingIntent = PendingIntent.getActivity(applicationContext, NotificationIds.download_report, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val reason = applicationContext.getString(status.reason?.res ?: R.string.download_error_error_unknown)
+            val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID.error.name)
+                .setContentTitle(applicationContext.getString(R.string.download_report_title))
+                .setContentText(title)
+                .setStyle(NotificationCompat.BigTextStyle().bigText("$title\n$reason"))
+                .setSmallIcon(R.drawable.ic_notification_sync_error)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build()
+            val nm = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NotificationIds.download_report, notification)
         }
-        sendMessage(request.title?:"", false)
-        return retry3times()
+        return if (retrying) Result.retry() else Result.failure()
     }
     private fun generateProgressNotification(): Notification {
         val sb = StringBuilder()

@@ -54,6 +54,8 @@ sealed class FlowEvent {
 
     data class MessageEvent(val message: String, val action: ((Context)->Unit)? = null, val actionText: String? = null) : FlowEvent()
 
+    data class DownloadMessageEvent(val message: String) : FlowEvent()
+
     data class SyncServiceEvent(val messageResId: Int, val message: String = "") : FlowEvent()
 
 //    data class DiscoveryDefaultUpdateEvent(val dummy: Unit = Unit) : FlowEvent()
