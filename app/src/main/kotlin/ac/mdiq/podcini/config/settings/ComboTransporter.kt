@@ -196,14 +196,5 @@ class DatabaseTransporter {
         }
     }
 
-    suspend fun importBackup(sourceFile: UnifiedFile) {
-        try {
-            val currentDB = realm.configuration.path.toUF()
-            currentDB.delete()
-            sourceFile.copyTo(currentDB)
-        } catch (e: Exception) {
-            Logs(TAG, e)
-            throw e
-        }
-    }
+
 }

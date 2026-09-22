@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.storage.database
 
+import ac.mdiq.podcini.config.settings.PreparedDatabaseRestore
 import ac.mdiq.podcini.BuildConfig
 import ac.mdiq.podcini.PodciniApp.Companion.appIOScope
 import ac.mdiq.podcini.storage.model.AppAttribs
@@ -45,6 +46,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import kotlin.coroutines.ContinuationInterceptor
 
 val migrationStep = MutableStateFlow("")
@@ -52,7 +54,10 @@ val migrationProg = MutableStateFlow("")
 
 private const val TAG: String = "RealmDB"
 
-val config: RealmConfiguration by lazy {
+val config: RealmConfiguration by lazy { createRealmConfiguration() }
+
+/** The same schema and migrations are used to validate backups before installing them. */
+fun createRealmConfiguration(directory: String? = null): RealmConfiguration =
     RealmConfiguration.Builder(schema = setOf(
         Volume::class,
         Feed::class,
@@ -168,15 +173,16 @@ val config: RealmConfiguration by lazy {
                 Log.d(TAG, "migrating DB below 163 complete")
             }
         })
+        .apply { if (directory != null) directory(directory) }
         .compactOnLaunch()
         .build()
-}
 
 lateinit var realm: Realm
     private set
 
 fun getRealmInstance() {
     if (::realm.isInitialized) return
+    PreparedDatabaseRestore(File(config.path)).install()
     realm = Realm.open(config)
 }
 

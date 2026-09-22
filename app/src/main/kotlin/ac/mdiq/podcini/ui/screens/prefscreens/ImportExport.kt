@@ -3,6 +3,7 @@ package ac.mdiq.podcini.ui.screens.prefscreens
 import ac.mdiq.podcini.PodciniApp.Companion.forceRestart
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
+import ac.mdiq.podcini.config.settings.ComboRestore
 import ac.mdiq.podcini.config.settings.ClipsTransporter
 import ac.mdiq.podcini.config.settings.DatabaseTransporter
 import ac.mdiq.podcini.config.settings.DocumentFileExportWorker
@@ -85,6 +86,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -93,12 +95,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -121,9 +126,18 @@ fun ImportExportScreen() {
     val mediaFilesDirName = "Podcini-MediaFiles"
     val clipsDirName = "Podcini-Clips"
 
+    @Composable
+    fun backupOptionLabel(option: String): String = stringResource(when (option) {
+        ComboIEOptions.Database.name -> R.string.backup_library_data
+        ComboIEOptions.MeidaFiles.name -> R.string.backup_media_files
+        else -> R.string.clips
+    })
+
     val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
 
-    BackHandler(enabled = true) { pfBackStack.removeLastOrNull() }
+    val restoreScope = rememberCoroutineScope()
+    var restoring by remember { mutableStateOf(false) }
+    BackHandler(enabled = true) { if (!restoring) pfBackStack.removeLastOrNull() }
 
     var processingText by remember { mutableStateOf("") }
     fun isJsonFile(uri: Uri): Boolean {
@@ -256,17 +270,11 @@ fun ImportExportScreen() {
                 Column {
                     comboDic.keys.forEach { option ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Checkbox(checked = comboDic[option] == true, onCheckedChange = {
-                                comboDic[option] = it
-                                if (option == ComboIEOptions.Database.name && it) {
-                                    comboDic[ComboIEOptions.Clips.name] = false
-                                    comboDic[ComboIEOptions.MeidaFiles.name] = false
-                                }
-                            })
-                            Text(option, modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
+                            Checkbox(checked = comboDic[option] == true, onCheckedChange = { comboDic[option] = it })
+                            Text(backupOptionLabel(option), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-                    if ((comboDic[ComboIEOptions.MeidaFiles.name] != null || comboDic[ComboIEOptions.Clips.name] != null) && comboDic[ComboIEOptions.Database.name] == true) Text(stringResource(R.string.pref_import_media_files_later), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.restore_backup_restart), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
@@ -276,34 +284,36 @@ fun ImportExportScreen() {
                         Loge(TAG, "Import uri is null")
                         return@TextButton
                     }
-                    processingText = "Importing..."
-                    CoroutineScope(Dispatchers.IO).launch {
+                    val selection = comboDic.toMap()
+                    restoring = true
+                    restoreScope.launch {
                         try {
                             withContext(Dispatchers.IO) {
-                                val rootFile = uri.toUF()
-                                Logd(TAG) { "comboDic[ComboIEOptions.Clips.name] ${comboDic[ComboIEOptions.Clips.name]}" }
-                                Logd(TAG) { "comboDic[ComboIEOptions.MeidaFiles.name] ${comboDic[ComboIEOptions.MeidaFiles.name]}" }
-                                Logd(TAG) { "comboDic[ComboIEOptions.Database.name] ${comboDic[ComboIEOptions.Database.name]}" }
-                                for (file in rootFile.listChildren()) {
-                                    if (file.isDirectory()) {
-                                        if (file.name == mediaFilesDirName && comboDic[ComboIEOptions.MeidaFiles.name] == true) MediaFilesTransporter(mediaFilesDirName).fromUFToMediaDir(file)
-                                        if (file.name == clipsDirName && comboDic[ComboIEOptions.Clips.name] == true) ClipsTransporter(clipsDirName).fromUFToMediaDir(file)
-                                    } else if (isRealmFile(file.toAndroidUri()!!) && comboDic[ComboIEOptions.Database.name] == true) DatabaseTransporter().importBackup(file)
-                                }
+                                val children = uri.toUF().listChildren()
+                                val databases = children.filter { !it.isDirectory() && it.name.endsWith(".realm", ignoreCase = true) }
+                                val database = if (selection[ComboIEOptions.Database.name] == true) {
+                                    require(databases.size == 1) { context.getString(R.string.restore_backup_database_missing) }
+                                    databases.single()
+                                } else null
+                                val media = if (selection[ComboIEOptions.MeidaFiles.name] == true)
+                                    requireNotNull(children.find { it.isDirectory() && it.name == mediaFilesDirName }) { context.getString(R.string.restore_backup_media_missing) } else null
+                                val clips = if (selection[ComboIEOptions.Clips.name] == true)
+                                    requireNotNull(children.find { it.isDirectory() && it.name == clipsDirName }) { context.getString(R.string.restore_backup_clips_missing) } else null
+                                ComboRestore.restore(database, media, clips)
                             }
-                            withContext(Dispatchers.Main) {
-                                showImporSuccessDialog.value = true
-                                processingText = ""
-                            }
-                        } catch (e: Throwable) {
-                            processingText = ""
-                            Logs(TAG, e, "export error")
-                            importErrorMessage = e.message?:"Reason unknown"
+                            forceRestart()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Logs(TAG, e, "Restore failed")
+                            importErrorMessage = e.message ?: context.getString(R.string.restore_backup_failed)
                             showImporErrortDialog.value = true
+                        } finally {
+                            restoring = false
                         }
                     }
                     showComboImportDialog = false
-                }) { Text(text = "OK") }
+                }, enabled = comboDic.values.any { it }) { Text(stringResource(R.string.combo_import_label)) }
             },
             dismissButton = { TextButton(onClick = { showComboImportDialog = false }) { Text(stringResource(R.string.cancel_label)) } }
         )
@@ -317,7 +327,7 @@ fun ImportExportScreen() {
                     comboDic.keys.forEach { option ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             Checkbox(checked = comboDic[option] == true, onCheckedChange = { comboDic[option] = it })
-                            Text(option, modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
+                            Text(backupOptionLabel(option), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
@@ -371,7 +381,7 @@ fun ImportExportScreen() {
                     Logd(TAG) { "restoreComboLauncher child: ${child.isDirectory()} ${child.name} ${child.toAndroidUri()} " }
                     if (child.isDirectory()) {
                         if (child.name == clipsDirName) comboDic[ComboIEOptions.Clips.name] = true
-                        if (child.name == mediaFilesDirName) comboDic[ComboIEOptions.MeidaFiles.name] = false
+                        if (child.name == mediaFilesDirName) comboDic[ComboIEOptions.MeidaFiles.name] = true
                     } else if (isRealmFile(child.toAndroidUri()!!)) comboDic[ComboIEOptions.Database.name] = true
                 }
             }
@@ -433,6 +443,17 @@ fun ImportExportScreen() {
     }
 
 
+    if (restoring) {
+        Dialog(onDismissRequest = {}, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)) {
+            androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large) {
+                Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Text(stringResource(R.string.restore_backup_progress), modifier = Modifier.padding(top = 16.dp))
+                }
+            }
+        }
+    }
+
     if (processingText.isNotBlank()) {
         CommonPopupCard(onDismiss = { processingText = "" }) {
             Column {
@@ -460,6 +481,7 @@ fun ImportExportScreen() {
     }
 
     Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
+        Text(stringResource(R.string.archive_backup_section), style = MaterialTheme.typography.titleLarge)
         TitleSummarySwitchRow(R.string.pref_backup_on_google_title, R.string.pref_backup_on_google_sum, appPrefs.OPMLBackup) {
             upsertBlk(appPrefs) { p -> p.OPMLBackup = it}
         }
@@ -519,7 +541,7 @@ fun ImportExportScreen() {
             } catch (e: Exception) { Loge(TAG, e, "Export failed")}
         }
         val showComboImportDialog = remember { mutableStateOf(false) }
-        ConfirmDialog(titleRes = R.string.combo_import_label, message = stringResource(R.string.combo_import_warning), showDialog = showComboImportDialog) {
+        ConfirmDialog(titleRes = R.string.combo_import_label, message = stringResource(R.string.combo_import_warning), showDialog = showComboImportDialog, confirmRes = R.string.combo_import_label) {
             try {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -565,6 +587,7 @@ fun ImportExportScreen() {
         }
         TitleSummaryActionColumn(R.string.import_PA_label, 0) { showPAImportDialog.value = true }
         HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
+        Text(stringResource(R.string.archive_subscriptions_section), style = MaterialTheme.typography.titleLarge)
         TitleSummaryActionColumn(R.string.opml_export_label, R.string.opml_export_summary) { openExportPathPicker(ExportTypes.OPML, chooseOpmlExportPathLauncher, OpmlWriter()) }
         if (showOpmlImportSelectionDialog) OpmlImportSelectionDialog(readElements) { showOpmlImportSelectionDialog = false }
         TitleSummaryActionColumn(R.string.opml_import_label, R.string.opml_import_summary) {
@@ -622,4 +645,3 @@ class EpisodeProgressReader {
         return Pair(idRemove, feedItem)
     }
 }
-
