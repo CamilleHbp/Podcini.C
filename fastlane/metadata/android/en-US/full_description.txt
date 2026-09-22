@@ -1,4 +1,4 @@
-Podcini.A, an open source extensible media instrument, attuned to Puccini, adorned with pasticcini and aromatized with porcini, invites your harmonious heartbeats.
+Podcini.C, an open source extensible media instrument, attuned to Puccini, adorned with pasticcini and aromatized with porcini, invites your harmonious heartbeats.
 
 Notable features
 
@@ -27,4 +27,5 @@ Notable features
 
 Podcini is under active development by volunteers.
 You can contribute too, with code, comments or improvements.
-See source code on <a href="https://github.com/XilinJia/Podcini.A">github.com/XilinJia/Podcini.A</a>
+See source code on <a href="https://github.com/CamilleHbp/Podcini.C">github.com/CamilleHbp/Podcini.C</a>
+Based on <a href="https://github.com/XilinJia/Podcini.A">Podcini.A</a>.

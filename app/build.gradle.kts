@@ -1,5 +1,6 @@
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.dsl.ApplicationExtension
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -18,6 +19,13 @@ kotlin { jvmToolchain(21) }
 
 val metaInfExcludes = listOf("DEPENDENCIES", "LICENSE", "NOTICE", "CHANGES", "README.md", "NOTICE.txt", "LICENSE.txt", "MANIFEST.MF").map { "/META-INF/$it" }
 
+// Keep release credentials outside the checkout; command-line properties still take precedence.
+val releaseSigningProperties = Properties().apply {
+    providers.gradleProperty("releaseSigningPropertiesFile").orNull?.let { path ->
+        rootProject.file(path).inputStream().use { load(it) }
+    }
+}
+
 configure<ApplicationExtension> {
     namespace = "ac.mdiq.podcini"
 
@@ -29,6 +37,7 @@ configure<ApplicationExtension> {
 
     defaultConfig {
         minSdk = 26
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 37
 
         versionCode = 125
@@ -36,7 +45,7 @@ configure<ApplicationExtension> {
 
         ndkVersion = "29.0.14206865"
 
-        applicationId = "ac.mdiq.Podcini.A"
+        applicationId = "studio.camille.podcini"
 
         val apiKey = project.findProperty("podcastindexApiKey") as? String ?: ""
         val apiSecret = project.findProperty("podcastindexApiSecret") as? String ?: ""
@@ -138,27 +147,27 @@ configure<ApplicationExtension> {
         create("releaseConfig") {
             enableV1Signing = true
             enableV2Signing = true
-            storeFile = file(project.findProperty("releaseStoreFile") as? String ?: "keystore")
-            storePassword = project.findProperty("releaseStorePassword") as? String ?: "password"
-            keyAlias = project.findProperty("releaseKeyAlias") as? String ?:  "alias"
-            keyPassword = project.findProperty("releaseKeyPassword") as? String ?:  "password"
+            storeFile = file(project.findProperty("releaseStoreFile") as? String ?: releaseSigningProperties.getProperty("releaseStoreFile") ?: "keystore")
+            storePassword = project.findProperty("releaseStorePassword") as? String ?: releaseSigningProperties.getProperty("releaseStorePassword") ?: "password"
+            keyAlias = project.findProperty("releaseKeyAlias") as? String ?: releaseSigningProperties.getProperty("releaseKeyAlias") ?: "alias"
+            keyPassword = project.findProperty("releaseKeyPassword") as? String ?: releaseSigningProperties.getProperty("releaseKeyPassword") ?: "password"
         }
     }
 
     buildTypes {
         getByName("release") {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            resValue("string", "app_name", "Podcini.A")
-            resValue("string", "provider_authority", "ac.mdiq.Podcini.A.provider")
+            resValue("string", "app_name", "Podcini.C")
+            resValue("string", "provider_authority", "studio.camille.podcini.provider")
 //            vcsInfo.include = false
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs["releaseConfig"]
         }
         getByName("debug") {
-            resValue("string", "app_name", "Podcini.A Debug")
+            resValue("string", "app_name", "Podcini.C Debug")
             applicationIdSuffix = ".debug"
-            resValue("string", "provider_authority", "ac.mdiq.Podcini.A.debug.provider")
+            resValue("string", "provider_authority", "studio.camille.podcini.debug.provider")
         }
     }
 
@@ -176,7 +185,7 @@ configure<ApplicationExtension> {
 
 androidComponents {
     val androidExt = extensions.getByType<ApplicationExtension>()
-    val appName = "Podcini.A"
+    val appName = "Podcini.C"
     val versionName = androidExt.defaultConfig.versionName ?: "0.0.0"
 
     onVariants { variant ->
@@ -215,6 +224,9 @@ configurations {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("junit:junit:4.13.2")
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
