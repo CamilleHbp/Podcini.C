@@ -1,4 +1,8 @@
-# Podcini.A
+This fork uses Android application ID `studio.camille.podcini` (`studio.camille.podcini.debug` for debug builds). It installs separately from upstream Podcini.A. Back up existing data before switching apps.
+
+# Podcini.C
+
+[Build a release APK and migrate your library](docs/BUILDING.md).
 
 <img width="100" src="https://raw.githubusercontent.com/xilinjia/podcini/main/images/icon 256x256.png" align="left" style="margin-right:15px"/>
 
@@ -6,9 +10,9 @@ An open source extensible media instrument, attuned to Puccini ![Puccini](./imag
 
 ### Rendezvous chez:
 
-[<img src="./images/external/getItGithub.png" alt="Get it on GitHub" height="50">](https://github.com/XilinJia/Podcini.A/releases/latest)
-[<img src="./images/external/getItIzzyOnDroid.png" alt="IzzyOnDroid" height="50">](https://apt.izzysoft.de/fdroid/index/apk/ac.mdiq.podcini.A) 
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="50">](https://f-droid.org/en/packages/ac.mdiq.Podcini.A/)
+[<img src="./images/external/getItGithub.png" alt="Get it on GitHub" height="50">](https://github.com/CamilleHbp/Podcini.C/releases/latest)
+
+Based on upstream [Podcini.A](https://github.com/XilinJia/Podcini.A).
 
 ### A fork of [Podcini.X](<https://github.com/XilinJia/Podcini.X>) as of May 29 2026, this project inherits all functionalities of Podcini.X.
 
@@ -50,7 +54,7 @@ All variants in a release are inter-changeable, so you can download/install any 
 #### For Podcini to show up on car's HUD with Android Auto, please read AnroidAuto.md for instructions.
 #### If you need to cast to an external speaker or screen, you should install the "play" apk, not the "free" apk, that's about the difference between the two.
 
-Podcini.A requests for permission for unrestricted background activities for uninterrupted background play of a playlist.  For more see [this issue](https://github.com/XilinJia/Podcini.X/issues/88)
+Podcini.C requests for permission for unrestricted background activities for uninterrupted background play of a playlist.  For more see [this issue](https://github.com/XilinJia/Podcini.X/issues/88)
 
 If you intend to sync through a server, NextCloud server has been tested, but note only very limited properties (as defined by that standard) are included.
 
@@ -58,7 +62,7 @@ If you intend to sync through a server, NextCloud server has been tested, but no
 
 ## Usage and notable features description 
 
-To use external server apps, you need to first install the apps. Then in Podcini.A -> Settings->Network and Storage, enable "Use external apps".
+To use external server apps, you need to first install the apps. Then in Podcini.C -> Settings->Network and Storage, enable "Use external apps".
  
 <details> <summary>Click to expand</summary>
 
@@ -324,7 +328,7 @@ Note, if you already have subscriptions in Podcini, importing the OPML file or t
 * in Import/Export settings, there is a new Combo Import/Export
 	* it handles Preferences, Database, and Media files combined or selectively
 	* all are saved to "Podcini-Backups-(date)" directory under the directory you pick
-	* on import, Media files have to be done after the DB is imported (the option is disabled when importing DB is selected)
+	* on import, select Database, Media files, and Clips together to restore them in one operation. The app validates the database, restores the selected files, and restarts automatically. Keep the source backup until you have checked the restored library.
 	* individual import/export functions for Preferences, Database, and Media files are removed
 	* if in case one wants to import previously exported Preferences, Database, or Media files, 
 		* manually create a directory named "Podcini-Backups"
