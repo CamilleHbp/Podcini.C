@@ -1,0 +1,13 @@
+{
+  "tasks": [":app:assembleDebug", ":app:assembleRelease"],
+  "gradle_args": ["--offline"],
+  "gradle_properties_files": {
+    "releaseSigningPropertiesFile": "~/.android/podcini-c/release.properties"
+  },
+  "required_variants": {
+    "app": [
+      "freeDebug", "freeRelease", "freeLegacyDebug", "freeLegacyRelease",
+      "playDebug", "playRelease", "playLegacyDebug", "playLegacyRelease"
+    ]
+  }
+}

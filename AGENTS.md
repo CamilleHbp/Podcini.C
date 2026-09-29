@@ -1,0 +1,7 @@
+# Personal project requirements
+
+- Use English in conversation unless the user explicitly requests another language.
+- All personal Android apps and websites, including Podcini.C, Groceries, and VerveTwoDo, must provide complete English and French interfaces. Follow the device/browser language by default, fall back to English when unsupported, and provide a persistent language override in settings with automatic, English, and Français choices. Preserve other supported languages.
+- Keep interface text, accessibility descriptions, notifications, errors, and new features in localization resources. Keep English and French keys, plural forms, and formatting arguments in sync. Run `python3 scripts/check_localization.py` after changing copy.
+- After the final modifications and whenever a rebuild is requested, run `sh scripts/rebuild-apks`, wait for it to finish, and run `python3 scripts/android_build_gate.py verify`. Both debug and release must succeed for every application variant. A prior build, an in-progress build, or an old export is not completion evidence. Further edits (including concurrent edits) invalidate the build: rebuild again. Link only to existing APK paths printed by verification. If blocked after an actual attempt, report `Android build blocked:` with the concrete error and absolute log path. See `scripts/ANDROID_BUILDS.md`.
+- Keep process and reporting information out of deliverable documents unless explicitly requested. Report production and validation details in chat.
