@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="510" height="264" preserveAspectRatio="xMinYMin meet" viewBox="0 0 510 264" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="510" height="264"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-264)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="0" width="188" height="264" rx="8" ry="8" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="14" y="241" style="font-family: Bold; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,482) scale(1,-1)">NAVIGATION</text>
+			<text x="14" y="218" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,436) scale(1,-1)">Playlists</text>
+			<text x="14" y="202" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,404) scale(1,-1)">Reusable lists / Manual or smart</text>
+			<text x="14" y="173" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,346) scale(1,-1)">Library</text>
+			<text x="14" y="157" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,314) scale(1,-1)">Podcasts / Folders / Downloads /</text>
+			<text x="14" y="145" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,290) scale(1,-1)">Highlights</text>
+			<text x="14" y="116" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,232) scale(1,-1)">Discover</text>
+			<text x="14" y="100" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,200) scale(1,-1)">Find podcasts / Add other sources</text>
+			<text x="14" y="16" style="font-family: Bold; font-size: 8px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,32) scale(1,-1)">PROPOSED STRUCTURE</text>
+			<rect x="207" y="0" width="303" height="264" rx="8" ry="8" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<text x="222" y="238" style="font-family: Bold; font-size: 18px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,476) scale(1,-1)">Playing now</text>
+			<text x="222" y="218" style="font-family: Body; font-size: 9.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,436) scale(1,-1)">From History Weekly · list session</text>
+			<rect x="215" y="154" width="287" height="44" rx="5" ry="5" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(93%,90%,95%); fill-rule: evenodd;"/>
+			<text x="224" y="184" style="font-family: Bold; font-size: 10.5px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,368) scale(1,-1)">P · A city wakes</text>
+			<text x="224" y="168" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,336) scale(1,-1)">Playing · streaming</text>
+			<polygon points="480 185, 480 169, 492 177" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<text x="224" y="133" style="font-family: Bold; font-size: 10.5px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,266) scale(1,-1)">Q · The railway age</text>
+			<text x="224" y="117" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,234) scale(1,-1)">Next · session order</text>
+			<text x="222" y="80" style="font-family: Bold; font-size: 10px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,160) scale(1,-1)">Return to Commute</text>
+			<text x="222" y="60" style="font-family: Bold; font-size: 10px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,120) scale(1,-1)">Save changes to playlist</text>
+			<text x="222" y="36" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,72) scale(1,-1)">Saved list and session have separate edits.</text>
+			<text x="222" y="15" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,30) scale(1,-1)">Playlists               Library                 Discover</text>
+		</g>
+	</g>
+</svg>

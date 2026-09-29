@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="510" height="264" preserveAspectRatio="xMinYMin meet" viewBox="0 0 510 264" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="510" height="264"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-264)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="0" width="188" height="264" rx="8" ry="8" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="14" y="241" style="font-family: Bold; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,482) scale(1,-1)">NAVIGATION</text>
+			<text x="14" y="218" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,436) scale(1,-1)">Queues</text>
+			<text x="14" y="202" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,404) scale(1,-1)">Your named queues / Playing from /</text>
+			<text x="14" y="190" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,380) scale(1,-1)">Resume</text>
+			<text x="14" y="161" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,322) scale(1,-1)">Library</text>
+			<text x="14" y="145" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,290) scale(1,-1)">Podcasts / All episodes / Downloads /</text>
+			<text x="14" y="133" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,266) scale(1,-1)">Organization</text>
+			<text x="14" y="104" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,208) scale(1,-1)">Discover</text>
+			<text x="14" y="88" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,176) scale(1,-1)">Find podcasts / Add other sources</text>
+			<text x="14" y="16" style="font-family: Bold; font-size: 8px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,32) scale(1,-1)">PROPOSED STRUCTURE</text>
+			<rect x="207" y="0" width="303" height="264" rx="8" ry="8" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.8; fill: rgb(100%,100%,100%); fill-rule: evenodd;"/>
+			<text x="222" y="238" style="font-family: Bold; font-size: 18px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,476) scale(1,-1)">Queues</text>
+			<text x="222" y="218" style="font-family: Body; font-size: 9.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,436) scale(1,-1)">Commute       Weekend       + New</text>
+			<rect x="217" y="154" width="283" height="49" rx="5" ry="5" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(93%,90%,95%); fill-rule: evenodd;"/>
+			<text x="226" y="185" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,370) scale(1,-1)">Playing from History Weekly</text>
+			<text x="226" y="167" style="font-family: Body; font-size: 9px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,334) scale(1,-1)">P is playing · Q is next</text>
+			<text x="222" y="133" style="font-family: Bold; font-size: 11px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,266) scale(1,-1)">Viewing: Commute</text>
+			<text x="222" y="117" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,234) scale(1,-1)">Saved at A · 12:08     Then B, C</text>
+			<rect x="222" y="69" width="155" height="32" rx="16" ry="16" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<text x="235" y="81" style="font-family: Bold; font-size: 10px;fill: rgb(100%,100%,100%); stroke:none;" transform="translate(0,162) scale(1,-1)">Return to Commute</text>
+			<text x="222" y="46" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,92) scale(1,-1)">Viewing a queue does not start it.</text>
+			<text x="222" y="15" style="font-family: Body; font-size: 9px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,30) scale(1,-1)">Queues                Library                 Discover</text>
+		</g>
+	</g>
+</svg>

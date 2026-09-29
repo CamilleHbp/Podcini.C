@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="510" height="190" preserveAspectRatio="xMinYMin meet" viewBox="0 0 510 190" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="510" height="190"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-190)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="132" width="148" height="56" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="11" y="168" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,336) scale(1,-1)">Folder</text>
+			<text x="11" y="152" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,304) scale(1,-1)">Groups sources</text>
+			<rect x="181" y="132" width="148" height="56" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="192" y="168" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,336) scale(1,-1)">Source</text>
+			<text x="192" y="152" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,304) scale(1,-1)">Podcast or media source</text>
+			<rect x="362" y="132" width="148" height="56" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(93%,90%,95%); fill-rule: evenodd;"/>
+			<text x="373" y="168" style="font-family: Bold; font-size: 10.8px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,336) scale(1,-1)">Episode</text>
+			<text x="373" y="152" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,304) scale(1,-1)">A playable item</text>
+			<path d="M 148,160 L 180,160 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="180 160, 175.6121 162.3971, 175.6121 157.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<path d="M 329,160 L 361,160 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="361 160, 356.6121 162.3971, 356.6121 157.6029" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<rect x="0" y="59" width="148" height="50" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="11" y="89" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,178) scale(1,-1)">Subfolder</text>
+			<text x="11" y="73" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,146) scale(1,-1)">Another folder</text>
+			<path d="M 74,132 L 74,110 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="74 110, 76.39713 114.3879, 71.60287 114.3879" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<rect x="181" y="59" width="148" height="50" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="192" y="89" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,178) scale(1,-1)">Collection</text>
+			<text x="192" y="73" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,146) scale(1,-1)">Collected episode records</text>
+			<path d="M 329,86 L 378,131 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="378 131, 373.1467 129.7976, 376.3896 126.2664" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<rect x="0" y="0" width="510" height="40" rx="7" ry="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(93%,90%,95%); fill-rule: evenodd;"/>
+			<text x="12" y="25" style="font-family: Bold; font-size: 10px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,50) scale(1,-1)">Independent episode relationships</text>
+			<text x="12" y="10" style="font-family: Body; font-size: 9px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,20) scale(1,-1)">Queue membership  |  File availability  |  Ratings, notes, bookmarks and clips</text>
+		</g>
+	</g>
+</svg>

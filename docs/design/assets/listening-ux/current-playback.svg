@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.0//EN'
+  'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>
+<svg width="510" height="185" preserveAspectRatio="xMinYMin meet" viewBox="0 0 510 185" xmlns="http://www.w3.org/2000/svg" version="1.0" fill-rule="evenodd" xmlns:xlink="http://www.w3.org/1999/xlink">
+	<title>...</title>
+	<desc>...</desc>
+	<clipPath id="clip">
+		<rect x="0" y="0" width="510" height="185"/>
+	</clipPath>
+	<g id="group" transform="scale(1,-1) translate(0,-185)" style="clip-path: url(#clip)">
+		<g transform="">
+			<rect x="0" y="126" width="160" height="58" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="11" y="164" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,328) scale(1,-1)">Named queue</text>
+			<text x="11" y="148" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,296) scale(1,-1)">Commute, Weekend...</text>
+			<rect x="175" y="126" width="160" height="58" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="186" y="164" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,328) scale(1,-1)">From an episode list</text>
+			<text x="186" y="148" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,296) scale(1,-1)">Captured list, up to 50 items</text>
+			<rect x="350" y="126" width="160" height="58" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="361" y="164" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,328) scale(1,-1)">Online / Play once</text>
+			<text x="361" y="148" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,296) scale(1,-1)">Empty temporary queue</text>
+			<path d="M 80,126 L 80,107 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="80 107, 82.39713 111.3879, 77.60287 111.3879" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<path d="M 255,126 L 255,107 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="255 107, 257.3971 111.3879, 252.6029 111.3879" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<path d="M 430,126 L 430,107 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="430 107, 432.3971 111.3879, 427.6029 111.3879" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<rect x="0" y="61" width="510" height="46" rx="7" ry="7" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(93%,90%,95%); fill-rule: evenodd;"/>
+			<text x="14" y="87" style="font-family: Bold; font-size: 10.5px;fill: rgb(41%,26%,48%); stroke:none;" transform="translate(0,174) scale(1,-1)">ONE SHARED ACTIVE QUEUE</text>
+			<text x="14" y="72" style="font-family: Body; font-size: 9.2px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,144) scale(1,-1)">The selected context supplies the next item, or no successor.</text>
+			<path d="M 132,61 L 132,43 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="132 43, 134.3971 47.38791, 129.6029 47.38791" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<path d="M 378,61 L 378,43 Z" style="stroke: rgb(41%,26%,48%); stroke-linecap: butt; stroke-width: 1.1;"/>
+			<polygon points="378 43, 380.3971 47.38791, 375.6029 47.38791" style="stroke: none; stroke-linecap: butt; stroke-width: 1; fill: rgb(41%,26%,48%); fill-rule: evenodd;"/>
+			<rect x="0" y="0" width="245" height="43" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="11" y="23" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,46) scale(1,-1)">Player 1</text>
+			<text x="11" y="7" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,14) scale(1,-1)">Current episode and position</text>
+			<rect x="265" y="0" width="245" height="43" rx="7" ry="7" style="stroke: rgb(86%,83%,89%); stroke-linecap: butt; stroke-width: 0.6; fill: rgb(96%,96%,98%); fill-rule: evenodd;"/>
+			<text x="276" y="23" style="font-family: Bold; font-size: 10.8px;fill: rgb(14%,12%,21%); stroke:none;" transform="translate(0,46) scale(1,-1)">Player 2 (optional)</text>
+			<text x="276" y="7" style="font-family: Body; font-size: 8.7px;fill: rgb(38%,35%,42%); stroke:none;" transform="translate(0,14) scale(1,-1)">Own episode; same active queue</text>
+		</g>
+	</g>
+</svg>
