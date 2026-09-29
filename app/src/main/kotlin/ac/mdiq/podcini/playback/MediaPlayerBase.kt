@@ -28,9 +28,11 @@ import ac.mdiq.podcini.storage.database.runOnIOScope
 import ac.mdiq.podcini.storage.database.sleepPrefs
 import ac.mdiq.podcini.storage.database.upsert
 import ac.mdiq.podcini.storage.database.upsertBlk
+import ac.mdiq.podcini.storage.database.unmanaged
 import ac.mdiq.podcini.storage.model.CurrentState
 import ac.mdiq.podcini.storage.model.CurrentState.Companion.SPEED_USE_GLOBAL
 import ac.mdiq.podcini.storage.model.Episode
+import ac.mdiq.podcini.storage.model.recordPlaybackProgress
 import ac.mdiq.podcini.storage.model.Feed.AudioType
 import ac.mdiq.podcini.storage.model.Feed.AutoDeleteAction
 import ac.mdiq.podcini.storage.model.QueueEntry
@@ -360,6 +362,7 @@ abstract class MediaPlayerBase {
                 val position = getPosition()
                 Logd(TAG) { "positionSaverTick positionSaverInterval: $positionSaverInterval currentPosition: $position $prevPosition" }
                 if (position != prevPosition) {
+                    persistCurrentPosition(false, curMediaFlow.value, position)
                     // skip ending
                     val duration = getDuration()
                     val remainingTime = duration - position
@@ -372,8 +375,8 @@ abstract class MediaPlayerBase {
                         Logt(TAG, getAppContext().getString(R.string.pref_feed_skip_ending_toast, skipEnd))
                         autoSkippedFeedMediaId = item.identifyingValue
                         skip()
+                        return@launch
                     }
-                    persistCurrentPosition(false, curMediaFlow.value, position)
                     prevPosition = position
                     samePositionCount = 0
                 } else {
@@ -404,7 +407,7 @@ abstract class MediaPlayerBase {
         //        showStackTrace()
         if (castPlayer?.isPlaying == true && !status.isAtLeast(PlayerStatus.PREPARED)) Logt(TAG, localizedString(R.string.message_exoplayer_playbackstate_player_statusflow, (castPlayer?.playbackState).toString(), (status).toString()))
         var retVal = getPlayerPosition()
-        if (retVal <= 0 && curMediaFlow.value != null) retVal = curMediaFlow.value!!.position
+        if (retVal < 0 && curMediaFlow.value != null) retVal = curMediaFlow.value!!.position
         return retVal
     }
 
@@ -453,7 +456,7 @@ abstract class MediaPlayerBase {
                 Logd(TAG) { "prepareMedia starts new playable:${playable.id} curMediaFlow.value:${curMediaFlow.value!!.id} prevMedia:${prevMedia?.id}" }
                 // set temporarily to pause in order to update list with current position
 //                if (isPlaying || isPaused)
-                onPlaybackPause(curMediaFlow.value, curMediaFlow.value?.position ?: -1)
+                onPlaybackPause(curMediaFlow.value, getPosition())
                 // stop playback of this episode
 //                if (isPaused || isPlaying || isPrepared) castPlayer?.stop()
                 if (curMediaFlow.value?.id != playable.id) onPostPlayback(curMediaFlow.value!!, ended = false, skipped = true, true)
@@ -664,9 +667,10 @@ abstract class MediaPlayerBase {
             Logd(TAG) { "endPlayback curMediaFlow.value is null, return" }
             return
         }
-        // we're relying on the position stored in the EpisodeMedia object for post-playback processing
         val position = getPosition()
-        if (position >= 0) upsertBlk(curMediaFlow.value!!) { it.position = position }
+        val currentMedia = upsertBlk(curMediaFlow.value!!) {
+            if (position >= 0) upsertDB(it, position)
+        }
         Logd(TAG) { "endPlayback hasEnded=$hasEnded wasSkipped=$wasSkipped shouldContinue=$shouldContinue ${curMediaFlow.value?.title}" }
 
         fun stopPlayer() {
@@ -675,16 +679,16 @@ abstract class MediaPlayerBase {
             cancelPositionSaver()
             setAsCurMedia(null)
             castPlayer?.stop()
+            handlePlayerStatus(PlayerStatus.STOPPED, null)
         }
 
-        val currentMedia = curMediaFlow.value
         when {
             shouldContinue -> {
                 // Load next episode if previous episode was in the queue and if there is an episode in the queue left.
                 // Start playback immediately if continuous playback is enabled
                 val nextMedia = getNextInQueue(manualAdvance)
                 if (nextMedia == null) {
-                    currentMedia?.let { onPostPlayback(it, hasEnded, wasSkipped, false) }
+                    onPostPlayback(currentMedia, hasEnded, wasSkipped, false)
                     stopPlayer()
                 } else {
                     Logd(TAG) { "endPlayback has nextMedia. statusFlow: $status ${nextMedia.title}" }
@@ -699,11 +703,12 @@ abstract class MediaPlayerBase {
                     val needStreaming = (nextMedia.feed?.isLocal != true && nextMedia.fileUrl.isNullOrBlank())
                     if (needStreaming) {
                         if (!isStreamingCapable(nextMedia)) {
-                            currentMedia?.let { onPostPlayback(it, hasEnded, wasSkipped, false) }
+                            onPostPlayback(currentMedia, hasEnded, wasSkipped, false)
                             return
                         }
                     }
-                    prepareMedia(playable = nextMedia, streaming = needStreaming, startWhenPrepared = wasPlayng, prepareImmediately = wasPlayng)
+                    onPostPlayback(currentMedia, hasEnded, wasSkipped, true)
+                    prepareMedia(playable = nextMedia, streaming = needStreaming, startWhenPrepared = wasPlayng, prepareImmediately = wasPlayng, doPostPlayback = false)
                     if (widgetId.isNotEmpty()) notifyWidget()
                 }
             }
@@ -711,12 +716,12 @@ abstract class MediaPlayerBase {
             isPlaying -> {
                 // TODO: likely not reached?
                 Logd(TAG) { "endPlayback isPlaying" }
-                onPlaybackPause(currentMedia, currentMedia?.position ?: 0)
+                onPlaybackPause(currentMedia, position)
             }
 
             else -> {
                 Logd(TAG) { "endPlayback else" }
-                currentMedia?.let { onPostPlayback(it, hasEnded, wasSkipped, false) }
+                onPostPlayback(currentMedia, hasEnded, wasSkipped, false)
                 stopPlayer()
             }
         }
@@ -770,101 +775,68 @@ abstract class MediaPlayerBase {
             }
             upsertBlk(playable) { it.setPlaybackStart() }
         }
+        prevPosition = Episode.INVALID_TIME
+        samePositionCount = 0
         startPositionSaver()
     }
 
     protected fun onPlaybackPause(playable: Episode?, position: Int) {
         Logd(TAG) { "onPlaybackPause $position ${playable?.title}" }
         cancelPositionSaver()
-        persistCurrentPosition(position == Episode.INVALID_TIME || playable == null, playable, position)
-        Logd(TAG) { "onPlaybackPause start ${playable?.timeSpent}" }
-        playable?.let { SynchronizationQueueSink.enqueueEpisodePlayedIfSyncActive(it, false) }
+        val saved = persistCurrentPosition(position == Episode.INVALID_TIME || playable == null, playable, position)
+        saved?.let { SynchronizationQueueSink.enqueueEpisodePlayedIfSyncActive(it, it.hasAlmostEnded()) }
     }
 
     private fun onPostPlayback(playable: Episode, ended: Boolean, skipped: Boolean, playingNext: Boolean) {
-        Logd(TAG) { "onPostPlayback(): ended=$ended skipped=$skipped playingNext=$playingNext media=${playable.getEpisodeTitle()} " }
-        var item = playable
-        val smartMarkAsPlayed = playable.hasAlmostEnded()
-        if (!ended && smartMarkAsPlayed) Logd(TAG) { "smart mark as played" }
-
-        var autoSkipped = false
-        if (autoSkippedFeedMediaId != null && autoSkippedFeedMediaId == item.identifyingValue) {
-            autoSkippedFeedMediaId = null
-            autoSkipped = true
-        }
-        val completed = ended || smartMarkAsPlayed
-        SynchronizationQueueSink.enqueueEpisodePlayedIfSyncActive(playable, completed)
-
-        fun shouldSetPlayed(e: Episode): Boolean {
-            return when (e.playState) {
-                EpisodeState.FOREVER.code, EpisodeState.PLAYED.code -> false
-                EpisodeState.AGAIN.code -> nowInMillis() - e.playStateSetTime >= e.duration
-                else -> true
+        Logd(TAG) { "onPostPlayback(): ended=$ended skipped=$skipped playingNext=$playingNext media=${playable.getEpisodeTitle()}" }
+        val autoSkipped = autoSkippedFeedMediaId != null && autoSkippedFeedMediaId == playable.identifyingValue
+        if (autoSkipped) autoSkippedFeedMediaId = null
+        var completed = ended
+        var markPlayed = false
+        var playbackStartPosition = playable.startPosition
+        // Commit before changing media. A Realm flow may still contain the pre-pause snapshot.
+        var item = upsertBlk(playable) {
+            playbackStartPosition = it.startPosition
+            val smartMarkAsPlayed = it.hasAlmostEnded()
+            completed = ended || smartMarkAsPlayed
+            markPlayed = completed || autoSkipped || (skipped && !appPrefsFlow!!.value.skipKeepsEpisode)
+            if (it.playState == EpisodeState.FOREVER.code) it.repeatTime = it.repeatInterval + nowInMillis()
+            if (ended) it.recordPlaybackProgress(it.position, appPrefsFlow!!.value.completionPercent, ended = true)
+            it.startTime = 0
+            it.startPosition = if (completed) -1 else it.position
+            if (markPlayed) {
+                val keepState = it.playState == EpisodeState.FOREVER.code ||
+                    (it.playState == EpisodeState.AGAIN.code && nowInMillis() - it.playStateSetTime < it.duration)
+                if (!keepState && it.playState != EpisodeState.PLAYED.code) it.setPlayState(EpisodeState.PLAYED)
+                if (ended || (skipped && smartMarkAsPlayed)) it.position = 0
+                if (completed) it.playbackCompletionTime = nowInMillis()
             }
         }
-        runOnIOScope {
-            item = upsert(item) {
-                if (it.playState == EpisodeState.FOREVER.code) it.repeatTime = it.repeatInterval + nowInMillis()
-                upsertDB(it, item.position)
-                it.startTime = 0
-                it.startPosition = if (completed) -1 else it.position
-            }
-            if (ended || smartMarkAsPlayed || autoSkipped || (skipped && !appPrefsFlow!!.value.skipKeepsEpisode)) {
-                Logd(TAG) { "onPostPlayback ended: $ended smartMarkAsPlayed: $smartMarkAsPlayed autoSkipped: $autoSkipped skipped: $skipped" }
-                // only mark the item as played if we're not keeping it anyway
-                item = upsert(item) {
-                    if (shouldSetPlayed(it)) it.setPlayState(EpisodeState.PLAYED)
-                    if (ended || (skipped && smartMarkAsPlayed)) it.position = 0
-                    if (ended || skipped || playingNext) it.playbackCompletionTime = nowInMillis()
-                }
-                val action = item.feed?.autoDeleteAction
-                val shouldAutoDelete = (action == AutoDeleteAction.ALWAYS || (action == AutoDeleteAction.GLOBAL && item.feed != null && allowForAutoDelete(item.feed!!)))
-                val isDeletable = (!appPrefsFlow!!.value.favoriteKeepsEpisode || (item.rating < Rating.GOOD.code && item.playState != EpisodeState.AGAIN.code && item.playState != EpisodeState.FOREVER.code))
-                if (shouldAutoDelete && isDeletable) {
-                    if (!item.fileUrl.isNullOrBlank()) item = deleteMedia(item)
-                    if (appPrefsFlow!!.value.deleteRemovesFromQueue) removeFromAllQueues(listOf(item))
-                } else if (appPrefsFlow!!.value.removeFromQueueMarkPlayed) removeFromAllQueues(listOf(item))
-            }
+        SynchronizationQueueSink.enqueueEpisodePlayedIfSyncActive(unmanaged(item).apply { startPosition = playbackStartPosition }, completed)
+        if (markPlayed) runOnIOScope {
+            val action = item.feed?.autoDeleteAction
+            val shouldAutoDelete = action == AutoDeleteAction.ALWAYS ||
+                (action == AutoDeleteAction.GLOBAL && item.feed != null && allowForAutoDelete(item.feed!!))
+            val isDeletable = !appPrefsFlow!!.value.favoriteKeepsEpisode ||
+                (item.rating < Rating.GOOD.code && item.playState != EpisodeState.AGAIN.code && item.playState != EpisodeState.FOREVER.code)
+            if (shouldAutoDelete && isDeletable) {
+                if (!item.fileUrl.isNullOrBlank()) item = deleteMedia(item)
+                if (appPrefsFlow!!.value.deleteRemovesFromQueue) removeFromAllQueues(listOf(item))
+            } else if (appPrefsFlow!!.value.removeFromQueueMarkPlayed) removeFromAllQueues(listOf(item))
         }
     }
 
-    private fun persistCurrentPosition(fromMediaPlayer: Boolean, playable_: Episode?, position_: Int) {
-        var playable = if (curMediaFlow.value != null && playable_?.id == curMediaFlow.value?.id) curMediaFlow.value else playable_
-        var position = position_
-        val duration_: Int
-        if (fromMediaPlayer) {
-//            position = (media3Controller?.currentPosition ?: 0).toInt() // testing the controller
-            position = getPosition()
-            duration_ = getDuration()
-            playable = curMediaFlow.value
-        } else duration_ = playable?.duration ?: Episode.INVALID_TIME
-
-        if (position != Episode.INVALID_TIME && duration_ != Episode.INVALID_TIME && playable != null) {
-            Logd(TAG) { "persistCurrentPosition to position: $position duration: $duration_ ${playable.getEpisodeTitle()}" }
-            upsertBlk(playable) { upsertDB(it, position) }
-            prevPosition = position
-        }
-//        val cache = getCache()
-//        Logd(TAG) { "persistCurrentPosition cache keys=${cache.keys}" }
-//        Logd(TAG) { "persistCurrentPosition cache space=${cache.cacheSpace}" }
-//        for (key in cache.keys) Logd(TAG) { "persistCurrentPosition key=$key spans=${cache.getCachedSpans(key)}" }
+    private fun persistCurrentPosition(fromMediaPlayer: Boolean, playable_: Episode?, position_: Int): Episode? {
+        val playable = if (fromMediaPlayer) curMediaFlow.value else playable_
+        val position = if (fromMediaPlayer) getPosition() else position_
+        if (playable == null || position < 0) return null
+        val saved = upsertBlk(playable) { upsertDB(it, position) }
+        prevPosition = position
+        return saved
     }
 
     private fun upsertDB(it: Episode, position: Int) {
-        it.position = position
-        if (position > it.duration) it.duration = position
-        if (it.startPosition >= 0 && it.position > it.startPosition) it.playedDuration = (it.playedDurationWhenStarted + it.position - it.startPosition)
-        if (it.startTime > 0) {
-            var delta = nowInMillis() - it.startTime
-            if (delta > 3 * max(it.playedDuration, 60000)) {
-                it.startTime = nowInMillis()
-                delta = 0L
-            }
-            it.timeSpent = it.timeSpentOnStart + delta
-        }
-        it.lastPlayedTime = nowInMillis()
-        if (it.playState == EpisodeState.NEW.code) it.setPlayState(EpisodeState.UNPLAYED)
-        Logd(TAG) { "upsertDB ${it.startTime} timeSpent: ${it.timeSpent} playedDuration: ${it.playedDuration}" }
+        it.recordPlaybackProgress(position, appPrefsFlow!!.value.completionPercent)
     }
 
     fun setAudioStream(locale: String? = null, codec: String = "Any", aveBitrate: Int = 0) {

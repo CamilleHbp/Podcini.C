@@ -238,6 +238,11 @@ fun PlaybackScreen() {
             )
         }
         SettingsSection(R.string.settings_queue_cleanup)
+        SettingsNumber(R.string.settings_completion_percent, R.string.settings_completion_percent_summary,
+            appPrefs.completionPercent, stringResource(R.string.settings_percent_unit), min = 1, max = 100) {
+            upsertBlk(appPrefs) { p -> p.completionPercent = it }
+        }
+
         SettingsSwitch(R.string.pref_enqueue_downloaded_title, R.string.pref_enqueue_downloaded_summary, appPrefs.enqueueDownloaded) {
             upsertBlk(appPrefs) { p-> p.enqueueDownloaded = it }
         }

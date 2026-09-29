@@ -326,7 +326,11 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
         //        Logd(TAG) { "outside of LazyColumn" }
         LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(items = episodes, key = { it.id }) { episode_ ->
-                val episode by rememberUpdatedState(episode_)
+                val episode = when (episode_.id) {
+                    curMedia0?.id -> curMedia0 ?: episode_
+                    curMedia1?.id -> curMedia1 ?: episode_
+                    else -> episode_
+                }
                 val actionButton by remember(episode.id, preferSingleAction) { mutableStateOf(when {
                     preferSingleAction -> ActionButton(episode, feed = feed, preferSingle = preferSingleAction)
                     actionButtonType != null -> ActionButton(episode, feed = feed, typeInit = actionButtonType)

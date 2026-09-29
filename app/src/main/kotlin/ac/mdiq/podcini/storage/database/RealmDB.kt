@@ -83,10 +83,20 @@ fun createRealmConfiguration(directory: String? = null): RealmConfiguration =
         FacetsPrefs::class,
         SleepPrefs::class,
         SyncPrefs::class,
-    )).name("Podcini.realm").schemaVersion(168)
+    )).name("Podcini.realm").schemaVersion(169)
         .migration({ mContext ->
             val oldRealm = mContext.oldRealm // old realm using the previous schema
             val newRealm = mContext.newRealm // new realm using the new schema
+            if (oldRealm.schemaVersion() < 169) {
+                newRealm.query("AppPrefs").find().forEach { it.set("completionPercent", 97) }
+                newRealm.query("Episode").find().forEach { episode ->
+                    // Older versions reset position on completion. Preserve the evidence still available.
+                    val position = episode.getValue<Int>("position")
+                    val duration = episode.getValue<Int>("duration")
+                    val listened = episode.getValue<Int>("playedDuration").coerceIn(0, duration.coerceAtLeast(0))
+                    episode.set("playedPosition", maxOf(position, listened))
+                }
+            }
             if (oldRealm.schemaVersion() < 167) {
                 // Existing queues keep their previous circular playback behavior.
                 newRealm.query("PlayQueue").find().forEach { it.set("repeatQueue", true) }

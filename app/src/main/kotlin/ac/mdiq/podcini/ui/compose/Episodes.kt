@@ -511,10 +511,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
     }
 
     Column {
-        if (episode.lastPlayedTime > 0L) {
-            val playTimeText = remember(episode.lastPlayedTime) { formatDateTimeFlex(episode.lastPlayedTime) }
-            Text(stringResource(R.string.last_played_date) + ": " + playTimeText, color = textColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
-        }
+        EpisodePlaybackHistory(episode, Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp))
         if (episode.aiContent == true) Text(stringResource(R.string.is_ai_content), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 4.dp))
         if (episode.transcriptMetas.isNotEmpty()) {
             var showTransOptions by remember { mutableStateOf(false) }

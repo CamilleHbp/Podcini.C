@@ -230,7 +230,6 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
 //                                    exoPlayer?.play()
 //                                }
                             }
-                            exoPlayer?.seekTo(C.TIME_UNSET)
                             if (!shouldRepeatFlow.value) endPlayback(hasEnded = true, wasSkipped = false)
                         }
                         STATE_IDLE -> {
@@ -249,6 +248,8 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     if (reason == Player.DISCONTINUITY_REASON_SEEK) isSeeking = true
                 }
                 override fun onEvents(player: Player, events: Player.Events) {
+                    val media = curMediaFlow.value ?: return
+                    if (player.currentMediaItem?.mediaId != media.id.toString()) return
                     if (isCasting) {
                         if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED) || events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
                             val currentPos = player.currentPosition
@@ -266,9 +267,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     }
                     if (events.contains(Player.EVENT_TIMELINE_CHANGED) || events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                         val duration = player.duration
-                        val curDuration = curMediaFlow.value?.duration
-                        if (duration != C.TIME_UNSET && duration > 0 && curDuration != null && abs(duration - curDuration) > 5000) {
-                            runOnIOScope { upsert(curMediaFlow.value!!) { it.duration = duration.toInt() } }
+                        val curDuration = media.duration
+                        if (duration != C.TIME_UNSET && duration > 0 && abs(duration - curDuration) > 5000) {
+                            runOnIOScope { upsert(media) { it.duration = duration.toInt() } }
                             Logt(TAG, localizedString(R.string.message_media_duration_adjusted_to, (durationStringFull(duration.toInt())).toString()))
                         }
                     }
@@ -290,6 +291,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     Logd(TAG) { "exoplayerListener onIsPlayingChanged $isPlaying $isSeeking $wasPlayingBeforeSeek" }
                     val media = curMediaFlow.value
+                    // Completion is handled before media/queue changes in onPlaybackStateChanged.
+                    if (exoPlayer?.playbackState == STATE_ENDED || media == null ||
+                        exoPlayer?.currentMediaItem?.mediaId != media.id.toString()) return
                     if (isSeeking) {
                         if (isPlaying) {
                             if (wasPlayingBeforeSeek) {
@@ -302,7 +306,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     if (isPlaying) {
                         hasStarted = true
                         wasPlayingBeforeSeek = true
-                        media?.let { onPlaybackStart(it, it.position) }
+                        media.let { onPlaybackStart(it, getPosition()) }
                     } else {
                         wasPlayingBeforeSeek = false
                         onPlaybackPause(media, getPosition())

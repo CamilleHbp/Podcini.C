@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_completion_percent">Mark finished at</string>
+    <string name="settings_completion_percent_summary">Mark episodes finished and grey them out after this percentage. Playback continues to the end. Default: 97%.</string>
+    <string name="settings_percent_unit">%</string>
+    <string name="playback_finished">Finished</string>
+    <string name="playback_percent_played">%1$d%% played</string>
+    <string name="playback_last_played_on">Last played on %1$s</string>
+</resources>

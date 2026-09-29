@@ -6,6 +6,7 @@ import ac.mdiq.podcini.utils.NetworkUtils.isImageDownloadAllowed
 import ac.mdiq.podcini.shared.EpisodeIPC
 import ac.mdiq.podcini.shared.PodciniHttpClient.getKtorClient
 import ac.mdiq.podcini.shared.nowInMillis
+import ac.mdiq.podcini.storage.database.appPrefsFlow
 import ac.mdiq.podcini.storage.database.episodeById
 import ac.mdiq.podcini.storage.database.feedsMap
 import ac.mdiq.podcini.storage.database.realm
@@ -61,8 +62,6 @@ import ac.mdiq.podcini.storage.utils.parseWebVtt
 import kotlin.math.max
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
-
-private const val smartMarkAsPlayedPercent: Float = 0.95f
 
 class Episode : RealmObject {
     @PrimaryKey
@@ -131,6 +130,7 @@ class Episode : RealmObject {
     var duration: Int = 0    // in milliseconds
 
     var position: Int = 0 // Current position in file, in milliseconds
+    var playedPosition: Int = 0 // Furthest playback position, preserved after completion
 
     // info from youtube
     var viewCount: Int = 0
@@ -297,6 +297,7 @@ class Episode : RealmObject {
             this.playState = other.playState
             this.playStateSetTime = other.playStateSetTime
             this.position = other.position
+            this.playedPosition = other.playedPosition
             this.playbackCompletionTime = other.playbackCompletionTime
             this.playedDuration = other.playedDuration
             this.hasEmbeddedPicture = other.hasEmbeddedPicture
@@ -326,6 +327,7 @@ class Episode : RealmObject {
             if (playState == EpisodeState.PLAYED.code) EpisodeState.UNPLAYED.code
             else EpisodeState.PLAYED.code
         }
+        playedPosition = maxOf(playedPosition, position)
         if (resetPosition || playState in listOf(EpisodeState.PLAYED.code, EpisodeState.IGNORED.code)) position = 0
         if (state in listOf(EpisodeState.QUEUE, EpisodeState.SKIPPED, EpisodeState.PLAYED, EpisodeState.PASSED, EpisodeState.IGNORED)) isAutoDownloadEnabled = false
         playStateSetTime = if (setTime > 0L) setTime else nowInMillis()
@@ -333,7 +335,7 @@ class Episode : RealmObject {
 
     fun isPlayed(): Boolean = playState >= EpisodeState.SKIPPED.code
 
-    fun hasAlmostEnded(): Boolean = duration > 0 && position >= duration * smartMarkAsPlayedPercent
+    fun hasAlmostEnded(): Boolean = completionReached(position, duration, appPrefsFlow?.value?.completionPercent ?: DEFAULT_COMPLETION_PERCENT)
 
     fun setDescriptionIfLonger(newDescription: String?) {
         if (newDescription.isNullOrEmpty()) return
@@ -481,6 +483,7 @@ class Episode : RealmObject {
         playedDurationWhenStarted = playedDuration
         timeSpentOnStart = timeSpent
         startTime = nowInMillis()
+        lastPlayedTime = startTime
     }
 
     suspend fun fetchCaption(index: Int) {
@@ -621,6 +624,7 @@ class Episode : RealmObject {
         if (downloadTime != other.downloadTime) return false
         if (duration != other.duration) return false
         if (position != other.position) return false
+        if (playedPosition != other.playedPosition) return false
         if (lastPlayedTime != other.lastPlayedTime) return false
         if (startPosition != other.startPosition) return false
         if (playedDurationWhenStarted != other.playedDurationWhenStarted) return false
@@ -671,6 +675,7 @@ class Episode : RealmObject {
         result = 31 * result + downloadTime.hashCode()
         result = 31 * result + duration
         result = 31 * result + position
+        result = 31 * result + playedPosition
         result = 31 * result + lastPlayedTime.hashCode()
         result = 31 * result + startPosition
         result = 31 * result + playedDurationWhenStarted
@@ -735,6 +740,7 @@ data class EpisodeDTO(
 
     val duration: Int = 0,
     val position: Int = 0,
+    val playedPosition: Int = 0,
 
     val playedDuration: Int = 0,
     val timeSpent: Long = 0,
@@ -774,6 +780,7 @@ fun Episode.toDTO() = EpisodeDTO(
     imageUrl = this.images.firstOrNull()?.href,
     duration = this.duration,
     position = this.position,
+    playedPosition = this.playedPosition,
 
     playedDuration = this.playedDuration,
     timeSpent = this.timeSpent,
@@ -839,6 +846,7 @@ fun EpisodeDTO.toEpisode(): Episode = Episode().apply {
         if (it.duration == 0) it.duration = dto.duration
 
         it.position = dto.position
+        it.playedPosition = maxOf(it.playedPosition, dto.playedPosition, dto.position)
         it.playedDuration = dto.playedDuration
         it.timeSpent = dto.timeSpent
         it.playbackCompletionTime = dto.playbackCompletionTime

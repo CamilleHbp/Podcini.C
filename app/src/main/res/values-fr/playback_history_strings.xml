@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_completion_percent">Marquer comme terminé à</string>
+    <string name="settings_completion_percent_summary">Marquer les épisodes comme terminés et les griser à partir de ce pourcentage. La lecture continue jusqu’à la fin. Par défaut : 97 %.</string>
+    <string name="settings_percent_unit">%</string>
+    <string name="playback_finished">Terminé</string>
+    <string name="playback_percent_played">%1$d %% écouté</string>
+    <string name="playback_last_played_on">Dernière écoute le %1$s</string>
+</resources>

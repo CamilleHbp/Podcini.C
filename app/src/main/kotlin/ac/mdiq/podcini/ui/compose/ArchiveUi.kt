@@ -7,6 +7,9 @@ import ac.mdiq.podcini.playback.actQueueFlow
 import ac.mdiq.podcini.playback.theatres
 import ac.mdiq.podcini.storage.database.*
 import ac.mdiq.podcini.storage.model.Episode
+import ac.mdiq.podcini.storage.model.isPlaybackFinished
+import ac.mdiq.podcini.storage.model.playedPercentage
+import ac.mdiq.podcini.utils.formatDateTimeFlex
 import ac.mdiq.podcini.storage.specs.EnqueueLocation
 import ac.mdiq.podcini.storage.specs.EpisodeState
 import ac.mdiq.podcini.storage.specs.Rating
@@ -32,6 +35,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -107,11 +113,12 @@ fun ArchiveEmpty(
 }
 
 @Composable
-fun ArchiveArtwork(episode: Episode?, modifier: Modifier = Modifier) {
+fun ArchiveArtwork(episode: Episode?, modifier: Modifier = Modifier, finished: Boolean = false) {
     AsyncImage(
         model = episode?.imageLocation(), imageLoader = imageLoader,
         placeholder = painterResource(R.drawable.archive_headphones), error = painterResource(R.drawable.archive_headphones),
         contentDescription = null, contentScale = ContentScale.Fit,
+        colorFilter = if (finished) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) else null,
         modifier = modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
     )
 }
@@ -146,7 +153,9 @@ fun ArchiveEpisodeRow(
     val title = episode.title ?: stringResource(R.string.archive_no_title)
     val primaryLabel = stringResource(if (playing) R.string.archive_pause_episode else R.string.archive_play_episode, title)
     val largeText = LocalConfiguration.current.fontScale >= 1.3f
-    val surface = when { selected -> MaterialTheme.colorScheme.secondaryContainer; current -> MaterialTheme.colorScheme.primaryContainer; else -> MaterialTheme.colorScheme.surface }
+    val prefs by appPrefsFlow!!.collectAsStateWithLifecycle()
+    val finished = episode.isPlaybackFinished(prefs.completionPercent)
+    val surface = when { selected -> MaterialTheme.colorScheme.secondaryContainer; current -> MaterialTheme.colorScheme.primaryContainer; finished -> MaterialTheme.colorScheme.surfaceContainerLow; else -> MaterialTheme.colorScheme.surface }
     if (showMore) button.AltActionsDialog(includeDownloads = isExternal) { showMore = false }
     if (chooseQueue) PutToQueueDialog(listOf(episode)) { chooseQueue = false }
     fun play() {
@@ -168,19 +177,19 @@ fun ArchiveEpisodeRow(
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(surface)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (selecting) Checkbox(checked = selected, onCheckedChange = { onOpen() })
-            else ArchiveArtwork(episode, Modifier.size(if (largeText) 56.dp else 72.dp))
+            else ArchiveArtwork(episode, Modifier.size(if (largeText) 56.dp else 72.dp), finished = finished)
             Column(Modifier.weight(1f).combinedClickable(onClick = onOpen, onLongClick = onSelect).padding(horizontal = 12.dp, vertical = 4.dp)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = if (largeText) 5 else 3, overflow = TextOverflow.Ellipsis)
+                Text(title, color = if (finished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, maxLines = if (largeText) 5 else 3, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
                 Text(episode.feed?.title ?: stringResource(R.string.archive_no_source), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val state = when {
-                    current -> stringResource(if (playing) R.string.archive_playing else R.string.archive_paused)
-                    episode.downloaded -> stringResource(R.string.archive_downloaded)
-                    episode.playState >= EpisodeState.PLAYED.code -> stringResource(R.string.archive_played)
-                    else -> ""
-                }
+                val state = buildList {
+                    if (current) add(stringResource(if (playing) R.string.archive_playing else R.string.archive_paused))
+                    if (finished) add(stringResource(R.string.playback_finished))
+                    else if (episode.downloaded) add(stringResource(R.string.archive_downloaded))
+                }.joinToString(" · ")
                 val time = durationStringAdapt((episode.duration - episode.position).coerceAtLeast(0))
                 Text(listOf(time, state).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                EpisodePlaybackHistory(episode)
                 if (showHighlights) {
                     val reasons = buildList {
                         if (episode.rating >= Rating.GOOD.code) add(stringResource(R.string.archive_liked))
@@ -245,7 +254,24 @@ fun ArchiveEpisodeRow(
                 }
             }
         }
-        if (current && episode.duration > 0) LinearProgressIndicator(progress = { (episode.position.toFloat() / episode.duration).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(2.dp))
+        if (episode.duration > 0 && (current || episode.playedPosition > 0)) LinearProgressIndicator(
+            progress = { ((if (current) episode.position else episode.playedPosition).toFloat() / episode.duration).coerceIn(0f, 1f) },
+            color = if (finished) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().height(2.dp))
+    }
+}
+
+
+@Composable
+fun EpisodePlaybackHistory(episode: Episode, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        episode.playedPercentage?.let { percent ->
+            Text(stringResource(R.string.playback_percent_played, percent), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (episode.lastPlayedTime > 0L) Text(
+            stringResource(R.string.playback_last_played_on, formatDateTimeFlex(episode.lastPlayedTime)),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

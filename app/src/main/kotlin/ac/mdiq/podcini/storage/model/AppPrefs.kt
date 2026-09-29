@@ -46,6 +46,7 @@ class AppPrefs: RealmObject {
     var unpauseOnBluetoothReconnect: Boolean = false
     var hardwareForwardButton: String = (KeyEvent.KEYCODE_MEDIA_FAST_FORWARD.toString())
     var hardwarePreviousButton: String = (KeyEvent.KEYCODE_MEDIA_REWIND.toString())
+    var completionPercent: Int = DEFAULT_COMPLETION_PERCENT
     var skipKeepsEpisode: Boolean = true
     var removeFromQueueMarkPlayed: Boolean = true
     var favoriteKeepsEpisode: Boolean = true
@@ -153,6 +154,7 @@ class AppPrefs: RealmObject {
         if (pauseOnHeadsetDisconnect != other.pauseOnHeadsetDisconnect) return false
         if (unpauseOnHeadsetReconnect != other.unpauseOnHeadsetReconnect) return false
         if (unpauseOnBluetoothReconnect != other.unpauseOnBluetoothReconnect) return false
+        if (completionPercent != other.completionPercent) return false
         if (skipKeepsEpisode != other.skipKeepsEpisode) return false
         if (removeFromQueueMarkPlayed != other.removeFromQueueMarkPlayed) return false
         if (favoriteKeepsEpisode != other.favoriteKeepsEpisode) return false
@@ -233,6 +235,7 @@ class AppPrefs: RealmObject {
         result = 31 * result + pauseOnHeadsetDisconnect.hashCode()
         result = 31 * result + unpauseOnHeadsetReconnect.hashCode()
         result = 31 * result + unpauseOnBluetoothReconnect.hashCode()
+        result = 31 * result + completionPercent
         result = 31 * result + skipKeepsEpisode.hashCode()
         result = 31 * result + removeFromQueueMarkPlayed.hashCode()
         result = 31 * result + favoriteKeepsEpisode.hashCode()
