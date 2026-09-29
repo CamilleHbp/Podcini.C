@@ -13,7 +13,7 @@ import ac.mdiq.podcini.ui.screens.QuickAccess
 import android.content.Intent
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -52,7 +52,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class ShortcutsActivity : ComponentActivity() {
+class ShortcutsActivity : AppCompatActivity() {
     private var feedItems by mutableStateOf<List<Feed>>(listOf())
     private var queueList by mutableStateOf<List<PlayQueue>>(listOf())
 

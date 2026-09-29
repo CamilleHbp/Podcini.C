@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sourcing.feed
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.BuildConfig
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
@@ -115,7 +116,7 @@ object FeedUpdateManager {
         }
         when {
             !networkMonitor.isConnected -> {
-                Logt(TAG, "checkAndscheduleUpdateTaskOnce network not available")
+                Logt(TAG, localizedString(R.string.message_checkandscheduleupdatetaskonce_network_not_available))
                 EventFlow.postEvent(FlowEvent.MessageEvent(context.getString(R.string.download_error_no_connection)))
             }
             !isFeedRefreshAllowed -> {
@@ -210,7 +211,7 @@ object FeedUpdateManager {
             }
 
             val attemptCount = params.runAttemptCount
-            if (attemptCount > 0) Logt(TAG, "Running backoff refresh due to prior errors")
+            if (attemptCount > 0) Logt(TAG, localizedString(R.string.message_running_backoff_refresh_due_to_prior_errors))
 
             val isPeriodic = inputData.getBoolean(KEY_IS_PERIODIC, false)
             if (isPeriodic) upsertBlk(appAttribsFlow!!.value) { it.prefLastFullUpdateTime = nowInMillis() }
@@ -230,14 +231,14 @@ object FeedUpdateManager {
                 val feeds = if (feedIds.isNotEmpty()) realm.query(Feed::class).query("id IN $0", feedIds.toList()).find() else listOf()
                 Logd(TAG) { "doWork feeds: ${feeds.size}" }
                 if (feedIds.isNotEmpty() && feeds.isEmpty()) {
-                    Loge(TAG, "feeds not found for feedIds ${feedIds.joinToString()}. update abort")
+                    Loge(TAG, localizedString(R.string.message_feeds_not_found_for_feedids_update_abort, (feedIds.joinToString()).toString()))
                     if (isPeriodic) rescheduleUpdateTaskOnce()
                     return Result.success()
                 }
                 val updater = FeedUpdater(feeds, fullUpdate = fullUpdate, doItAnyway = doItAnyway, removeUnlisted = eraseUnlisted)
                 updater.prepare()
                 if (!networkMonitor.isConnected) {
-                    Loge(TAG, "Refresh not performed: network unavailable, will retry")
+                    Loge(TAG, localizedString(R.string.message_refresh_not_performed_network_unavailable_will_retry))
                     return Result.retry()
                 }
                 updater.refresh()

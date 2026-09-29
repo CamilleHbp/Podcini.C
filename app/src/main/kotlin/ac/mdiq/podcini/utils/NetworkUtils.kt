@@ -126,7 +126,7 @@ object NetworkUtils {
         val url = try {
             Url(urlString)
         } catch (e: Exception) {
-            Loge(TAG, "fetchHtmlSource urlString invalid: $urlString")
+            Loge(TAG, localizedString(R.string.message_fetchhtmlsource_urlstring_invalid, (urlString).toString()))
             return@withContext ""
         }
         PodciniHttpClient.getKtorClient().get(url).bodyAsText()

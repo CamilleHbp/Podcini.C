@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.storage.model.displayName
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.*
@@ -473,7 +475,7 @@ class LibraryVM : ViewModel() {
                     Logd(TAG) { "prepareSort queryString: $queryString" }
                     persistDateSort()
                 }
-                else -> Loge(TAG, "No such date sorting ${prefsFlow.value.dateSortIndex}")
+                else -> Loge(TAG, localizedString(R.string.message_no_such_date_sorting, (prefsFlow.value.dateSortIndex).toString()))
             }
         }
     }
@@ -540,7 +542,7 @@ class LibraryVM : ViewModel() {
                     }
                     persistTimeSort()
                 }
-                else -> Loge(TAG, "No such time sorting ${prefsFlow.value.timeSortIndex}")
+                else -> Loge(TAG, localizedString(R.string.message_no_such_time_sorting, (prefsFlow.value.timeSortIndex).toString()))
             }
         }
     }
@@ -705,11 +707,11 @@ fun LibraryScreen() {
                                 val worker = DocumentFileExportWorker(OpmlWriter(), uri)
                                 worker.exportFile(feedsSelected)
                             }
-                        } catch (e: Exception) { Loge(TAG, e, "exportOPML error") }
+                        } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_exportopml_error)) }
                     }
                 }?.launch(intentPickAction)
                 return@clickable
-            } catch (e: ActivityNotFoundException) { Loge(TAG, "No activity found. Should never happen...") }
+            } catch (e: ActivityNotFoundException) { Loge(TAG, localizedString(R.string.message_no_activity_found_should_never_happen)) }
         }) {
             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_import_export_24), "")
             Text(stringResource(id = R.string.opml_export_label)) } }
@@ -810,7 +812,7 @@ fun LibraryScreen() {
                                         var uri = vm.curVolume!!.uriString.toSafeUri()
                                         val rootUri =  findRootForUri(uri)
                                         if (rootUri != null && uri != rootUri) {
-                                            Logt(TAG, "Loading from root folder: $rootUri")
+                                            Logt(TAG, localizedString(R.string.message_loading_from_root_folder, (rootUri).toString()))
                                             uri = rootUri
                                         }
                                         loadLocalFolder(uri, vm.curVolume!!.allFeeds.filter { it.isLocal })
@@ -1353,7 +1355,7 @@ fun LibraryScreen() {
                         Logd(TAG) { "queues: ${queuesLive.size}" }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             for (index in queuesLive.indices) {
-                                FilterChip(label = { Text(queuesLive[index].name) }, selected = false,
+                                FilterChip(label = { Text(queuesLive[index].displayName) }, selected = false,
                                     onClick = {
                                         saveSelectedFeeds { it: Feed -> it.queue = queuesLive[index] }
                                         onDismiss()
@@ -1417,7 +1419,7 @@ fun LibraryScreen() {
                             cancelRes = R.string.cancel_label,
                             onConfirm = {
                                 Logd(TAG) { "reconnecting folder: ${volumeToOperate?.name}" }
-                                try { connectLocalFolderLauncher.launch(null) } catch (e: ActivityNotFoundException) { Logs(TAG, e, "No activity found. Should never happen...") }
+                                try { connectLocalFolderLauncher.launch(null) } catch (e: ActivityNotFoundException) { Logs(TAG, e, localizedString(R.string.message_no_activity_found_should_never_happen)) }
                             }))
                     }) {
                         Icon(imageVector = ImageVector.vectorResource(id = R.drawable.rounded_books_movies_and_music_24), "reconnect folder", modifier = Modifier.size(24.dp))
@@ -1433,7 +1435,7 @@ fun LibraryScreen() {
                 val num = feedsSelected.size
                 for (feed in feedsSelected) {
                     sendFeed(host, port, feed.id) { }
-                    Logt(TAG, "feeds transferred ${++i} / $num, waiting 5 seconds to do next")
+                    Logt(TAG, localizedString(R.string.message_feeds_transferred_waiting_5_seconds_to_do_next, (++i).toString(), (num).toString()))
                     delay(10000.milliseconds)
                 }
                 showToDeviceDialog = false
@@ -1583,7 +1585,7 @@ fun LibraryScreen() {
                             })) {
                             ConstraintLayout(Modifier.fillMaxSize()) {
                                 val (coverImage, episodeCount, rating, error) = createRefs()
-                                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), imageLoader = imageLoader, contentDescription = "coverImage",
+                                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), imageLoader = imageLoader, contentDescription = stringResource(R.string.ui_cover),
                                     colorFilter = if (!feed.inNormalVolume) ColorFilter.tint(color = Color.Gray.copy(alpha = 0.5f), blendMode = BlendMode.SrcAtop) else null,
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f).constrainAs(coverImage) {
                                         top.linkTo(parent.top)
@@ -1596,18 +1598,18 @@ fun LibraryScreen() {
                                     top.linkTo(coverImage.top)
                                 })
                                 if (feed.rating != Rating.UNRATED.code)
-                                    Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = buttonColor, contentDescription = "rating",
+                                    Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = buttonColor, contentDescription = stringResource(R.string.ui_rating),
                                         modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer.copy(0.8f)).constrainAs(rating) {
                                             start.linkTo(coverImage.start)
                                             bottom.linkTo(coverImage.bottom)
                                         })
-                                if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = "error",
+                                if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = stringResource(R.string.error_label),
                                     modifier = Modifier.background(Color.Gray).constrainAs(error) {
                                         end.linkTo(parent.end)
                                         bottom.linkTo(coverImage.bottom)
                                     })
                             }
-                            Text(feed.title ?: "No title", color = textColor, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(feed.title ?: stringResource(R.string.archive_no_title), color = textColor, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -1653,7 +1655,7 @@ fun LibraryScreen() {
                         val imageSize = 60
                         Row(Modifier.heightIn(min = 92.dp).padding(horizontal = 16.dp, vertical = 12.dp).background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
                             Box(modifier = Modifier.size(imageSize.dp)) {
-                                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover",
+                                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover),
                                     colorFilter = if (!feed.inNormalVolume) ColorFilter.tint(color = Color.Gray.copy(alpha = 0.5f), blendMode = BlendMode.SrcAtop) else null,
                                     modifier = Modifier.fillMaxSize().clickable {
                                         Logd(TAG) { "icon clicked!" }
@@ -1662,7 +1664,7 @@ fun LibraryScreen() {
                                             else navTo(FeedDetails(feedId = feed.id, modeName = FeedScreenMode.List.name))
                                         }
                                     })
-                                if (feed.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = buttonColor, contentDescription = "rating", modifier = Modifier.size((imageSize/4).dp).align(Alignment.BottomStart).background(MaterialTheme.colorScheme.tertiaryContainer.copy(0.8f)))
+                                if (feed.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = buttonColor, contentDescription = stringResource(R.string.ui_rating), modifier = Modifier.size((imageSize/4).dp).align(Alignment.BottomStart).background(MaterialTheme.colorScheme.tertiaryContainer.copy(0.8f)))
                             }
                             Column(Modifier.weight(1f).padding(start = 16.dp).combinedClickable(onClick = {
                                 if (!feed.isBuilding) {
@@ -1684,7 +1686,7 @@ fun LibraryScreen() {
                                     }
                                 }
                             })) {
-                                Text(feed.title ?: "No title", color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                                Text(feed.title ?: stringResource(R.string.archive_no_title), color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                                 Row(modifier = Modifier.padding(top = 8.dp)) {
 //                                    Logd(TAG) { "episodesCount: ${feed.id} ${feed.episodesCount} ${feed.totleDuration}" }
                                     val measureString = remember(feed.episodesCount, feed.totleDuration) { formatWithGrouping(feed.episodesCount.toLong()) + " : " + durationInHours(feed.totleDuration/1000, false) }
@@ -1693,7 +1695,7 @@ fun LibraryScreen() {
 
                                 }
                             }
-                            if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = "error")
+                            if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = stringResource(R.string.error_label))
                         }
                     }
                 }
@@ -1804,16 +1806,16 @@ fun ReceiveContentDialog(parentFolderId: Long = -1L, onClose: () -> Unit) {
         title = { Text(stringResource(R.string.receive_contents), style = CustomTextStyles.titleCustom) },
         text = {
             Column {
-                Text(appAttribs.name + " at: " + (ip ?: "address unknown"))
+                Text(stringResource(R.string.ui_device_address, appAttribs.name, ip ?: stringResource(R.string.ui_unknown_address)))
                 Text(stringResource(R.string.ports_sum), style = MaterialTheme.typography.bodySmall)
                 if (receiveJob == null) Row(modifier = Modifier.fillMaxWidth().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     TextField(value = udpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.broadcast_port)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { udpPort = it.toIntOrNull() ?: 0 })
                     TextField(value = tcpPort.toString(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.port_label)) }, singleLine = true, modifier = Modifier.weight(1f), onValueChange = { tcpPort = it.toIntOrNull() ?: 0 })
-                } else Text("Receiving at port $tcpPort")
+                } else Text(stringResource(R.string.ui_receiving_port, tcpPort))
                 if (receiveJob == null) Row {
                     Text(stringResource(R.string.content_type), modifier = Modifier.padding(end = 5.dp))
-                    Spinner(ContentType.entries.map { it.name }, ContentType.Feed.name) { index -> contentType = ContentType.entries.toTypedArray()[index] }
-                } else Text("Receiving: ${contentType.name}")
+                    Spinner(ContentType.entries.map { stringResource(it.labelRes) }, stringResource(contentType.labelRes)) { index -> contentType = ContentType.entries.toTypedArray()[index] }
+                } else Text(stringResource(R.string.ui_receiving, stringResource(contentType.labelRes)))
             }
         },
         confirmButton = {

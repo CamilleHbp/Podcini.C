@@ -502,18 +502,18 @@
     <!-- Preferences -->
     <string name="project_pref">Project</string>
     <string name="synchronization_pref">Synchronization</string>
-    <string name="pref_backup_on_google_title">Auto backup of OPML</string>
-    <string name="pref_backup_on_google_sum">Auto backup OPML files to Google. Once enabled, after Podcini is uninstalled and re-installed, the subscriptions can be restored. Toggle this setting will restart Podcini.</string>
+    <string name="pref_backup_on_google_title">Android subscription backup</string>
+    <string name="pref_backup_on_google_sum">Include your subscription list in Android backup. Availability depends on your device backup settings.</string>
     <string name="algorithm">Algorithm</string>
     <string name="automation">Automation</string>
 
-    <string name="import_export_pref">Backups &amp; transfers</string>
-    <string name="pref_auto_backup_title">Auto backup</string>
-    <string name="pref_auto_backup_sum">Automatically back up DB and preferences at a specified interval into a selected folder.</string>
+    <string name="import_export_pref">Backups &amp; exports</string>
+    <string name="pref_auto_backup_title">Scheduled library backups</string>
+    <string name="pref_auto_backup_sum">Automatically save your library, settings, and clips to a folder. Downloaded media is not included.</string>
     <string name="pref_auto_backup_interval">Backup interval</string>
-    <string name="pref_auto_backup_folder">Spicify a backup folder</string>
-    <string name="pref_auto_backup_folder_sum">Not specified.</string>
-    <string name="pref_auto_backup_limit">Number of backups to keep</string>
+    <string name="pref_auto_backup_folder">Backup folder</string>
+    <string name="pref_auto_backup_folder_sum">Choose where to save automatic backups.</string>
+    <string name="pref_auto_backup_limit">Backups to keep</string>
 
     <string name="auto_backup_folder_not_specified">The auto-backup folder is not specified</string>
     <string name="auto_backup_folder_not_available">The chosen folder for auto-backup is not accessible</string>
@@ -527,12 +527,12 @@
 
     <string name="interruptions">Interruptions</string>
     <string name="playback_control">Playback control</string>
-    <string name="reassign_hardware_buttons">Reassign hardware buttons</string>
+    <string name="reassign_hardware_buttons">Headphone buttons</string>
     <string name="pref_episode_cleanup_title">Episode cleanup</string>
     <string name="pref_episode_cleanup_summary">Episodes that should be eligible for removal if Auto Download needs space for new episodes</string>
-    <string name="pref_pauseOnDisconnect_sum">Pause playback when headphones or bluetooth are disconnected</string>
-    <string name="pref_unpauseOnHeadsetReconnect_sum">Resume playback when the headphones are reconnected</string>
-    <string name="pref_unpauseOnBluetoothReconnect_sum">Resume playback when bluetooth reconnects</string>
+    <string name="pref_pauseOnDisconnect_sum">Pause when headphones or Bluetooth disconnect.</string>
+    <string name="pref_unpauseOnHeadsetReconnect_sum">Resume when wired headphones reconnect.</string>
+    <string name="pref_unpauseOnBluetoothReconnect_sum">Resume when a Bluetooth device reconnects.</string>
     <string name="pref_hardware_forward_button_title">Forward button</string>
     <string name="pref_hardware_forward_button_summary">Customize the forward button behavior</string>
     <string name="pref_hardware_previous_button_title">Previous button</string>
@@ -541,10 +541,10 @@
     <string name="button_action_rewind">Rewind</string>
     <string name="button_action_skip_episode">Skip episode</string>
     <string name="button_action_restart_episode">Restart episode</string>
-    <string name="pref_custom_media_dir_title">Use custom media folder</string>
-    <string name="pref_custom_media_dir_sum">Choose a custom folder for downloaded media. You can always reset. A restart is needed.</string>
-    <string name="pref_custom_media_dir_sum1">Custom media folder is set. Want to change?</string>
-    <string name="pref_custom_media_dir_sum2">Custom media folder is set. Want to reset to default?</string>
+    <string name="pref_custom_media_dir_title">Media folder</string>
+    <string name="pref_custom_media_dir_sum">Choose where downloaded media is stored. Moving files restarts the app.</string>
+    <string name="pref_custom_media_dir_sum1">Move downloaded media to a different folder? Choose an empty folder: its existing contents will be deleted. The app restarts when the move finishes.</string>
+    <string name="pref_custom_media_dir_sum2">Move downloaded media back to app storage? The app restarts when the move finishes.</string>
 
     <string name="pref_auto_delete_sum">Delete episode when playback completes</string>
     <string name="auto_delete">Auto delete</string>
@@ -560,16 +560,16 @@
     <string name="pref_keeps_important_episodes_sum">Keep episodes rated Super or scheduled for repeated listening.</string>
     <string name="pref_keeps_important_episodes_title">Keep important episodes</string>
     <string name="playback_pref">Playback</string>
-    <string name="playback_pref_sum">Headphone controls, Skip intervals, Queue</string>
+    <string name="playback_pref_sum">Players, streaming, headphone controls, and queue behavior</string>
     <string name="network_storage_pref">Network and Storage</string>
     <string name="downloads_pref_sum">Update interval, Mobile data, Automatic download, Automatic deletion</string>
 
-    <string name="identifier">Identifier</string>
-    <string name="network_identifier_sum">A unique identifier is useful when sending data to Podcini on other devices.</string>
+    <string name="identifier">Device name</string>
+    <string name="network_identifier_sum">Use a recognizable name when sharing with other Podcini devices.</string>
 
-    <string name="feed_refresh_title">Refresh podcasts</string>
-    <string name="feed_refresh_sum">Specify an interval (in minutes, 0 means never) at which Podcini looks for new episodes automatically.</string>
-    <string name="feed_next_refresh_time">Next refresh time around:</string>
+    <string name="feed_refresh_title">Check for new episodes</string>
+    <string name="feed_refresh_sum">Set the automatic refresh interval. Use 0 to refresh manually.</string>
+    <string name="feed_next_refresh_time">Next check around:</string>
     <string name="before">before</string>
 
     <string name="edit_volume">Edit folder</string>
@@ -581,17 +581,17 @@
     <string name="pref_followQueue_title">Continuous playback</string>
     <string name="pref_followQueue_sum">Jump to next queue item when playback completes</string>
 
-    <string name="pref_pauseOnHeadsetDisconnect_title">Headphones or Bluetooth disconnect</string>
-    <string name="pref_unpauseOnHeadsetReconnect_title">Headphones reconnect</string>
-    <string name="pref_unpauseOnBluetoothReconnect_title">Bluetooth reconnect</string>
+    <string name="pref_pauseOnHeadsetDisconnect_title">Pause on disconnect</string>
+    <string name="pref_unpauseOnHeadsetReconnect_title">Resume with headphones</string>
+    <string name="pref_unpauseOnBluetoothReconnect_title">Resume with Bluetooth</string>
     <string name="pref_stream_over_download_title">Prefer streaming</string>
     <string name="pref_stream_over_download_sum">Display stream button instead of download button in lists</string>
     <string name="pref_low_quality_on_mobile_title">Prefer low quality on mobile</string>
     <string name="pref_low_quality_on_mobile_sum">On metered network, only low quality media (if available) is fetched</string>
     <string name="pref_use_adaptive_progress_title">Update progress adaptively</string>
     <string name="pref_use_adaptive_progress_sum">Update the progress in an adaptive interval set as the higher of 5 seconds or 2 percent of the media duration. This saves some energy. Otherwise it\'s updated every 5 seconds.</string>
-    <string name="pref_metered_network_title">Metered network settings</string>
-    <string name="pref_mobileUpdate_sum">Select what should be allowed over the mobile data connection</string>
+    <string name="pref_metered_network_title">Mobile data &amp; metered Wi-Fi</string>
+    <string name="pref_mobileUpdate_sum">Choose which downloads, updates, and streams may use a metered connection.</string>
     <string name="pref_mobileUpdate_refresh">Podcast refresh</string>
     <string name="pref_mobileUpdate_images">Cover images</string>
     <string name="pref_mobileUpdate_auto_download">Auto download</string>
@@ -599,24 +599,24 @@
     <string name="pref_mobileUpdate_streaming">Streaming</string>
     <string name="user_interface_label">User interface</string>
     <string name="user_interface_sum">Appearance, subscriptions, lockscreen</string>
-    <string name="pref_black_theme_title">Full black</string>
-    <string name="pref_black_theme_message">Use full black for the dark theme</string>
-    <string name="pref_dynamic_theme_title">Use dynamic themes</string>
-    <string name="pref_dynamic_theme_message">Themes will adapt to wallpaper colors.</string>
+    <string name="pref_black_theme_title">Use a black background</string>
+    <string name="pref_black_theme_message">Use pure black surfaces in dark theme.</string>
+    <string name="pref_dynamic_theme_title">Use wallpaper colors</string>
+    <string name="pref_dynamic_theme_message">Adapt the app palette to your Android wallpaper.</string>
 
-    <string name="pref_automatic_download_title">Automatic download</string>
-    <string name="pref_automatic_download_sum">Configure the automatic download of episodes</string>
+    <string name="pref_automatic_download_title">Enable automatic downloads</string>
+    <string name="pref_automatic_download_sum">Download episodes using each feed’s automation settings.</string>
     <string name="pref_automatic_download_on_battery_title">Download when not charging</string>
     <string name="pref_automatic_download_on_battery_sum">Allow automatic download when the battery is not charging</string>
 
-    <string name="pref_fetch_media_size">Fetch media sizes on refresh</string>
-    <string name="pref_fetch_media_size_sum">Fetch remote media size involves extra network queries. It\'s not performed for feeds set for streaming. Enable this for feeds set to be downloaded.</string>
+    <string name="pref_fetch_media_size">Check download sizes</string>
+    <string name="pref_fetch_media_size_sum">Check file sizes when refreshing feeds configured for downloads. This uses extra network requests.</string>
 
-    <string name="pref_use_external_apps">Use external apps</string>
-    <string name="pref_use_external_app_sum">This allows Podcini to establish/re-establish communication with external source provider apps for contents other than normal podcasts. If you don\'t have such an app installed on your device, this should be set to false.</string>
+    <string name="pref_use_external_apps">Connect external media apps</string>
+    <string name="pref_use_external_app_sum">Allow installed provider apps to supply audio and video. A compatible provider app must be installed separately.</string>
 
-    <string name="pref_watch_storage_title">Watch available space</string>
-    <string name="pref_watch_storage_sum">Specifies if available space is ensured at download time. If you don\'t have a tight storage, this is better set to false.</string>
+    <string name="pref_watch_storage_title">Check free space before downloading</string>
+    <string name="pref_watch_storage_sum">Check available storage before starting a download.</string>
 
     <string name="pref_autodl_queue_empty_title">Launch when queue gets empty</string>
     <string name="pref_autodl_queue_empty_sum">When a queue becomes empty, automatic download starts for associated feeds where the policy is other than \"Only new items\"</string>
@@ -637,8 +637,8 @@
     <string name="pref_episode_cache_summary">Maximum episodes to download or add to queues automatically. Use 0 for no limit.</string>
     <string name="pref_auto_download_counting_played_title">Counting played</string>
     <string name="pref_auto_download_counting_played_summary">Count played downloads toward the automatic download limit. This does not affect automatic queueing.</string>
-    <string name="pref_episode_cover_title">Use episode cover</string>
-    <string name="pref_episode_cover_summary">Use the episode specific cover in lists whenever available. If unchecked, the app will always use the podcast cover image.</string>
+    <string name="pref_episode_cover_title">Episode artwork</string>
+    <string name="pref_episode_cover_summary">Show each episode’s artwork when available. Otherwise, use the feed artwork.</string>
 
 
     <string name="pref_theme_title_automatic">Automatic</string>
@@ -682,7 +682,7 @@
     <string name="pref_rewind">Rewind skip time</string>
     <string name="pref_rewind_sum">Customize the number of seconds to jump backwards when the rewind button is clicked</string>
     <string name="pref_stream_cache">Streaming cache size</string>
-    <string name="pref_stream_cache_sum">Customize the cache size (minimum 10MD) of streamed media for better local rewind and replay. App will restart after change.</string>
+    <string name="pref_stream_cache_sum">Keep streamed media for rewinding and replaying. Minimum 10 MB. Changing this restarts the app.</string>
 
     <string name="pref_playback_video_mode">Video play mode</string>
     <string name="pref_playback_video_mode_sum">Choose how video episode is played by default</string>
@@ -721,16 +721,16 @@
     <string name="behavior">Behavior</string>
     <string name="pref_select_properties">Select properties</string>
     <string name="pref_import_media_files_later">Media files can only be imported after importing the database.</string>
-    <string name="pref_default_page">Default page</string>
-    <string name="pref_default_page_sum">Screen that is opened when starting Podcini</string>
+    <string name="pref_default_page">Start page</string>
+    <string name="pref_default_page_sum">Choose what opens when you launch the app.</string>
     <string name="pref_back_button_opens_drawer">Back button opens drawer</string>
     <string name="pref_back_button_opens_drawer_summary">Pressing the back button on the default page opens the navigation drawer</string>
 
-    <string name="pref_show_log_level">Set log level</string>
-    <string name="pref_show_log_level_sum">Sets to toast logs at or above the level of severity. Regardless of the setting, log messages can always be found in Logs screen. Debug is the same as Info plus debug messages being printed to Logcat, so normally should not be set.</string>
+    <string name="pref_show_log_level">On-screen messages</string>
+    <string name="pref_show_log_level_sum">Choose which app messages appear while you use Podcini.C.</string>
 
-    <string name="pref_dont_ask_restricted">Don\'t ask again for restricted background</string>
-    <string name="pref_dont_ask_restricted_sum">Request for restricted background permission is prompted in case the permission is not granted. This disables the prompts. Please ensure the permission is granted, otherwise, continued playback and feeds updates in background don\'t function properly.</string>
+    <string name="pref_dont_ask_restricted">Hide background access reminders</string>
+    <string name="pref_dont_ask_restricted_sum">Stop reminders about battery restrictions. Allow background activity in Android settings for reliable playback and feed updates.</string>
 
     <string name="restore_on_start">Restore on start</string>
 
@@ -783,22 +783,22 @@
 
     <!-- import and export -->
     <string name="import_export_summary">Move subscriptions and queue to another device</string>
-    <string name="html_export_summary">Show your subscriptions to a friend</string>
-    <string name="opml_export_summary">Transfer your subscriptions to another podcast app</string>
-    <string name="opml_import_summary">Import your subscriptions from another podcast app</string>
-    <string name="combo_export_summary">Choose whether to back up library data, settings, and media files.</string>
-    <string name="combo_import_summary">Restore library data, settings, or media files from a backup. Selected data replaces the current data.</string>
-    <string name="opml_import_label">OPML import</string>
+    <string name="html_export_summary">Create an HTML list to open in a browser or share.</string>
+    <string name="opml_export_summary">Save an OPML file to use in another podcast app.</string>
+    <string name="opml_import_summary">Choose an OPML file and select the feeds to add.</string>
+    <string name="combo_export_summary">Choose library and settings, downloaded media, and clips to save in a backup folder.</string>
+    <string name="combo_import_summary">Restore a backup folder. Selected data replaces the data on this device.</string>
+    <string name="opml_import_label">Import subscriptions</string>
     <string name="opml_reader_error">An error has occurred while reading the file. Make sure that you have actually selected an OPML file and that the file is valid.</string>
-    <string name="progress_export_label">Episodes progress export</string>
-    <string name="progress_import_label">Episodes progress import</string>
-    <string name="progress_export_summary">Transfer Podcini episodes history to a different installation of Podcini. Note this is not necessary if you can transfer the DB.</string>
-    <string name="progress_import_summary">Import Podcini episodes history from another install of Podcini. Note this is not necessary if you already imported the DB. </string>
-    <string name="progress_import_warning">Importing episodes progress will replace all of your current playing history. You should export your current progress as a backup. Do you want to replace\? If yes, in the next screen, choose the desired .json file. The process can take a couple minutes depending on size. Once completed, a popup of either success or failure will be shown.</string>
-    <string name="opml_export_label">OPML export</string>
-    <string name="html_export_label">HTML export</string>
-    <string name="import_SQLite_message">Imported subscriptions together with episodes and play history will be added to existing DB. If confirmed, choose a previously exported sqlite database."</string>
-    <string name="combo_import_warning">Importing any of the chosen items will replace those in your current storage. If confirmed, choose a previously exported directory with name containing \"Podcini-Backups\"</string>
+    <string name="progress_export_label">Export listening progress</string>
+    <string name="progress_import_label">Import listening progress</string>
+    <string name="progress_export_summary">Save listening history and episode progress as a JSON file. This data is also included in library backups.</string>
+    <string name="progress_import_summary">Update matching episodes from a Podcini JSON export.</string>
+    <string name="progress_import_warning">This replaces listening progress for matching episodes. Export your current progress first if you want to keep it, then choose a Podcini JSON file.</string>
+    <string name="opml_export_label">Export subscriptions</string>
+    <string name="html_export_label">Export subscription list</string>
+    <string name="import_SQLite_message">Subscriptions, episodes, and listening history will be added to your library. Choose a database previously exported from AntennaPod.</string>
+    <string name="combo_import_warning">Restoring replaces the selected data on this device. Create a backup first if you want to keep it. Next, choose a Podcini backup folder and the items to restore.</string>
     <string name="combo_export_label">Create backup</string>
     <string name="combo_import_label">Restore backup</string>
     <string name="restore_backup_restart">The app will restart automatically when the selected data and files have been restored.</string>
@@ -809,10 +809,10 @@
     <string name="restore_backup_database_missing">The backup must contain exactly one database file.</string>
     <string name="restore_backup_media_missing">The selected media backup is missing.</string>
     <string name="restore_backup_clips_missing">The selected clips backup is missing.</string>
-    <string name="import_AP_label">Import AntennaPod database</string>
-    <string name="import_PA_label">Import from Podcast Addict backup</string>
+    <string name="import_AP_label">Import from AntennaPod</string>
+    <string name="import_PA_label">Import from Podcast Addict</string>
     <string name="import_PA_DB_label">Import subscriptions</string>
-    <string name="import_PA_DB_message">Imported subscriptions together with episodes and play history will be added to podcini\'s DB. "</string>
+    <string name="import_PA_DB_message">Add subscriptions, episodes, and listening history to your library.</string>
     <string name="import_PA_directory_label">Import directory</string>
     <string name="import_PA_directory_message">Import a podcasts direcory for offline search. "</string>
     <string name="import_PA_message">If confirmed, choose a previously exported backup archive from Podcast Addict app."</string>
@@ -823,7 +823,7 @@
     <string name="successful_import_label">Import successful</string>
     <string name="import_ok">Please press OK to restart Podcini</string>
 
-    <string name="favorites_export_label">Favorites export</string>
+    <string name="favorites_export_label">Export favorite episodes</string>
     <string name="favorites_export_summary">Export saved favorites to file</string>
 
     <string name="restore_subscriptions_label">Restore subscriptions</string>
@@ -860,8 +860,8 @@
     <string name="auto_enable_sum">Enter the "From" hour and the "To" hour in the two boxes, then press the setting button. Hours are from 0 to 23.</string>
 
     <!-- Synchronisation -->
-    <string name="synchronization_choose_title">Choose synchronization provider</string>
-    <string name="synchronization_summary_unchoosen">You can choose from multiple providers to synchronize your subscriptions and episode play state with</string>
+    <string name="synchronization_choose_title">Connect a sync service</string>
+    <string name="synchronization_summary_unchoosen">Choose a service and sign in.</string>
     <string name="dialog_choose_sync_service_title">Choose synchronization provider</string>
     <string name="synchronization_summary_nextcloud">Gpoddersync is an open-source Nextcloud app that you can easily install on your own server. The app is independent of the Podcini project.</string>
     <string name="synchronization_host_explanation">You can pick your own server to synchronize with. When you have identified your preferred synchronization server, please enter its address here.</string>
@@ -1059,8 +1059,8 @@
     <string name="hz">Hz</string>
     <string name="ratio">Ratio</string>
 
-    <string name="use_ring_tone">Use a ring tone</string>
-    <string name="use_ring_tone_sum">When enabled, the chosen ringtone is played when starting a new episode in queue.</string>
+    <string name="use_ring_tone">Play a sound between episodes</string>
+    <string name="use_ring_tone_sum">Play the selected sound when a new episode starts in the queue.</string>
 
     <string name="disable_ring_tone_on_music">Disable ringtone on music</string>
     <string name="disable_ring_tone_on_music_sum">When set, ringtone is not played before a music episode (as set in the feed).</string>

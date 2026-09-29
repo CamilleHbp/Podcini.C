@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.MainActivity.Companion.findActivity
 import ac.mdiq.podcini.playback.PlaybackStarter
@@ -554,23 +555,23 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                 Text(text = episode.title?:"", fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(text = episode.feed?.title?:"", fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             } else {
-                if (episode.captionCues.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = "transcript", modifier = Modifier.clickable { showTransDialog = true })
+                if (episode.captionCues.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = stringResource(R.string.transcript), modifier = Modifier.clickable { showTransDialog = true })
                 if (client?.attributes?.hasSeparateAVs == true) IconButton(onClick = {
                     val media = upsertBlk(episode) { it.forceVideo = false }
                     vm.forceVideo = false
                     forcePlaybackReset = true
                     PlaybackStarter(media).shouldStreamThisTime(null).setAudioOnly().start()
                     player?.playingVideoFlow?.value = false
-                }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_audiotrack_24), contentDescription = "audio only") }
-                if (client?.attributes?.hasMultiQualities == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_stream_24), contentDescription = "change stream", modifier = Modifier.clickable { showAVChooser = true })
-                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_volume_adaption), tint = textColor, contentDescription = "Volume adaptation", modifier = Modifier.clickable {
+                }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_audiotrack_24), contentDescription = stringResource(R.string.ui_audio_only)) }
+                if (client?.attributes?.hasMultiQualities == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_stream_24), contentDescription = stringResource(R.string.change_stream), modifier = Modifier.clickable { showAVChooser = true })
+                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_volume_adaption), tint = textColor, contentDescription = stringResource(R.string.ui_volume_adaptation), modifier = Modifier.clickable {
                     actPlayerId = vm.playerId
                     showVolumeDialog = true
                 })
                 (context as? BaseActivity)?.CastIconButton()
             }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                     if (vm0.landscape) {
                         if (client?.attributes?.hasMultiQualities == true) DropdownMenuItem(text = { Text(stringResource(R.string.change_stream)) }, onClick = {
@@ -629,8 +630,8 @@ fun AVPlayerScreen(embedded: Boolean = false) {
         Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { psState = PSState.PartiallyExpanded }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_arrow_down), contentDescription = stringResource(R.string.archive_close_player)) }
             Text(stringResource(R.string.archive_now_playing), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            if (episode.captionCues.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = "transcript", modifier = Modifier.clickable { showTransDialog = true })
-            if (mediaType == MediaType.VIDEO && client?.attributes?.hasSeparateAVs == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_fullscreen_24), tint = textColor, contentDescription = "Play video",
+            if (episode.captionCues.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = stringResource(R.string.transcript), modifier = Modifier.clickable { showTransDialog = true })
+            if (mediaType == MediaType.VIDEO && client?.attributes?.hasSeparateAVs == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_fullscreen_24), tint = textColor, contentDescription = stringResource(R.string.ui_play_video),
                 modifier = Modifier.clickable {
                     val media = upsertBlk(episode) { it.forceVideo = true }
                     vm.forceVideo = true
@@ -638,12 +639,12 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                     PlaybackStarter(media).shouldStreamThisTime(null).start()
                     player?.playingVideoFlow?.value = true
                 })
-            if (client?.attributes?.hasMultiQualities == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_stream_24), contentDescription = "change stream", modifier = Modifier.clickable { showAVChooser = true })
+            if (client?.attributes?.hasMultiQualities == true) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_stream_24), contentDescription = stringResource(R.string.change_stream), modifier = Modifier.clickable { showAVChooser = true })
 
 
             (context as? BaseActivity)?.CastIconButton()
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                     if ((player?.audioTracks?.size?:0) > 1) DropdownMenuItem(text = { Text(stringResource(R.string.audio_controls)) }, onClick = {
                         actPlayerId = vm.playerId
@@ -776,9 +777,9 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                     Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
                         if (client?.attributes?.hasSeparateAVs == true) {
                             var showLocales by remember { mutableStateOf(false) }
-                            Text("Audio:", color = textColor, style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.ui_audio), color = textColor, style = MaterialTheme.typography.titleMedium)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showLocales = !showLocales }) {
-                                Text(" Locale: ${locale ?: "null"}", color = textColor, modifier = Modifier.padding(horizontal = 3.dp))
+                                Text(stringResource(R.string.ui_audio_language, locale ?: stringResource(R.string.filter_any)), color = textColor, modifier = Modifier.padding(horizontal = 3.dp))
                             }
                             if (showLocales && locales.size > 1) FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                                 val langs = remember { player.curLocales.toList() }
@@ -796,7 +797,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                             }
                             var showCodecs by remember { mutableStateOf(false) }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showCodecs = !showCodecs }) {
-                                Text("Codec: $codec", color = textColor, modifier = Modifier.padding(end = 10.dp))
+                                Text(stringResource(R.string.ui_codec, if (codec == "Any") stringResource(R.string.filter_any) else codec), color = textColor, modifier = Modifier.padding(end = 10.dp))
                             }
                             if (showCodecs && codecs.size > 1) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
@@ -815,7 +816,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                             }
                             var showbitrates by remember { mutableStateOf(false) }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showbitrates = !showbitrates }) {
-                                Text("Bitrate: $bitrate", color = textColor, modifier = Modifier.padding(end = 10.dp))
+                                Text(stringResource(R.string.ui_bitrate, bitrate.toString()), color = textColor, modifier = Modifier.padding(end = 10.dp))
                             }
                             if (showbitrates) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
@@ -830,10 +831,10 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                             }
                         }
                         if (playingVideo) {
-                            Text("Video:", color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 3.dp))
+                            Text(stringResource(R.string.ui_video), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 3.dp))
                             var showProts by remember { mutableStateOf(false) }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showProts = !showProts }) {
-                                Text("Protocols: $protocol", color = textColor, modifier = Modifier.padding(end = 10.dp))
+                                Text(stringResource(R.string.ui_protocol, if (protocol == "Any") stringResource(R.string.filter_any) else protocol.orEmpty()), color = textColor, modifier = Modifier.padding(end = 10.dp))
                             }
                             if (showProts && protocols.size > 1) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
@@ -853,7 +854,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
 
                             var showCodecs by remember { mutableStateOf(false) }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showCodecs = !showCodecs }) {
-                                Text("Video Codec: $vcodec", color = textColor, modifier = Modifier.padding(end = 10.dp))
+                                Text(stringResource(R.string.ui_video_codec, if (vcodec == "Any") stringResource(R.string.filter_any) else vcodec.orEmpty()), color = textColor, modifier = Modifier.padding(end = 10.dp))
                             }
                             if (showCodecs && vcodecs.size > 1) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
@@ -873,7 +874,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
 
                             var showResolutions by remember { mutableStateOf(false) }
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(top = 5.dp).clickable { showResolutions = !showResolutions }) {
-                                Text("Resolution: $resolution", color = textColor, modifier = Modifier.padding(end = 10.dp))
+                                Text(stringResource(R.string.ui_resolution, resolution.orEmpty()), color = textColor, modifier = Modifier.padding(end = 10.dp))
                             }
                             if (showResolutions && resolutions.size > 1) {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
@@ -928,11 +929,11 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                             when {
                                 distance > 0 -> {
                                     if (vm.episodeFeed?.queue != null) navTo(Queues(id = vm.episodeFeed?.queue!!.id))
-                                    else Logt(TAG, "No associated queue to go to")
+                                    else Logt(TAG, localizedString(R.string.message_no_associated_queue_to_go_to))
                                 }
                                 else -> {
                                     if (vm.episodeFeed != null) navTo(FeedDetails(feedId = vm.episodeFeed!!.id))
-                                    else Logt(TAG, "curEpisode is not set, no navigation options")
+                                    else Logt(TAG, localizedString(R.string.message_curepisode_is_not_set_no_navigation_options))
                                 }
                             }
                             psState = PSState.PartiallyExpanded
@@ -942,11 +943,11 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                 },
             )
         }.offset { IntOffset(offsetX.value.roundToInt(), 0) }) {
-            SelectionContainer { Text(episode.title ?: "No title", textAlign = TextAlign.Center, color = textColor, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 5.dp)) }
+            SelectionContainer { Text(episode.title ?: stringResource(R.string.archive_no_title), textAlign = TextAlign.Center, color = textColor, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 5.dp)) }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Spacer(modifier = Modifier.weight(0.1f))
                 if (episode.captionCues.isNotEmpty()) Icon(imageVector = if (showCaption) Icons.Default.CheckCircle else ImageVector.vectorResource(androidx.media3.session.R.drawable.media3_icon_closed_captions),
-                    contentDescription = "caption", tint = if (showCaption) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.combinedClickable(
+                    contentDescription = stringResource(R.string.browse_captions), tint = if (showCaption) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.combinedClickable(
                         onClick = {
                             showCaption = !showCaption
                             if (!showCaption) cueIndex = -1
@@ -954,7 +955,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                         onLongClick = {
                             val pos = player?.getPosition()?:0
                             runOnIOScope { upsert(episode) { it.transcriptStartPos = pos } }
-                            Logt(TAG, "transcript start position is offset to ${durationStringAdapt(pos)}")
+                            Logt(TAG, localizedString(R.string.message_transcript_start_position_is_offset_to, (durationStringAdapt(pos)).toString()))
                         }
                     ) )
                 Spacer(modifier = Modifier.weight(0.2f))
@@ -962,9 +963,9 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                 Text(episodeDate, textAlign = TextAlign.Center, color = textColor, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.weight(0.4f))
                 val ratingIconRes by remember(episode.rating) { mutableIntStateOf( Rating.fromCode(episode.rating).res) }
-                Icon(imageVector = ImageVector.vectorResource(ratingIconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(24.dp).height(24.dp).clickable { showChooseRatingDialog = true })
+                Icon(imageVector = ImageVector.vectorResource(ratingIconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_rating), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(24.dp).height(24.dp).clickable { showChooseRatingDialog = true })
                 Spacer(modifier = Modifier.weight(0.1f))
-                Icon(imageVector = ImageVector.vectorResource(comboAction.iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "Combo", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).clickable {  comboAction.performAction(episode) })
+                Icon(imageVector = ImageVector.vectorResource(comboAction.iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_episode_action), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).clickable {  comboAction.performAction(episode) })
                 Spacer(modifier = Modifier.weight(0.1f))
             }
             SelectionContainer { Text((vm.episodeFeed?.title?:"").trim(), textAlign = TextAlign.Center, color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 5.dp)) }
@@ -991,8 +992,8 @@ fun AVPlayerScreen(embedded: Boolean = false) {
                 if (displayedChapterIndex == -1 || episode.chapters.isEmpty() || episode.chapters[displayedChapterIndex].imageUrl.isNullOrEmpty()) (episode.images.firstOrNull() ?: episode.feed?.images?.firstOrNull())?.href
                 else EmbeddedChapterImage.getModelFor(episode, displayedChapterIndex)?.toString()
             }
-            if (imgLarge != null) AsyncImage( ImageRequest.Builder(context).data(imgLarge).memoryCachePolicy(CachePolicy.ENABLED).build(), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), imageLoader = imageLoader, contentDescription = "imgvCover", contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
-            Text(episode.link ?: "Link not included", color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 15.dp).combinedClickable(
+            if (imgLarge != null) AsyncImage( ImageRequest.Builder(context).data(imgLarge).memoryCachePolicy(CachePolicy.ENABLED).build(), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), imageLoader = imageLoader, contentDescription = stringResource(R.string.ui_cover), contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
+            Text(episode.link ?: stringResource(R.string.ui_link_missing), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 15.dp).combinedClickable(
                 onClick = { if (!episode.link.isNullOrBlank()) openInSystemDefault(episode.link!!) },
                 onLongClick = { if (!episode.link.isNullOrBlank()) context.shareText(episode.link!!, R.string.share_url_label) }
             ) )

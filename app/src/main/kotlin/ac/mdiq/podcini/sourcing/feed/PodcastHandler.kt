@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing.feed
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.storage.specs.FeedType
 import ac.mdiq.podcini.storage.model.Chapter
 import ac.mdiq.podcini.storage.model.Episode
@@ -91,13 +93,13 @@ object PodcastHandler {
                                             }
                                             "0.91", "0.92" -> Type.RSS091
                                             else -> {
-                                                Loge(TAG, "getType Unsupported rss version: $strVersion")
+                                                Loge(TAG, localizedString(R.string.message_gettype_unsupported_rss_version, (strVersion).toString()))
                                                 throw UnsupportedFeedtypeException("Unsupported rss version")
                                             }
                                         }
                                     }
                                     else -> {
-                                        Loge(TAG, "getType Type is invalid: $tag")
+                                        Loge(TAG, localizedString(R.string.message_gettype_type_is_invalid, (tag).toString()))
                                         throw UnsupportedFeedtypeException(Type.INVALID, tag)
                                     }
                                 }

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing.download
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.shared.HasCredentials
 import ac.mdiq.podcini.shared.prepareUrl
 import ac.mdiq.podcini.storage.database.runOnIOScope
@@ -94,7 +96,7 @@ class DownloadRequest private constructor(
         Logd(TAG) { "ensureMediaFileExists destinationUri: $destinationPath " }
         var file = destinationPath.toUF()
         if (!file.exists()) file = file.createFile()
-        if (!file.exists()) Loge(TAG, "ensureMediaFileExists no: ${file.absPath}")
+        if (!file.exists()) Loge(TAG, localizedString(R.string.message_ensuremediafileexists_no, (file.absPath).toString()))
         Logd(TAG) { "ensureMediaFileExists request.destination: $destination" }
         Logd(TAG) { "ensureMediaFileExists file.absPath: ${file.absPath}" }
         destination = file.absPath
@@ -169,7 +171,7 @@ class DownloadRequest private constructor(
                 ""
             }
             Logd(TAG) { "requestFor destUriString: $destUriString" }
-            if (destUriString.isBlank()) Loge(TAG, "destUriString is empty")
+            if (destUriString.isBlank()) Loge(TAG, localizedString(R.string.message_desturistring_is_empty))
             val feed = media.feed
             val username = feed?.username
             val password = feed?.password

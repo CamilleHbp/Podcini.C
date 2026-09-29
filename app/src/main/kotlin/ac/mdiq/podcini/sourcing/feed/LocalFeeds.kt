@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sourcing.feed
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.shared.getEntityId
@@ -61,7 +62,7 @@ suspend fun loadLocalFolder(uri: Uri, feedsExist: List<Feed> = listOf()) {
             if (f.downloadUrl!!.startsWith("podcini_local:")) Logd(TAG) { "loadLocalFolder invalid url: ${f.title} ${f.downloadUrl}" }
             val folder = f.downloadUrl!!.toUF()
             if (!folder.exists()) {
-                Logt(TAG, "loadLocalFolder feed folder not exists, deleting: ${f.title}")
+                Logt(TAG, localizedString(R.string.message_loadlocalfolder_feed_folder_not_exists_deleting, (f.title).toString()))
                 deleteFeed(f.id)
             }
         }
@@ -94,7 +95,7 @@ suspend fun loadLocalFolder(uri: Uri, feedsExist: List<Feed> = listOf()) {
                     dirFeed.author = context.getString(R.string.local_folder)
                     addNewFeed(dirFeed)
                     feeds.add(dirFeed)
-                } else Logt(TAG, "loadLocalFolder local feed already exists: $title $uri")
+                } else Logt(TAG, localizedString(R.string.message_loadlocalfolder_local_feed_already_exists, (title).toString(), (uri).toString()))
             }
 
             val subDirsInThisDir = content.filter { it.isDirectory() }
@@ -122,7 +123,7 @@ suspend fun loadLocalFolder(uri: Uri, feedsExist: List<Feed> = listOf()) {
             realm.write { for (v in volumes) copyToRealm(v) }
         }
         if (feeds.isNotEmpty()) FeedUpdater(feeds, doItAnyway = true).start()
-        Logt(TAG, "loadLocalFolder Imported ${feeds.size} local feeds in ${volumes.size} volumes")
+        Logt(TAG, localizedString(R.string.message_loadlocalfolder_imported_local_feeds_in_volumes, (feeds.size).toString(), (volumes.size).toString()))
         for (f in allFeeds) Logd(TAG) { "loadLocalFolder feed: ${f.id} ${f.title} episodesCount: ${f.episodesCount}" }
     } catch (e: Throwable) {
         Logs(TAG, e, e.localizedMessage ?: "No messaage")

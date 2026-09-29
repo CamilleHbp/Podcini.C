@@ -117,13 +117,13 @@ class SwipeActions(private val tag: String, private val isSubscribed: Boolean = 
                         showPickerDialog = true
                     })
                     Spacer(Modifier.weight(0.1f))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_left_alt_24), tint = textColor, contentDescription = "right_arrow", modifier = Modifier.width(50.dp).height(35.dp))
+                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_left_alt_24), tint = textColor, contentDescription = stringResource(R.string.ui_right), modifier = Modifier.width(50.dp).height(35.dp))
                     Spacer(Modifier.weight(0.5f))
                 }
                 Text(stringResource(R.string.swipe_right))
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, end = 10.dp)) {
                     Spacer(Modifier.weight(0.5f))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), tint = textColor, contentDescription = "right_arrow", modifier = Modifier.width(50.dp).height(35.dp))
+                    Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), tint = textColor, contentDescription = stringResource(R.string.ui_right), modifier = Modifier.width(50.dp).height(35.dp))
                     Spacer(Modifier.weight(0.1f))
                     Icon(imageVector = ImageVector.vectorResource(rightAction.value.iconRes), tint = textColor, contentDescription = null, modifier = Modifier.width(35.dp).height(35.dp).clickable {
                         direction = 1

@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.storage.utils
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.settings.ClipsTransporter
@@ -36,11 +37,11 @@ fun autoBackup() {
                 if (file.isDirectory()) deleteDirectoryAndContents(file)
                 Logd(TAG) { "deleting ${file.name}" }
                 try { file.delete() } catch (e: Throwable) {
-                    Loge(TAG, e, "deleteDirectoryAndContents: failed to delete ${file.name} ")
+                    Loge(TAG, e, localizedString(R.string.message_deletedirectoryandcontents_failed_to_delete, (file.name).toString()))
                 }
             }
         }
-        try { return  directory.delete() } catch (e: Throwable) { Loge(TAG, e, "deleteDirectoryAndContents: failed to delete ${directory.name} ") }
+        try { return  directory.delete() } catch (e: Throwable) { Loge(TAG, e, localizedString(R.string.message_deletedirectoryandcontents_failed_to_delete, (directory.name).toString())) }
         return false
     }
 
@@ -72,6 +73,6 @@ fun autoBackup() {
                         upsertBlk(appPrefsFlow!!.value) { it.autoBackupTimeStamp = curTime }
                     } catch (e: Exception) { Logs("autoBackup", e, "Error backing up") }
                 } else Loge("autoBackup", context.getString(R.string.auto_backup_folder_not_available))
-            } else Loge("autoBackup", "Uri permissions are no longer valid")
+            } else Loge("autoBackup", localizedString(R.string.message_uri_permissions_are_no_longer_valid))
         }
 }

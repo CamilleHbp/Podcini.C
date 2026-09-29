@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.receiver
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.EpisodeInfoActivity
 import ac.mdiq.podcini.activity.MainActivity
@@ -136,46 +137,46 @@ class PodciniWidget : GlanceAppWidget() {
                 Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = GlanceModifier.clickable(actionStartActivity(Intent(context, QueuePickerActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP) }),
                         rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple))) {
-                        Text(text = ("$queueName: $queueSize"), style = TextStyle(color = textColorProvider, fontSize = 18.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                        Text(text = ("${ac.mdiq.podcini.storage.model.queueDisplayName(queueId, queueName)}: $queueSize"), style = TextStyle(color = textColorProvider, fontSize = 18.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                     }
                     Spacer(GlanceModifier.defaultWeight())
-                    Image(provider = ImageProvider(R.drawable.ic_launcher_foreground), contentDescription = "App", modifier = GlanceModifier.size(48.dp).clickable(actionStartActivity<MainActivity>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
+                    Image(provider = ImageProvider(R.drawable.ic_launcher_foreground), contentDescription = localizedString(R.string.app_name), modifier = GlanceModifier.size(48.dp).clickable(actionStartActivity<MainActivity>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
                     Spacer(GlanceModifier.width(10.dp))
-                    Image(provider = ImageProvider(R.drawable.ic_refresh), contentDescription = "Refresh", colorFilter = ColorFilter.tint(textColorProvider), modifier = GlanceModifier.size(48.dp).clickable(actionRunCallback<RefreshAction>(parameters = actionParametersOf(QUEUE_ID_KEY to queueId)), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
+                    Image(provider = ImageProvider(R.drawable.ic_refresh), contentDescription = localizedString(R.string.ui_refresh), colorFilter = ColorFilter.tint(textColorProvider), modifier = GlanceModifier.size(48.dp).clickable(actionRunCallback<RefreshAction>(parameters = actionParametersOf(QUEUE_ID_KEY to queueId)), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
                 }
                 LazyColumn(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {
                     items(episodes) { episode ->
                         Row(modifier = GlanceModifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Image(provider = ImageProvider(R.drawable.ic_close_white), contentDescription = "remove", colorFilter = ColorFilter.tint(buttonColorProvider),
+                            Image(provider = ImageProvider(R.drawable.ic_close_white), contentDescription = localizedString(R.string.ui_remove), colorFilter = ColorFilter.tint(buttonColorProvider),
                                 modifier = GlanceModifier.size(36.dp).clickable(actionRunCallback<RemoveAction>(parameters = actionParametersOf(EPISODE_ID_KEY to episode.id, QUEUE_ID_KEY to queueId)), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
                             val isMarked = episode.id == markedId || episode.id == theatres[0].mPlayerFlow.value?.curMediaFlow?.value?.id
                             Column(modifier = GlanceModifier.defaultWeight().clickable(actionStartActivity<EpisodeInfoActivity>(parameters = actionParametersOf(EPISODE_INFO_ID_KEY to episode.id)), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple))) {
                                 Text(episode.t ?: "", style = TextStyle(color = textColorProvider, fontSize = 13.sp, fontWeight = if (isMarked) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Image(provider = ImageProvider(EpisodeState.fromCode(episode.s).res), contentDescription = "playState", colorFilter = ColorFilter.tint(buttonColorProvider), modifier = GlanceModifier.size(16.dp))
-                                    if (episode.r != Rating.UNRATED.code) Image(provider = ImageProvider(Rating.fromCode(episode.r).res), contentDescription = "rating", colorFilter = ColorFilter.tint(buttonColorProvider), modifier = GlanceModifier.size(16.dp))
+                                    Image(provider = ImageProvider(EpisodeState.fromCode(episode.s).res), contentDescription = localizedString(R.string.ui_play_status), colorFilter = ColorFilter.tint(buttonColorProvider), modifier = GlanceModifier.size(16.dp))
+                                    if (episode.r != Rating.UNRATED.code) Image(provider = ImageProvider(Rating.fromCode(episode.r).res), contentDescription = localizedString(R.string.ui_rating), colorFilter = ColorFilter.tint(buttonColorProvider), modifier = GlanceModifier.size(16.dp))
                                     val dateSizeText = " · " + formatDateTimeFlex(episode.pd) + " · " + durationStringFull(episode.du)
                                     Text(dateSizeText, style = TextStyle(color = textColorProvider, fontSize = 10.sp), maxLines = 1)
                                 }
                             }
-                            Image(provider = ImageProvider(R.drawable.outline_play_pause_24), contentDescription = "Play/pause", colorFilter = ColorFilter.tint(if (isMarked) textColorProvider else buttonColorProvider),
+                            Image(provider = ImageProvider(R.drawable.outline_play_pause_24), contentDescription = localizedString(R.string.ui_play_pause), colorFilter = ColorFilter.tint(if (isMarked) textColorProvider else buttonColorProvider),
                                 modifier = GlanceModifier.size(48.dp).clickable(actionRunCallback<PlayAction>(parameters = actionParametersOf(EPISODE_ID_KEY to episode.id)), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
                         }
                     }
                 }
                 val buttonSize = 60.dp
                 Row(modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 5.dp),  horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(provider = ImageProvider(R.drawable.outline_smart_display_24), contentDescription = "PlayerUI", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.outline_smart_display_24), contentDescription = localizedString(R.string.archive_open_player), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).padding(end = 5.dp).clickable(actionStartActivity<PlayerUIActivity>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
-                    Image(provider = ImageProvider(R.drawable.baseline_skip_previous_24), contentDescription = "Restart", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.baseline_skip_previous_24), contentDescription = localizedString(R.string.ui_restart), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).padding(end = 5.dp).clickable(actionRunCallback<PrevAction>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
-                    Image(provider = ImageProvider(R.drawable.ic_fast_rewind), contentDescription = "Rewind", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.ic_fast_rewind), contentDescription = localizedString(R.string.ui_rewind), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).padding(end = 5.dp).clickable(actionRunCallback<RewindAction>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
-                    Image(provider = ImageProvider(R.drawable.outline_play_pause_24), contentDescription = "Play/pause", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.outline_play_pause_24), contentDescription = localizedString(R.string.ui_play_pause), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).padding(end = 5.dp).clickable(actionRunCallback<ToggleAction>(if (episodes.isNotEmpty()) actionParametersOf(EPISODE_ID_KEY to episodes[0].id) else actionParametersOf()), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
-                    Image(provider = ImageProvider(R.drawable.ic_fast_forward), contentDescription = "Forward", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.ic_fast_forward), contentDescription = localizedString(R.string.ui_forward), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).padding(end = 5.dp).clickable(actionRunCallback<ForwardAction>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
-                    Image(provider = ImageProvider(R.drawable.ic_skip_48dp), contentDescription = "Skip", colorFilter = ColorFilter.tint(buttonColorProvider),
+                    Image(provider = ImageProvider(R.drawable.ic_skip_48dp), contentDescription = localizedString(R.string.ui_skip), colorFilter = ColorFilter.tint(buttonColorProvider),
                         modifier = GlanceModifier.size(buttonSize).clickable(actionRunCallback<NextAction>(), rippleOverride = R.drawable.widget_ripple).background(ImageProvider(R.drawable.widget_ripple)))
                 }
             }
@@ -194,7 +195,7 @@ class RefreshAction : ActionCallback {
         Logd(TAG) { "RefreshAction onAction" }
         val queueId = parameters[QUEUE_ID_KEY]
         if (queueId == null) {
-            Loge("RefreshAction", "queueId from parameter is null.")
+            Loge("RefreshAction", localizedString(R.string.message_queueid_from_parameter_is_null))
             return
         }
         val episodes = withContext(Dispatchers.IO) {
@@ -216,12 +217,12 @@ class RemoveAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val id = parameters[EPISODE_ID_KEY]
         if (id == null) {
-            Loge("RemoveAction", "id from parameter is null.")
+            Loge("RemoveAction", localizedString(R.string.message_id_from_parameter_is_null))
             return
         }
         val episode = episodeById(id)
         if (episode == null) {
-            Loge("RemoveAction", "episode with id: $id is null.")
+            Loge("RemoveAction", localizedString(R.string.message_episode_with_id_is_null, (id).toString()))
             return
         }
         Logd(TAG) { "RemoveAction onAction episode: ${episode.title}" }
@@ -229,7 +230,7 @@ class RemoveAction : ActionCallback {
             smartRemoveFromQueues(episode)
             val queueId = parameters[QUEUE_ID_KEY]
             if (queueId == null) {
-                Loge("RemoveAction", "queueId from parameter is null.")
+                Loge("RemoveAction", localizedString(R.string.message_queueid_from_parameter_is_null))
                 return@withContext listOf()
             }
             Logd(TAG) { "RemoveAction onAction queueId: $queueId" }
@@ -254,12 +255,12 @@ class PlayAction : ActionCallback {
         updateAppWidgetState(context, glanceId) { prefs ->
             val id = parameters[EPISODE_ID_KEY]
             if (id == null) {
-                Loge("PlayAction", "id from parameter is null.")
+                Loge("PlayAction", localizedString(R.string.message_id_from_parameter_is_null))
                 return@updateAppWidgetState
             }
             val episode = episodeById(id)
             if (episode == null) {
-                Loge("PlayAction", "episode with id: $id is null.")
+                Loge("PlayAction", localizedString(R.string.message_episode_with_id_is_null, (id).toString()))
                 return@updateAppWidgetState
             }
             prefs[MARKED_EPISODE_KEY] = id

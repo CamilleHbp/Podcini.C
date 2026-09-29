@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.actions
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.sourcing.download.DownloadRequest.Companion.requestFor
@@ -209,7 +210,7 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
                         return
                     }
                 }
-                Loge(TAG, "failed setting player to repeat the media")
+                Loge(TAG, localizedString(R.string.message_failed_setting_player_to_repeat_the_media))
             }
             ButtonTypes.STREAM -> {
                 //        Logd("StreamActionButton") { "item.feed: ${item.feedId}" }

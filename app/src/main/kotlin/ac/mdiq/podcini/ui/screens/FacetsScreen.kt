@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.config.settings.MediaFilesTransporter
@@ -387,7 +388,7 @@ class FacetsVM(modeName_: String): ViewModel() {
                     }
                 }
             }
-            Logt(TAG, "History cleared")
+            Logt(TAG, localizedString(R.string.message_history_cleared))
             withContext(Dispatchers.Main) { progressing = false }
         }
     }
@@ -444,7 +445,7 @@ class FacetsVM(modeName_: String): ViewModel() {
             if (nameEpisodeMap.isNotEmpty()) for (e in nameEpisodeMap.values) { upsertBlk(e) { it.fileUrl = null } }
             val count = nameEpisodeMap.size
             nameEpisodeMap.clear()
-            Logt(TAG, "Episodes reconciled: $count\nFiles removed: ${filesRemoved.size}")
+            Logt(TAG, localizedString(R.string.message_episodes_reconciled_nfiles_removed, (count).toString(), (filesRemoved.size).toString()))
 
             realm.write {
                 val el = query(Episode::class, "feedId == nil").find()
@@ -452,7 +453,7 @@ class FacetsVM(modeName_: String): ViewModel() {
                     val size = el.size
                     for (e in el) Logd(TAG) { "deleting ${e.title}" }
                     delete(el)
-                    Logt(TAG, "reconcile deleted $size loose episodes")
+                    Logt(TAG, localizedString(R.string.message_reconcile_deleted_loose_episodes, (size).toString()))
                 }
             }
 
@@ -466,7 +467,7 @@ class FacetsVM(modeName_: String): ViewModel() {
                             val size = el.size
                             for (e in el) Logd(TAG) { "deleting ${e.title}" }
                             delete(el)
-                            Logt(TAG, "reconcile deleted $size episodes in non-existent feed $id")
+                            Logt(TAG, localizedString(R.string.message_reconcile_deleted_episodes_in_non_existent_feed, (size).toString(), (id).toString()))
                         }
                     }
                 }
@@ -580,21 +581,21 @@ fun FacetsScreen(modeName: String = "") {
     fun TopBar() {
         var expanded by remember { mutableStateOf(false) }
         Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 10.dp).clickable { drawerController?.open() })
+            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_view_in_ar_24), contentDescription = stringResource(R.string.ui_open_drawer), modifier = Modifier.padding(end = 10.dp).clickable { drawerController?.open() })
             Text(stringResource(facetsMode.labelRes), maxLines=1, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.scale(scaleX = 1f, scaleY = 1.8f).clickable { showChooseMode = true })
             Spacer(Modifier.weight(1f))
             val feedsIconRes = remember(vm.showFeeds) { if (vm.showFeeds) R.drawable.baseline_list_alt_24 else R.drawable.baseline_dynamic_feed_24 }
-            if (episodes.isNotEmpty() || vm.showFeeds) IconButton(onClick = { vm.showFeeds = !vm.showFeeds }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = "feeds") }
-            if (episodes.isNotEmpty() && facetsMode != QuickAccess.History && !vm.showFeeds) IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "sort") }
-            if ((episodes.isNotEmpty() || hasFilters) && !vm.showFeeds && facetsMode !in listOf(QuickAccess.Recorded, QuickAccess.Captions, QuickAccess.Transcript, QuickAccess.Due, QuickAccess.Timers, QuickAccess.Archived, QuickAccess.Frozen)) IconButton(onClick = { showFilterDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = if (vm.filterButtonColor.value == Color.White) textColor else vm.filterButtonColor.value, contentDescription = "filter") }
+            if (episodes.isNotEmpty() || vm.showFeeds) IconButton(onClick = { vm.showFeeds = !vm.showFeeds }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = stringResource(R.string.archive_sources)) }
+            if (episodes.isNotEmpty() && facetsMode != QuickAccess.History && !vm.showFeeds) IconButton(onClick = { showSortDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = stringResource(R.string.archive_sort)) }
+            if ((episodes.isNotEmpty() || hasFilters) && !vm.showFeeds && facetsMode !in listOf(QuickAccess.Recorded, QuickAccess.Captions, QuickAccess.Transcript, QuickAccess.Due, QuickAccess.Timers, QuickAccess.Archived, QuickAccess.Frozen)) IconButton(onClick = { showFilterDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = if (vm.filterButtonColor.value == Color.White) textColor else vm.filterButtonColor.value, contentDescription = stringResource(R.string.filter)) }
             if (vm.showFeeds && feedsAssociated.isNotEmpty()) IconButton(onClick = {
                 feedIdsToUse = feedsAssociated.map { it.id }
                 navTo(Library)
-            }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = "library") }
-            IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = "search") }
+            }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = stringResource(R.string.library)) }
+            IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = stringResource(R.string.archive_search)) }
             if (facetsMode == QuickAccess.Downloaded || (facetsMode == QuickAccess.History && historyCount > 0L) || (facetsMode == QuickAccess.New && episodes.isNotEmpty())) {
                 Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                     DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                         if (facetsMode == QuickAccess.History) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.between_dates)) }, onClick = {
@@ -614,7 +615,7 @@ fun FacetsScreen(modeName: String = "") {
                             vm.progressing = true
                             runOnIOScope {
                                 realm.write { for (e in episodes) if (e.playState == EpisodeState.NEW.code) findLatest(e)?.setPlayState(EpisodeState.UNPLAYED) }
-                                Logt(TAG, "New items cleared")
+                                Logt(TAG, localizedString(R.string.message_new_items_cleared))
                                 withContext(Dispatchers.Main) { vm.progressing = false }
                                 resetSwipes()
                             }

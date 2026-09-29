@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.storage.specs
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.utils.Loge
 
@@ -15,7 +16,7 @@ enum class VolumeAdaptionSetting(val value: Int,  val adaptionFactor: Float, val
         fun fromInteger(value: Int): VolumeAdaptionSetting {
             val vs = VolumeAdaptionSetting.entries.firstOrNull { it.value == value }
             if (vs == null) {
-                Loge("VolumeAdaptionSetting", "Cannot map value to VolumeAdaptionSetting: $value resort to OFF")
+                Loge("VolumeAdaptionSetting", localizedString(R.string.message_cannot_map_value_to_volumeadaptionsetting_resort_to_off, (value).toString()))
                 return OFF
             }
             return vs

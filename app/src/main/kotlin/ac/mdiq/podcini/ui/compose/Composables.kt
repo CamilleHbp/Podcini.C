@@ -181,7 +181,7 @@ fun CommentEditingDialog(textState: TextFieldValue, autoSave: Boolean = true, on
                         onSave()
                         textChanged = false
                         onDismiss()
-                    }) { Text("Save") }
+                    }) { Text(stringResource(R.string.save)) }
                 }
             }
         }
@@ -290,12 +290,12 @@ fun CommonToast(onDismiss: () -> Unit) {
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.secondary, RoundedCornerShape(8.dp)).padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 var onHold by remember { mutableStateOf(false) }
                 Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "close", modifier = Modifier.padding(start = 8.dp).clickable {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.ui_close), modifier = Modifier.padding(start = 8.dp).clickable {
 //                        toastMessagesFlow.update { it.filterNot { t-> t in toasts.take(3) } }
                         toastMessagesFlow.update { emptyList() }
                     })
                     Spacer(Modifier.weight(1f))
-                    Icon(Icons.Filled.Lock, tint = if (onHold) Color.Red else Color.Green, contentDescription = "lock", modifier = Modifier.padding(end = 8.dp).clickable { onHold = !onHold })
+                    Icon(Icons.Filled.Lock, tint = if (onHold) Color.Red else Color.Green, contentDescription = stringResource(R.string.ui_lock), modifier = Modifier.padding(end = 8.dp).clickable { onHold = !onHold })
                 }
                 for (toast in toasts.take(3)) {
                     LaunchedEffect(toast, isForeground, onHold) {
@@ -406,16 +406,16 @@ fun SearchBarRow(hintTextRes: Int, defaultText: String, modifier: Modifier = Mod
         TextField(value = queryText, singleLine = true, onValueChange = { queryText = it }, keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
             textStyle = TextStyle(fontSize = 14.sp), label = { Text(stringResource(hintTextRes), style = MaterialTheme.typography.bodySmall) },
             keyboardActions = KeyboardActions(onDone = { performSearch(queryText) }), modifier = Modifier.weight(1f),
-            leadingIcon = if (history.isNotEmpty()) { { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_history), tint = buttonColor, contentDescription = "history",
+            leadingIcon = if (history.isNotEmpty()) { { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_history), tint = buttonColor, contentDescription = stringResource(R.string.archive_history),
                 modifier = Modifier.width(40.dp).height(40.dp).padding(start = 5.dp).clickable { showHistory = true }) } } else null,
-            trailingIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), tint = buttonColor, contentDescription = "search",
+            trailingIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), tint = buttonColor, contentDescription = stringResource(R.string.archive_search),
                 modifier = Modifier.width(40.dp).height(40.dp).padding(start = 5.dp).clickable { performSearch(queryText) }) }
         )
     }
 }
 
 @Composable
-fun NumberEditor(initVal: Int, label: String = "seconds", nz: Boolean = true, instant: Boolean = false, modifier: Modifier, cb: (Int)->Unit) {
+fun NumberEditor(initVal: Int, label: String? = null, nz: Boolean = true, instant: Boolean = false, modifier: Modifier, cb: (Int)->Unit) {
     var inputVal by remember { mutableStateOf(initVal.toString()) }
     var showSet by remember { mutableStateOf(false) }
     fun set() {
@@ -431,7 +431,7 @@ fun NumberEditor(initVal: Int, label: String = "seconds", nz: Boolean = true, in
         }
     }
     if (instant)
-        TextField(value = inputVal, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(label, style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = modifier,
+        TextField(value = inputVal, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(label ?: stringResource(R.string.ui_seconds), style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = modifier,
             onValueChange = {
                 if (it.isEmpty() || it.toIntOrNull() != null) inputVal = it
                 if (it.toIntOrNull() != null) showSet = true
@@ -439,13 +439,13 @@ fun NumberEditor(initVal: Int, label: String = "seconds", nz: Boolean = true, in
             },
         )
     else
-        TextField(value = inputVal, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(label, style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = modifier,
+        TextField(value = inputVal, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(label ?: stringResource(R.string.ui_seconds), style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = modifier,
             onValueChange = {
                 if (it.isEmpty() || it.toIntOrNull() != null) inputVal = it
                 if (it.toIntOrNull() != null) showSet = true
                 if (instant && showSet) set()
             },
-            trailingIcon = { if (!instant && showSet) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon", modifier = Modifier.size(30.dp).clickable { set() }) }
+            trailingIcon = { if (!instant && showSet) Icon(imageVector = Icons.Filled.Settings, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.size(30.dp).clickable { set() }) }
         )
 }
 
@@ -517,11 +517,11 @@ fun TagSettingDialog(tagType: TagType, existingTags: Set<String>, multiples: Boo
 
             if (multiples) Text(stringResource(R.string.tagging_multiple_sum))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                tags.forEach { FilterChip(onClick = {  }, label = { Text(it) }, selected = false, trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = "Close icon",
+                tags.forEach { FilterChip(onClick = {  }, label = { Text(it) }, selected = false, trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.ui_close),
                     modifier = Modifier.size(FilterChipDefaults.IconSize).padding(start = 3.dp).clickable { tags.remove(it) }) }) }
             }
             ExposedDropdownMenuBox(expanded = showSuggestions, onExpandedChange = { }) {
-                TextField(value = text, placeholder = { Text("Type something...") }, keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
+                TextField(value = text, placeholder = { Text(stringResource(R.string.ui_enter_text)) }, keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = MaterialTheme.typography.bodyLarge.fontSize, fontWeight = FontWeight.Bold),
                     modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true), // Material3 requirement
                     onValueChange = {
@@ -537,7 +537,7 @@ fun TagSettingDialog(tagType: TagType, existingTags: Set<String>, multiples: Boo
                             }
                         }
                     ),
-                    trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = "Add icon",
+                    trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = stringResource(R.string.archive_add),
                         modifier = Modifier.size(30.dp).clickable {
                             if (text.isNotBlank()) {
                                 if (text !in tags) tags.add(text)

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.parser
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.storage.utils.CountingSource
 import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Loge
@@ -293,7 +295,7 @@ open class ID3Reader(private val source: CountingSource) {
                 val c = buffer_.readByte()
                 if (c.toInt() != 0) tempBuffer.writeByte(c.toInt())
             }
-            return try { tempBuffer.readString(tempBuffer.size, charset) } catch (e: Exception) { Loge(TAG, e, "readEncodedString2 failed"); "" }
+            return try { tempBuffer.readString(tempBuffer.size, charset) } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_readencodedstring2_failed)); "" }
         }
 
         return when (encoding) {

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.storage.model.displayName
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.automation.AutoDownloadAlgorithm
@@ -260,7 +262,7 @@ fun QueuesScreen(id: Long = -1L) {
 
     val queues by vm.queuesStateFlow.collectAsStateWithLifecycle()
     val queueNames = remember(queues) { queues.map { it.name } }
-    val queueTexts = remember(actQueue.id, queues) { queues.map { "${if (it.id == actQueue.id) "> " else ""}${it.name} : ${it.size()}" } }
+    val queueTexts = remember(actQueue.id, queues) { queues.map { "${if (it.id == actQueue.id) "> " else ""}${it.displayName} : ${it.size()}" } }
     Logd(TAG) { "queues: ${queues.size} ${queueNames.joinToString()}" }
     val curQueue by vm.curQueueFlow.collectAsStateWithLifecycle()
     var curIndex by remember(curQueue.id, queues) { mutableIntStateOf(queues.indexOfFirst { q-> q.id == curQueue.id }) }
@@ -280,7 +282,7 @@ fun QueuesScreen(id: Long = -1L) {
                                 mediaBrowser = browserFuture?.get()
                                 mediaBrowser?.subscribe("ActQueue", null)
                             }
-                        } catch (e: Exception) { Loge(TAG, "Adding browserFuture listener failed or was cancelled safely") }
+                        } catch (e: Exception) { Loge(TAG, localizedString(R.string.message_adding_browserfuture_listener_failed_or_was_cancelled_safely)) }
                     }, MoreExecutors.directExecutor())
                 }
                 Lifecycle.Event.ON_START -> {}
@@ -434,36 +436,34 @@ fun QueuesScreen(id: Long = -1L) {
     fun TopBar() {
         var expanded by remember { mutableStateOf(false) }
         Box(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-            if (curQueue.id == actQueue.id) AsyncImage(model = (curMedia0?.images?.firstOrNull() ?: curMedia0?.feed?.images?.firstOrNull())?.href, imageLoader = imageLoader, contentDescription = "bgImage", contentScale = ContentScale.FillBounds, error = painterResource(R.drawable.teaser), modifier = Modifier.matchParentSize().blur(radiusX = 5.dp, radiusY = 5.dp))
+            if (curQueue.id == actQueue.id) AsyncImage(model = (curMedia0?.images?.firstOrNull() ?: curMedia0?.feed?.images?.firstOrNull())?.href, imageLoader = imageLoader, contentDescription = null, contentScale = ContentScale.FillBounds, error = painterResource(R.drawable.teaser), modifier = Modifier.matchParentSize().blur(radiusX = 5.dp, radiusY = 5.dp))
             Box(modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)))
             Column {
                 Row(modifier = Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_playlist_play), contentDescription = "Open Drawer", modifier = Modifier.padding(end = 7.dp).clickable { drawerController?.open() })
+                    Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_playlist_play), contentDescription = stringResource(R.string.ui_open_drawer), modifier = Modifier.padding(end = 7.dp).clickable { drawerController?.open() })
                     if (vm.queuesMode == QueuesScreenMode.Queue) {
-                        val name = remember(curQueue.id, actQueue.id, curIndex, queueNames.size) { (if (curQueue.id == actQueue.id) "> " else "") + if (curIndex in queueNames.indices) queueNames[curIndex].ifBlank { "No name" } else "No name" }
+                        val name = (if (curQueue.id == actQueue.id) "> " else "") + curQueue.displayName
                         Logd(TAG) { "name: ${curQueue.id} ${actQueue.id} $curIndex [${queueNames.joinToString()}] $name" }
                         Text(name, maxLines = 1, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.scale(scaleX = 1f, scaleY = 1.8f).combinedClickable(onClick = { showChooseQueue = true }, onLongClick = {
                             if (curQueue.id == actQueue.id) {
                                 if (episodes.size > 5) {
                                     val index = episodes.indexOfFirst { it.id == curMedia0?.id }
                                     if (index >= 0) scope.launch { lazyListState.scrollToItem(index) }
-                                    else Logt(TAG, "can not find curEpisode to scroll to")
-                                } else Logt(TAG, "only scroll in actQueue when size is larger than 5")
+                                    else Logt(TAG, localizedString(R.string.message_can_not_find_curepisode_to_scroll_to))
+                                } else Logt(TAG, localizedString(R.string.message_only_scroll_in_actqueue_when_size_is_larger_than_5))
                             } else {
                                 upsertBlk(curQueue) { it.scrollPosition = lazyListState.firstVisibleItemIndex }
                                 val index = queues.indexOfFirst { it.id == actQueue.id }
                                 if (index >= 0) setCurIndex(index)
-                                else Logt(TAG, "actQueue is not available")
+                                else Logt(TAG, localizedString(R.string.message_actqueue_is_not_available))
                             }
                         }))
                     } else {
-                        val title = remember(vm.queuesMode, curQueue.name, feedsAssociated.size) {
-                            when (vm.queuesMode) {
-                                QueuesScreenMode.Bin -> curQueue.name + " Bin"
-                                QueuesScreenMode.Queue -> ""
-                                QueuesScreenMode.Feed -> "${feedsAssociated.size} Feeds"
-                                else -> "Settings"
-                            }
+                        val title = when (vm.queuesMode) {
+                            QueuesScreenMode.Bin -> stringResource(R.string.ui_queue_history, curQueue.displayName)
+                            QueuesScreenMode.Queue -> ""
+                            QueuesScreenMode.Feed -> stringResource(R.string.ui_source_count, feedsAssociated.size)
+                            else -> stringResource(R.string.archive_settings)
                         }
                         Text(title)
                     }
@@ -477,7 +477,7 @@ fun QueuesScreen(id: Long = -1L) {
                             else -> QueuesScreenMode.Queue
                         }
                         runOnIOScope { upsert(appAttribs) { it.queuesMode = vm.queuesMode.name } }
-                    }) { Icon(imageVector = ImageVector.vectorResource(binIconRes), contentDescription = "bin") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(binIconRes), contentDescription = stringResource(R.string.archive_history_short)) }
                     if (vm.queuesMode in listOf(QueuesScreenMode.Queue, QueuesScreenMode.Feed)) IconButton(onClick = {
                         vm.queuesMode = when (vm.queuesMode) {
                             QueuesScreenMode.Queue -> QueuesScreenMode.Feed
@@ -485,7 +485,7 @@ fun QueuesScreen(id: Long = -1L) {
                             else -> QueuesScreenMode.Queue
                         }
                         runOnIOScope { upsert(appAttribs) { it.queuesMode = vm.queuesMode.name } }
-                    }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = "feeds") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(feedsIconRes), contentDescription = stringResource(R.string.archive_sources)) }
                     if (vm.queuesMode == QueuesScreenMode.Feed && feedsAssociated.isNotEmpty()) {
                         IconButton(onClick = {
                             facetsMode = QuickAccess.Custom
@@ -496,11 +496,11 @@ fun QueuesScreen(id: Long = -1L) {
                         IconButton(onClick = {
                             feedIdsToUse = feedsAssociated.map { it.id }
                             navTo(Library)
-                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = "library") }
+                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_subscriptions), contentDescription = stringResource(R.string.library)) }
                     }
-                    if (vm.queuesMode == QueuesScreenMode.Queue) IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = "search") }
+                    if (vm.queuesMode == QueuesScreenMode.Queue) IconButton(onClick = { navTo(Search) }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_search), contentDescription = stringResource(R.string.archive_search)) }
                     Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                         DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.archive_queue_settings)) }, onClick = {
                                 vm.queuesMode = QueuesScreenMode.Settings
@@ -559,12 +559,12 @@ fun QueuesScreen(id: Long = -1L) {
                         showIcon = true
                     },
                     trailingIcon = {
-                        if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon", modifier = Modifier.size(30.dp).clickable(
+                        if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.size(30.dp).clickable(
                             onClick = {
                                 if (newName.isNotEmpty() && curQueue.name != newName && queueNames.indexOf(newName) < 0) upsertBlk(curQueue) { it.name = newName }
                                 else {
                                     newName = curQueue.name
-                                    Loge(TAG, "Please use a unique name.")
+                                    Loge(TAG, localizedString(R.string.message_please_use_a_unique_name))
                                 }
                                 showIcon = false
                         }))
@@ -693,7 +693,7 @@ fun QueuesScreen(id: Long = -1L) {
                                     var yOffset by remember(index) { mutableFloatStateOf(0f) }
                                     var draggedIndex by remember { mutableStateOf<Int?>(null) }
                                     Row(Modifier.background(MaterialTheme.colorScheme.surface).zIndex(if (draggedIndex == index) 1f else 0f).offset { IntOffset(0, if (draggedIndex == index) yOffset.roundToInt() else 0) }) {
-                                        Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_drag_darktheme), tint = buttonColor, contentDescription = "drag handle", modifier = Modifier.width(30.dp).align(Alignment.CenterVertically).padding(start = 5.dp, end = 5.dp).zIndex(if (draggedIndex == index) 1f else 0f).draggable(orientation = Orientation.Vertical, state = rememberDraggableState { delta ->
+                                        Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_drag_darktheme), tint = buttonColor, contentDescription = stringResource(R.string.ui_drag), modifier = Modifier.width(30.dp).align(Alignment.CenterVertically).padding(start = 5.dp, end = 5.dp).zIndex(if (draggedIndex == index) 1f else 0f).draggable(orientation = Orientation.Vertical, state = rememberDraggableState { delta ->
                                                 yOffset += delta
                                                 val from = draggedIndex ?: return@rememberDraggableState
                                                 while (yOffset > rowHeightPx) {
@@ -716,9 +716,9 @@ fun QueuesScreen(id: Long = -1L) {
                                                 yOffset = 0f
                                             }))
                                         Box(modifier = Modifier.width(imageWidth).height(imageHeight)) {
-                                            AsyncImage(model = ImageRequest.Builder(context).data(episode.imageLocation(false)).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.fillMaxSize())
+                                            AsyncImage(model = ImageRequest.Builder(context).data(episode.imageLocation(false)).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.fillMaxSize())
                                         }
-                                        Text(episode.title ?: "No title")
+                                        Text(episode.title ?: stringResource(R.string.archive_no_title))
                                     }
                                 }
                             }

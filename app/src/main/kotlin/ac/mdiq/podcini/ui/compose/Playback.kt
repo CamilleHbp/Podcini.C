@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.PlaybackStarter
 import ac.mdiq.podcini.playback.SleepManager.Companion.autoEnableFrom
@@ -231,8 +232,8 @@ fun PlaybackSpeedFullDialog(playerId: Int, indexDefault: Int, maxSpeed: Float, o
                                 speeds.sort()
                                 setPlaybackSpeedArray(speeds)
                             } },
-                        trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = "Add icon", modifier = Modifier.size(FilterChipDefaults.IconSize)) })
-                    else IconButton(onClick = { showEdit = true }) { Icon(Icons.Default.Edit, contentDescription = "Edit preset") }
+                        trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = stringResource(R.string.archive_add), modifier = Modifier.size(FilterChipDefaults.IconSize)) })
+                    else IconButton(onClick = { showEdit = true }) { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.ui_edit_preset)) }
                 }
                 Text(stringResource(R.string.pref_playback_speed_sum), color = textColor, style = MaterialTheme.typography.bodySmall)
                 if (showEdit) Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -292,14 +293,14 @@ fun PlaybackSpeedFullDialog(playerId: Int, indexDefault: Int, maxSpeed: Float, o
                                 } else upsertBlk(appPrefsFlow!!.value) { it.playbackSpeed = chipSpeed }
                                 onDismiss()
                             },
-                            trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = "Close icon", modifier = Modifier.size(30.dp).padding(start = 3.dp).clickable {
+                            trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.ui_close), modifier = Modifier.size(30.dp).padding(start = 3.dp).clickable {
                                 speeds.remove(chipSpeed)
                                 setPlaybackSpeedArray(speeds)
                             }) })
                     }
                 }
                 var showMore by remember { mutableStateOf(false) }
-                TextButton(onClick = { showMore = !showMore }) { Text("More>>", style = MaterialTheme.typography.headlineSmall) }
+                TextButton(onClick = { showMore = !showMore }) { Text(stringResource(R.string.ui_more), style = MaterialTheme.typography.headlineSmall) }
                 if (showMore) {
                     Text(stringResource(R.string.playback_pitch), fontSize = MaterialTheme.typography.headlineSmall.fontSize, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp))
                     var tmpPitch by remember(curMedia?.id) { mutableStateOf(true) }
@@ -321,7 +322,7 @@ fun PlaybackSpeedFullDialog(playerId: Int, indexDefault: Int, maxSpeed: Float, o
                     var showSet by remember { mutableStateOf(false) }
                     var unit by remember { mutableStateOf("Ratio") }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextField(value = pitchStr, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text("float", style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = Modifier.width(100.dp),
+                        TextField(value = pitchStr, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.ui_decimal), style = MaterialTheme.typography.bodySmall) }, singleLine = true, modifier = Modifier.width(100.dp),
                             onValueChange = {
                                 val value = it.toFloatOrNull()
                                 if (it.isEmpty() || value != null) pitchStr = it
@@ -329,7 +330,7 @@ fun PlaybackSpeedFullDialog(playerId: Int, indexDefault: Int, maxSpeed: Float, o
                                     if ((unit == "Hz" && value > 50) || (unit == "Ratio" && value < 10)) showSet = true
                                 }
                             },
-                            trailingIcon = { if (showSet) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon", modifier = Modifier.size(30.dp).clickable {
+                            trailingIcon = { if (showSet) Icon(imageVector = Icons.Filled.Settings, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.size(30.dp).clickable {
                                 val pitch = if (unit == "Ratio") pitchStr.toFloat() else pitchStr.toFloat() / 440f
                                 Logd(TAG) { "pitch set to $pitch" }
                                 if (tmpPitch) {
@@ -469,7 +470,7 @@ fun SleepTimerDialog(onDismiss: () -> Unit) {
                         onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) etxtTime = it })
                     if (curMedia0 != null) Button(modifier = Modifier.fillMaxWidth(), onClick = {
                         if (!PlaybackService.isRunning) {
-                            Logt(TAG, "Can't set sleep timer: service has not started")
+                            Logt(TAG, localizedString(R.string.message_can_t_set_sleep_timer_service_has_not_started))
                             return@Button
                         }
                         val time = if (!toEnd) etxtTime.toLong() else (max(((player0!!.curMediaFlow.value!!.duration) - (player0!!.curMediaFlow.value!!.position)), 0) / player0!!.curPlayerSpeedFlow.value).toLong().milliseconds.inWholeMinutes // ms to minutes
@@ -479,7 +480,7 @@ fun SleepTimerDialog(onDismiss: () -> Unit) {
                             sleepManager?.setTimer(time.minutes.inWholeMilliseconds)
                             showTimeSetup = false
                             showTimeDisplay = true
-                        } else Logt(TAG, "Timer must not be zero: " + context.getString(R.string.time_dialog_invalid_input))
+                        } else Logt(TAG, localizedString(R.string.message_timer_must_not_be_zero) + context.getString(R.string.time_dialog_invalid_input))
                     }) { Text(stringResource(R.string.set_sleeptimer_label)) }
                 }
                 if (showTimeDisplay || timeLeft > 0) {
@@ -522,16 +523,16 @@ fun SleepTimerDialog(onDismiss: () -> Unit) {
                     var to by remember { mutableStateOf(autoEnableTo.toString()) }
                     Text(stringResource(R.string.auto_enable_sum), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp).fillMaxWidth()) {
-                        TextField(value = from, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text("From") }, singleLine = true, modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        TextField(value = from, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.ui_from)) }, singleLine = true, modifier = Modifier.weight(1f).padding(end = 8.dp),
                             onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) from = it })
-                        TextField(value = to, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text("To") }, singleLine = true, modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        TextField(value = to, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), label = { Text(stringResource(R.string.ui_to)) }, singleLine = true, modifier = Modifier.weight(1f).padding(end = 8.dp),
                             onValueChange = { if (it.isEmpty() || it.toIntOrNull() != null) to = it })
                         IconButton(onClick = {
                             upsertBlk(sleepPrefs) {
                                 it.AutoEnableFrom = from.toInt()
                                 it.AutoEnableTo = to.toInt()
                             }
-                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), contentDescription = "setting") }
+                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.archive_settings)) }
                     }
                 }
             }
@@ -542,7 +543,7 @@ fun SleepTimerDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun PlayRandom(episodes: List<Episode>, playNext: Boolean = false) {
-    if (episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.random_svgrepo_com), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "random", modifier = Modifier.clickable {
+    if (episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.random_svgrepo_com), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_shuffle), modifier = Modifier.clickable {
         val item = episodes.random()
         PlaybackStarter(item).shouldStreamThisTime(null).start(0)
         playVideoIfNeeded(item)

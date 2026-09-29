@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.utils
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.storage.utils.durationStringFull
 import ac.mdiq.podcini.storage.utils.toSafeUri
@@ -77,7 +78,7 @@ class ShownotesWebView : WebView, View.OnLongClickListener {
                     (v.parent as? ViewGroup)?.removeView(v)
                     v.destroy()
                 }
-                Loge(TAG, "WebViewClient failure")
+                Loge(TAG, localizedString(R.string.message_webviewclient_failure))
                 return true
             }
         }
@@ -121,7 +122,7 @@ class ShownotesWebView : WebView, View.OnLongClickListener {
             ContextAction.GOTO.id -> {
                 if ((ShownotesCleaner.isTimecodeLink(selectedUrl) || ShownotesCleaner.isHTTPTimecodeLink(selectedUrl)) && timecodeSelectedListener != null)
                     timecodeSelectedListener!!(ShownotesCleaner.getTimecodeLinkTime(selectedUrl))
-                else Loge(TAG, "Selected go_to_position_item, but URL was not timecode link: $selectedUrl")
+                else Loge(TAG, localizedString(R.string.message_selected_go_to_position_item_but_url_was_not_timecode_link, (selectedUrl).toString()))
             }
             else -> {
                 selectedUrl = null

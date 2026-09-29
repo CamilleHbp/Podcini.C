@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.database
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.shared.getEntityId
 import ac.mdiq.podcini.shared.nowInMillis
@@ -254,7 +256,7 @@ suspend fun addRemoteToMiscSyndicate(episode: Episode) {
     episode.id = getEntityId()
     episode.feedId = feed.id
     upsert(episode) {}
-    Logt(TAG, "Episode added to synthetic feed: 'Misc Syndicate'")
+    Logt(TAG, localizedString(R.string.message_episode_added_to_synthetic_feed_misc_syndicate))
     sumup(feed)
     EventFlow.postStickyEvent(FlowEvent.FeedUpdatingEvent(false))
 }

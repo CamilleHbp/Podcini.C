@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.sourcing.download.DownloadRequest
 import ac.mdiq.podcini.storage.database.realm
 import ac.mdiq.podcini.storage.model.Episode
@@ -85,10 +87,10 @@ object OKHTTP {
                     Logd(TAG) { "Network call was intentionally canceled. Ignoring error logs." }
                     return
                 }
-                Loge(TAG, "callFailed error ${ioe::class.java.name}: ${ioe.message}")
+                Loge(TAG, localizedString(R.string.message_callfailed_error, (ioe::class.java.name).toString(), (ioe.message).toString()))
                 var cause = ioe.cause
                 while (cause != null) {
-                    Loge(TAG, "callFailed Cause: ${cause::class.java.name}: ${cause.message}")
+                    Loge(TAG, localizedString(R.string.message_callfailed_cause, (cause::class.java.name).toString(), (cause.message).toString()))
                     cause = cause.cause
                 }
             }

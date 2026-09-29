@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sourcing
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.forcePlaybackReset
@@ -170,7 +171,7 @@ object AppGatewayRegistry {
         val intent = Intent("ac.mdiq.podcini.action.PODCINI_GATEWAY")
         val resolveInfos = context.packageManager.queryIntentServicesCompat(intent, PackageManager.MATCH_ALL)
         if (resolveInfos.isEmpty()) {
-            Loge(TAG, "No external source provider is available. Setting '${context.getString(R.string.pref_use_external_apps)}' is turned off")
+            Loge(TAG, localizedString(R.string.message_no_external_source_provider_is_available_setting_is_turned_off, (context.getString(R.string.pref_use_external_apps)).toString()))
             upsert(appPrefsFlow!!.value) { p -> p.loadExternalApp = false }
             return listOf()
         }
@@ -219,34 +220,34 @@ object AppGatewayRegistry {
                             val aidlMediaSearcher = client.gateway?.mediaSearcher
                             if (aidlMediaSearcher != null) client.mediaSearcher = GatewayMediaSearcherAdapter(aidlMediaSearcher)
                             typeClientMap[attr.feedType] = client
-                            Logt(TAG, "${formatDateTimeFlex(nowInMillis())}: External service ${attr.name} connected")
+                            Logt(TAG, localizedString(R.string.message_external_service_connected, (formatDateTimeFlex(nowInMillis())).toString(), (attr.name).toString()))
                             if (continuation.isActive) continuation.resumeWith(Result.success(client))
                         } else {
-                            if (recognized) Loge(TAG, "External service ${attr.name} is not a compatible version, rejected.")
-                            else Loge(TAG, "External service ${attr.name} not qualified, rejected.")
+                            if (recognized) Loge(TAG, localizedString(R.string.message_external_service_is_not_a_compatible_version_rejected, (attr.name).toString()))
+                            else Loge(TAG, localizedString(R.string.message_external_service_not_qualified_rejected, (attr.name).toString()))
                             clients.remove(client)
                             runCatching { context.unbindService(this) }
                         }
                     } catch (e: Exception) {
-                        Loge(TAG, e, "External service bind error")
+                        Loge(TAG, e, localizedString(R.string.message_external_service_bind_error))
                         clients.remove(client)
                         typeClientMap.values.remove(client)
                     }
                 }
                 override fun onServiceDisconnected(name: ComponentName?) {
-                    Logt(TAG, "${formatDateTimeFlex(nowInMillis())}: Service ${client.attributes?.name} disconnected")
+                    Logt(TAG, localizedString(R.string.message_service_disconnected, (formatDateTimeFlex(nowInMillis())).toString(), (client.attributes?.name).toString()))
                     removeClient(client)
                     reconnectClient(explicitIntent)
                 }
                 override fun onBindingDied(name: ComponentName?) {
-                    Logt(TAG, "${client.attributes?.name} binding died, trying to rebind service")
+                    Logt(TAG, localizedString(R.string.message_binding_died_trying_to_rebind_service, (client.attributes?.name).toString()))
                     removeClient(client)
                     if (continuation.isActive) continuation.resumeWith(Result.success(null))
                     runCatching { context.unbindService(this) }
                     reconnectClient(explicitIntent)
                 }
                 override fun onNullBinding(name: ComponentName?) {
-                    Logt(TAG, "${formatDateTimeFlex(nowInMillis())}: Service ${client.attributes?.name} not bond: null binding, trying to rebind")
+                    Logt(TAG, localizedString(R.string.message_service_not_bond_null_binding_trying_to_rebind, (formatDateTimeFlex(nowInMillis())).toString(), (client.attributes?.name).toString()))
                     removeClient(client)
                     if (continuation.isActive) continuation.resumeWith(Result.success(null))
                 }
@@ -256,7 +257,7 @@ object AppGatewayRegistry {
             val success = try {
                 context.bindService(explicitIntent, connection, Context.BIND_AUTO_CREATE or Context.BIND_IMPORTANT)
             } catch (e: Exception) {
-                Loge(TAG, e, "Failed to bind external service")
+                Loge(TAG, e, localizedString(R.string.message_failed_to_bind_external_service))
                 false
             }
             Logd(TAG) { "bindSingleClient after bind" }
@@ -346,7 +347,7 @@ class SourceGatewayClient() {
 
     suspend fun disconnect() {
         mutex.withLock {
-            gateway?.let { try { Logt(TAG, "Disconnecting ${it.attributes?.name}") } catch (_: DeadObjectException) { Logt(TAG, "Disconnecting unknown dead gateway") } catch (_: RemoteException) { Logt(TAG, "Disconnecting unknown gateway") } }
+            gateway?.let { try { Logt(TAG, localizedString(R.string.message_disconnecting, (it.attributes?.name).toString())) } catch (_: DeadObjectException) { Logt(TAG, localizedString(R.string.message_disconnecting_unknown_dead_gateway)) } catch (_: RemoteException) { Logt(TAG, localizedString(R.string.message_disconnecting_unknown_gateway)) } }
             connection?.let { try { PodciniApp.getAppContext().unbindService(it) } catch (_: Exception) { } }
             connection = null
             attributes?.apply { typeClientMap.remove(feedType) }

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.database
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.playback.actQueueFlow
 import ac.mdiq.podcini.playback.theatres
 import ac.mdiq.podcini.shared.getEntityId
@@ -100,7 +102,7 @@ suspend fun persistOrdered(episodes: List<Episode>, queueEntries: List<QueueEntr
             val e = episodes[i]
             val qe = queueEntries.find { it.episodeId == e.id }
             if (qe == null) {
-                Loge(TAG, "Can't find queueEntry for episode: ${e.title}")
+                Loge(TAG, localizedString(R.string.message_can_t_find_queueentry_for_episode, (e.title).toString()))
                 continue
             }
             findLatest(qe)?.position = (i+1) * QUEUE_POSITION_DELTA
@@ -123,7 +125,7 @@ suspend fun addToAssQueue(episodes: List<Episode>) {
 suspend fun addToQueue(episodes: List<Episode>, queue: PlayQueue, location: EnqueueLocation? = null) {
     Logd(TAG) { "addToQueue( ... ) called" }
     if (queue.isVirtual() && location == null) {
-        Loge(TAG, "Current queue is virtual, ignored")
+        Loge(TAG, localizedString(R.string.message_current_queue_is_virtual_ignored))
         return
     }
     val curPlaying = if (queue.id == actQueueFlow.value.id) theatres[0].mPlayerFlow.value?.curMediaFlow?.value else null
@@ -196,7 +198,7 @@ suspend fun queueToVirtual(episode: Episode, episodes: List<Episode>, listIdenti
                 }
             }
             actQueueFlow.value = virQueue
-            Logt(TAG, "first ${virQueue.size()} episodes are added to the Virtual queue")
+            Logt(TAG, localizedString(R.string.message_first_episodes_are_added_to_the_virtual_queue, (virQueue.size()).toString()))
         }
     } else actQueueFlow.value = virQueue
 }

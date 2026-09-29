@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.sourcing.searcher.AppleMediaSearcher
 import ac.mdiq.podcini.playback.actQueueFlow
@@ -255,7 +256,7 @@ class SearchVM: ViewModel() {
                     val pafeeds = algo.searchPAFeeds(queryWords)
                     Triplet(items, feeds, pafeeds)
                 } catch (e: Exception) {
-                    Loge(TAG, e, "Search failed")
+                    Loge(TAG, e, localizedString(R.string.message_search_failed))
                     Triplet(emptyFlow(), listOf(), listOf())
                 }
             }
@@ -354,19 +355,19 @@ fun SearchScreen() {
                 title = { Row(verticalAlignment = Alignment.CenterVertically) {
                     SearchBarRow(R.string.search_hint, defaultText = curSearchString, modifier = Modifier.weight(1f) , history = appAttribs.searchHistory) { str ->
                         if (str.isBlank()) {
-                            Logt(TAG, "A query string is needed.")
+                            Logt(TAG, localizedString(R.string.message_a_query_string_is_needed))
                             return@SearchBarRow
                         }
                         curSearchString = str
                         if (vm.selectedTabIndex == 2) scope.launch(Dispatchers.IO) { vm.searchRemoteMedia() }
                         saveToSearchHistory()
                     }
-                    if ((vm.selectedTabIndex == 0 && episodes.isNotEmpty()) || (vm.selectedTabIndex == 2 && vm.remoteMedia.isNotEmpty())) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
+                    if ((vm.selectedTabIndex == 0 && episodes.isNotEmpty()) || (vm.selectedTabIndex == 2 && vm.remoteMedia.isNotEmpty())) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = stringResource(R.string.archive_sort), modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
                 } },
-                navigationIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back or drawer", modifier = Modifier.padding(horizontal = 7.dp).clickable { if (!navBack()) drawerController?.open()  }) },
+                navigationIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.archive_back), modifier = Modifier.padding(horizontal = 7.dp).clickable { if (!navBack()) drawerController?.open()  }) },
                 actions = {
                     var expanded by remember { mutableStateOf(false) }
-                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                     DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                         if (vm.selectedTabIndex != 2) DropdownMenuItem(text = { Text(stringResource(R.string.show_criteria)) }, onClick = {
                             showSearchBy = true
@@ -421,16 +422,16 @@ fun SearchScreen() {
                     @Composable
                     fun FeedRow(feed: Feed) {
                         Row(Modifier.background(MaterialTheme.colorScheme.surface)) {
-                            AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.width(80.dp).height(80.dp).clickable {
+                            AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.width(80.dp).height(80.dp).clickable {
                                 Logd(TAG) { "icon clicked!" }
                                 if (!feed.isBuilding) navTo(FeedDetails(feedId = feed.id, modeName = FeedScreenMode.Info.name))
                             })
                             Column(Modifier.weight(1f).padding(start = 10.dp).clickable { if (!feed.isBuilding) navTo(FeedDetails(feedId = feed.id)) }) {
                                 Row {
-                                    if (feed.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating", modifier = Modifier.width(20.dp).height(20.dp).background(MaterialTheme.colorScheme.tertiaryContainer))
-                                    Text(feed.title ?: "No title", color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                    if (feed.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_rating), modifier = Modifier.width(20.dp).height(20.dp).background(MaterialTheme.colorScheme.tertiaryContainer))
+                                    Text(feed.title ?: stringResource(R.string.archive_no_title), color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                                 }
-                                Text(feed.author ?: "No author", color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                                Text(feed.author ?: stringResource(R.string.ui_author_unknown), color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                                 Row(Modifier.padding(top = 5.dp)) {
                                     val measureString = remember { formatWithGrouping(feed.episodesCount.toLong()) + " : " + durationInHours(feed.totleDuration / 1000) }
                                     Text(measureString, color = textColor, style = MaterialTheme.typography.bodyMedium)
@@ -439,7 +440,7 @@ fun SearchScreen() {
                                     Text(feedSortInfo, color = textColor, style = MaterialTheme.typography.bodyMedium)
                                 }
                             } //                                TODO: need to use state
-                            if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = "error")
+                            if (feed.lastUpdateFailed) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = stringResource(R.string.error_label))
                         }
                     }
                     LazyColumn(modifier = Modifier.padding(horizontal = 10.dp), contentPadding = PaddingValues(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -461,13 +462,13 @@ fun SearchScreen() {
                     LazyColumn(state = lazyListState, modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         itemsIndexed(vm.pafeeds, key = { _, feed -> feed.id }) { _, feed ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                AsyncImage(model = ImageRequest.Builder(context).data(feed.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.width(60.dp).height(60.dp).clickable { if (feed.feedUrl.isNotBlank()) navTo(OnlineFeed(url = feed.feedUrl)) })
+                                AsyncImage(model = ImageRequest.Builder(context).data(feed.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.width(60.dp).height(60.dp).clickable { if (feed.feedUrl.isNotBlank()) navTo(OnlineFeed(url = feed.feedUrl)) })
                                 Column(Modifier.weight(1f).padding(start = 10.dp).clickable { if (feed.feedUrl.isNotBlank()) navTo(OnlineFeed(url = feed.feedUrl)) }) {
                                     Text(feed.name, color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                                     Text(feed.author, color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                                     Text(feed.category.joinToString(","), color = textColor, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("Episodes: ${feed.episodesNb} Average duration: ${feed.aveDuration} minutes", color = textColor, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(formatLargeInteger(feed.subscribers) + " subscribers", color = textColor, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(stringResource(R.string.ui_episode_stats, feed.episodesNb, feed.aveDuration.toString()), color = textColor, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(stringResource(R.string.ui_subscribers, formatLargeInteger(feed.subscribers)), color = textColor, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }

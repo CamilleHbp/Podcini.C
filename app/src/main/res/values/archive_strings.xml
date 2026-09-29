@@ -108,7 +108,7 @@
     <string name="archive_appearance">Appearance &amp; accessibility</string>
     <string name="archive_library_automation">Library &amp; automation</string>
     <string name="archive_providers">External media apps</string>
-    <string name="archive_sync_backup">Sync &amp; backup</string>
+    <string name="archive_sync_backup">Sync &amp; device transfer</string>
     <string name="archive_help_diagnostics">Report a problem</string>
     <string name="archive_new_folder">New folder</string>
     <string name="archive_new_collection">New collection</string>
@@ -140,7 +140,7 @@
     <string name="archive_search_settings">Search settings</string>
     <string name="archive_automation_summary">Source updates, automatic downloads and cleanup</string>
     <string name="archive_storage_summary">Media folders, storage space and mobile data</string>
-    <string name="archive_appearance_summary">Theme, display and navigation</string>
+    <string name="archive_appearance_summary">Language, theme, display and navigation</string>
     <string name="archive_provider_summary">Connect apps that supply other audio and video</string>
     <string name="archive_choose_episode">Choose an episode</string>
     <string name="archive_choose_episode_body">Start playback from Listen or your library.</string>
@@ -188,14 +188,14 @@
     <string name="archive_normal_speed">Normal speed</string>
     <string name="archive_fast_speed">Fast playback · %1$s×</string>
     <string name="archive_skip_speed">Skip-speed preset · %1$s×</string>
-    <string name="archive_server_sync">Server synchronization</string>
-    <string name="archive_server_sync_body">Sync subscriptions and supported listening activity with your server. This is not a full backup of your library, notes, or settings.</string>
+    <string name="archive_server_sync">Server sync</string>
+    <string name="archive_server_sync_body">Sync subscriptions and listening activity with your server. Use a backup to keep your full library, notes, and settings.</string>
     <string name="archive_transfer_backup">Backups &amp; transfers</string>
     <string name="archive_transfer_backup_body">Back up your library, move data between devices, or import and export subscriptions.</string>
     <string name="archive_backup_section">Library backup</string>
     <string name="archive_subscriptions_section">Subscription import &amp; export</string>
     <string name="archive_device_transfer">Device transfer</string>
-    <string name="archive_sync_summary">Server sync, backups, and subscription transfers</string>
+    <string name="archive_sync_summary">Server sync and sharing between devices</string>
     <string name="archive_remove_local_warning">Delete the selected original files from your device? They cannot be downloaded again through this app.</string>
     <string name="archive_rate_help">Ratings are personal. Good and Super episodes appear in Highlights; rating does not download media.</string>
     <string name="archive_change_status">Change listening status…</string>

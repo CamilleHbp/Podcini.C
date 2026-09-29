@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sourcing.feed
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.automation.AutoDownloadAlgorithm
@@ -130,7 +131,7 @@ class FeedUpdater(val feeds: List<Feed>, val fullUpdate: Boolean = false, val do
         if (feeds.isEmpty()) {
             val feedIds = appAttribsFlow!!.value.feedIdsToRefresh
             if (feedIds.isNotEmpty()) {
-                Logt(TAG, "prepare Partial refresh of ${feedIds.size} feeds")
+                Logt(TAG, localizedString(R.string.message_prepare_partial_refresh_of_feeds, (feedIds.size).toString()))
                 feedsToUpdate = realm.query(Feed::class, "id IN $0", feedIds).find().filter { it.inNormalVolume }.toMutableList()
             } else feedsToUpdate = getFeedList("keepUpdated == true").filter { it.inNormalVolume }.toMutableList()
         } else {
@@ -156,7 +157,7 @@ class FeedUpdater(val feeds: List<Feed>, val fullUpdate: Boolean = false, val do
         Logd(TAG) { "refresh feedsToUpdate: ${feedsToUpdate.size}" }
         withContext(Dispatchers.Main) { feedOperationText = context.getString(R.string.refreshing_label) }
         if (Build.VERSION.SDK_INT >= 33 && ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            Loge(TAG, "refresh: require POST_NOTIFICATIONS permission")
+            Loge(TAG, localizedString(R.string.message_refresh_require_post_notifications_permission))
             return
         }
         val titles = feedsToUpdate.map { it.title ?: "No title" }.toMutableList()
@@ -396,8 +397,8 @@ class FeedUpdater(val feeds: List<Feed>, val fullUpdate: Boolean = false, val do
                 val oldItems = savedFeedAssistant.guessDuplicate(episode)
                 if (!oldItems.isNullOrEmpty()) {
                     if (oldItems.size > 1) {
-                        Loge(TAG, "found duplicate episodes in feed: ${savedFeed.title}")
-                        for (e in oldItems) Loge(TAG, "duplicate episode: ${e.title}")
+                        Loge(TAG, localizedString(R.string.message_found_duplicate_episodes_in_feed, (savedFeed.title).toString()))
+                        for (e in oldItems) Loge(TAG, localizedString(R.string.message_duplicate_episode, (e.title).toString()))
                     }
                     if (!newFeed.isLocal) {
                         //            Logd(TAG) { "updateFeedFull Update existing episode: ${episode.title}" }

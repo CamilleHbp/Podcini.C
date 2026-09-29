@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing.feed
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.sourcing.download.DownloadRequest.Companion.requestFor
 import ac.mdiq.podcini.sourcing.download.Downloader
 import ac.mdiq.podcini.sourcing.download.Downloader.Companion.downloaderFor
@@ -75,7 +77,7 @@ class FeedBuilder(val showError: (String?, String)->Unit) {
                     else -> type
                 }
             } catch (e: Exception) {
-                Loge(TAG, e, "Feed detection failed")
+                Loge(TAG, e, localizedString(R.string.message_feed_detection_failed))
                 null
             }
         }
@@ -97,8 +99,8 @@ class FeedBuilder(val showError: (String?, String)->Unit) {
             }
             "XML" -> {}
             else -> {
-                Loge(TAG, "buildPodcast unknown url type $urlType")
-                showError("buildPodcast unknown url type $urlType", "")
+                Loge(TAG, localizedString(R.string.message_buildpodcast_unknown_url_type, (urlType).toString()))
+                showError(localizedString(R.string.message_buildpodcast_unknown_url_type, (urlType).toString()), "")
                 return
             }
         }
@@ -140,5 +142,5 @@ suspend fun subscribe(feed: Feed) {
         item.origFeedTitle = null
     }
     if (feedByIdentityOrID(feed) == null) addNewFeed(feed)
-    else Logt(TAG, "feed already exists: ${feed.title}")
+    else Logt(TAG, localizedString(R.string.message_feed_already_exists, (feed.title).toString()))
 }

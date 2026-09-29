@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing.searcher
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.shared.EpisodeIPC
 import ac.mdiq.podcini.shared.MediaSearcher
 import ac.mdiq.podcini.shared.PodciniHttpClient.getKtorClient
@@ -53,8 +55,8 @@ class AppleMediaSearcher : MediaSearcher {
                     val media = fromItunes(podcastJson)
                     if (media.title?.contains(query, ignoreCase = true) == true) medias.add(media)
                 }
-            } else Loge(TAG, "Failed finding media: HttpClient returns failure")
-        } catch (e: Exception) { Loge(TAG, e, "Failed finding media on $query") }
+            } else Loge(TAG, localizedString(R.string.message_failed_finding_media_httpclient_returns_failure))
+        } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_failed_finding_media_on, (query).toString())) }
         return medias
     }
     override suspend fun getMoreItems(): List<EpisodeIPC> {

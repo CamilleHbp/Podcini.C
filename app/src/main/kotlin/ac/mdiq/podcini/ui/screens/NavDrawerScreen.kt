@@ -144,11 +144,11 @@ fun NavDrawerScreen() {
                 navTo(Settings, PopMode.Clear)
                 drawerCtrl?.close()
             }) {
-                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), tint = textColor, contentDescription = "settings", modifier = Modifier.padding(start = 10.dp))
+                Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_settings), tint = textColor, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.padding(start = 10.dp))
                 Text(stringResource(R.string.settings_label), color = textColor, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 20.dp))
                 Spacer(Modifier.weight(1f))
                 val playersRes = if (theatresCount == 1) R.drawable.teaser else R.drawable.ic_launcher_foreground
-                AsyncImage(model = playersRes, contentDescription = "Players", modifier = Modifier.height(24.dp).clickable {
+                AsyncImage(model = playersRes, contentDescription = stringResource(R.string.archive_two_players), modifier = Modifier.height(24.dp).clickable {
                     Logd(TAG) { "activeTheatres: $theatresCount" }
                     activeTheatresCount.value = if (theatresCount == 1) 2 else {
                         playbackService?.shutdownPlayer(1)
@@ -166,13 +166,13 @@ fun NavDrawerScreen() {
                     drawerCtrl?.close()
                     psState = PSState.PartiallyExpanded
                 }) {
-                    AsyncImage(model = f.imageUrl, imageLoader = imageLoader, contentDescription = "imgvCover", placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), modifier = Modifier.width(40.dp).height(40.dp))
-                    Text(f.title ?: "No title", color = textColor, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
+                    AsyncImage(model = f.imageUrl, imageLoader = imageLoader, contentDescription = stringResource(R.string.ui_cover), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), modifier = Modifier.width(40.dp).height(40.dp))
+                    Text(f.title ?: stringResource(R.string.archive_no_title), color = textColor, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 10.dp))
                 }
             }
             if (psState == PSState.Hidden) {
                 Spacer(Modifier.height(50.dp))
-                AsyncImage(model = R.drawable.teaser, contentDescription = "PlayerUI", contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxWidth().height(60.dp).clickable { psState = PSState.PartiallyExpanded })
+                AsyncImage(model = R.drawable.teaser, contentDescription = stringResource(R.string.archive_open_player), contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxWidth().height(60.dp).clickable { psState = PSState.PartiallyExpanded })
             }
         }
     }

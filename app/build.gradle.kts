@@ -237,6 +237,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling-preview")
 
     implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.constraintlayout:constraintlayout-compose:1.1.2")
 
     implementation("androidx.navigation3:navigation3-runtime:1.1.7")

@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sync
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.CHANNEL_ID
@@ -185,7 +186,7 @@ open class SyncService(context: Context, params: WorkerParameters) : CoroutineWo
             try { runBlocking { deleteFeed(feedID) }
             } catch (e: InterruptedException) { Logs(TAG, e)
             } catch (e: ExecutionException) { Logs(TAG, e) }
-        } else Loge(TAG, "removeFeedWithDownloadUrl: Could not find feed with url: $downloadUrl")
+        } else Loge(TAG, localizedString(R.string.message_removefeedwithdownloadurl_could_not_find_feed_with_url, (downloadUrl).toString()))
     }
 
     private suspend fun waitForDownloadServiceCompleted() {
@@ -414,7 +415,7 @@ open class SyncService(context: Context, params: WorkerParameters) : CoroutineWo
                         remoteActionsThatOverrideLocalActions[key] = remoteAction
                     }
                     EpisodeAction.Action.DELETE -> {}
-                    else -> Loge(TAG, "Unknown remoteAction: $remoteAction")
+                    else -> Loge(TAG, localizedString(R.string.message_unknown_remoteaction, (remoteAction).toString()))
                 }
             }
             return remoteActionsThatOverrideLocalActions

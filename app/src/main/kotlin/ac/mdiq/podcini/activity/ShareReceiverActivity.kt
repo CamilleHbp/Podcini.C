@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.activity
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.MainActivity.Extras
@@ -28,6 +29,7 @@ import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Loge
 import android.content.Intent
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.border
@@ -53,7 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.ktor.http.decodeURLQueryComponent
 
-class ShareReceiverActivity : ComponentActivity() {
+class ShareReceiverActivity : AppCompatActivity() {
     private var sharedText: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +68,7 @@ class ShareReceiverActivity : ComponentActivity() {
             Intent.ACTION_VIEW -> sharedText = intent.dataString
         }
         if (sharedText.isNullOrBlank()) {
-            Loge(TAG, "feedUrl is empty or null.\n" + getString(R.string.null_value_podcast_error))
+            Loge(TAG, localizedString(R.string.message_feedurl_is_empty_or_null_n) + getString(R.string.null_value_podcast_error))
             return
         }
         val regex = Regex("""https?://[^\s'"<>]+""")
@@ -127,7 +129,7 @@ class ShareReceiverActivity : ComponentActivity() {
                 addToFeed(episode, toFeed, log)
                 onSuccess()
             } else {
-                Loge(TAG, "Failed adding episode: client can't handle. url=$url")
+                Loge(TAG, localizedString(R.string.message_failed_adding_episode_client_can_t_handle_url, (url).toString()))
                 if (log != null) upsert(log) {
                     it.details = "Can not build episode"
                     it.status = ShareLog.Status.ERROR.code

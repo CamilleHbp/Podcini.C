@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.appMainScope
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.shared.nowInMillis
@@ -44,7 +46,7 @@ class SleepManager {
     fun setTimer(waitingTime: Long) {
         require(waitingTime > 0) { "Waiting time <= 0" }
 //        showStackTrace()
-        Logt(TAG, "Setting sleep timer to ${waitingTime/1000} seconds")
+        Logt(TAG, localizedString(R.string.message_setting_sleep_timer_to_seconds, (waitingTime/1000).toString()))
         if (isActive) timerJob!!.cancel()
         timer = SleepTimer(waitingTime)
         timerJob = timer!!.start()
@@ -52,7 +54,7 @@ class SleepManager {
 
     @Synchronized
     fun disable() {
-        Logt(TAG, "Sleep timer disabled")
+        Logt(TAG, localizedString(R.string.message_sleep_timer_disabled))
         timer?.cancel()
         timer = null
     }
@@ -60,7 +62,7 @@ class SleepManager {
     @Synchronized
     fun restart() {
         if (isActive) {
-            Logt(TAG, "Sleep timer restarted")
+            Logt(TAG, localizedString(R.string.message_sleep_timer_restarted))
             timer!!.restart()
         }
     }
@@ -144,7 +146,7 @@ class SleepManager {
             if (!mSensorMgr!!.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_UI)) { // if not supported
                 mSensorMgr!!.unregisterListener(this)
                 //                throw UnsupportedOperationException("Accelerometer not supported")
-                Logt(TAG, "Shaking and Accelerometer not supported on device")
+                Logt(TAG, localizedString(R.string.message_shaking_and_accelerometer_not_supported_on_device))
             }
         }
 

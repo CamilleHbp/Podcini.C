@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.PlaybackStarter
 import ac.mdiq.podcini.playback.Media3Player.Companion.getCache
@@ -216,7 +217,7 @@ fun FeedsSettingsScreen() {
     fun MyTopAppBar() {
         Box {
             TopAppBar(title = { Text(text = stringResource(R.string.feed_settings_label), fontSize = 20.sp, fontWeight = FontWeight.Bold) },
-                navigationIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back or drawer", modifier = Modifier.padding(7.dp).clickable { if (!navBack()) drawerController?.open() }) } )
+                navigationIcon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.archive_back), modifier = Modifier.padding(7.dp).clickable { if (!navBack()) drawerController?.open() }) } )
             HorizontalDivider(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(), thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
@@ -249,9 +250,9 @@ fun FeedsSettingsScreen() {
                         Spacer(Modifier.weight(1f))
                         var showDialog by remember { mutableStateOf(false) }
                         if (showDialog) AmendSyntheticFeed(feedToSet, onDismiss = { showDialog = false }) {}
-                        IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.Edit, contentDescription = "Edit title") }
+                        IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.ui_edit_title)) }
                     }
-                    Text(text = feedToSet.title?: "No title", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 15.dp))
+                    Text(text = feedToSet.title?: stringResource(R.string.archive_no_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 15.dp))
                 }
             } else Text(text = stringResource(R.string.multiple_podcasts), style = MaterialTheme.typography.titleMedium,  maxLines=1)
             //                    parent volume
@@ -272,10 +273,10 @@ fun FeedsSettingsScreen() {
                                         curVolumeName = selected
                                         onDismiss()
                                     })
-                                Text(none)
+                                Text(stringResource(R.string.archive_no_queue))
                                 Spacer(Modifier.width(50.dp))
                                 Checkbox(checked = custom == selected, onCheckedChange = { selected = custom })
-                                Text(custom)
+                                Text(stringResource(R.string.filter_custom))
                             }
                             if (selected == custom) {
                                 Logd(TAG) { "volumes: ${allVolumes.size}" }
@@ -349,16 +350,16 @@ fun FeedsSettingsScreen() {
                                         curPrefQueue = selected
                                         onDismiss()
                                     })
-                                Text(none)
+                                Text(stringResource(R.string.archive_no_queue))
                                 Spacer(Modifier.width(50.dp))
                                 Checkbox(checked = custom == selected, onCheckedChange = { selected = custom })
-                                Text(custom)
+                                Text(stringResource(R.string.filter_custom))
                             }
                             if (selected == custom) {
                                 Logd(TAG) { "queues: ${queuesLive.size}" }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     for (i in queuesLive.indices) {
-                                        FilterChip(label = { Text(queuesLive[i].name) }, selected = false, border = BorderStroke(1.dp, borderColor),
+                                        FilterChip(label = { Text(queuesLive[i].displayName) }, selected = false, border = BorderStroke(1.dp, borderColor),
                                             onClick = {
                                                 val q = queuesLive[i]
                                                 runOnIOScope { realm.write { for (f in feedsToSet) { findLatest(f)?.queue = q } } }
@@ -383,7 +384,7 @@ fun FeedsSettingsScreen() {
                             showDialog = true
                         })
                 }
-                Text(text = curPrefQueue + " : " + stringResource(R.string.pref_feed_associated_queue_sum), style = MaterialTheme.typography.bodyMedium, color = textColor)
+                Text(text = (if (curPrefQueue == "None") stringResource(R.string.archive_no_queue) else ac.mdiq.podcini.storage.model.queueDisplayName(feedToSet.queueId, curPrefQueue)) + " : " + stringResource(R.string.pref_feed_associated_queue_sum), style = MaterialTheme.typography.bodyMedium, color = textColor)
             }
 
             // feed type
@@ -462,13 +463,13 @@ fun FeedsSettingsScreen() {
                     Text(stringResource(R.string.preferred_languages), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
                     var showIcon by remember { mutableStateOf(false) }
                     var newName by remember { mutableStateOf(feedToSet.preferredLnaguages.joinToString(", ")) }
-                    TextField(value = newName, singleLine = true, label = { Text("Case sensitive. Separate with ,", style = MaterialTheme.typography.bodySmall) },
+                    TextField(value = newName, singleLine = true, label = { Text(stringResource(R.string.ui_language_tracks_hint), style = MaterialTheme.typography.bodySmall) },
                         onValueChange = {
                             newName = it
                             showIcon =  true
                         },
                         trailingIcon = {
-                            if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon", modifier = Modifier.size(30.dp).clickable(
+                            if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.size(30.dp).clickable(
                                 onClick = {
                                     runOnIOScope {
                                         realm.write { for (f in feedsToSet) { findLatest(f)?.let { att ->
@@ -487,7 +488,7 @@ fun FeedsSettingsScreen() {
                                 }))
                         })
                     val langs = remember { feedToSet.langSet.joinToString(", ") }
-                    Text("Candidates: $langs", color = textColor, style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.ui_candidates, langs), color = textColor, style = MaterialTheme.typography.bodySmall)
                     Text(stringResource(R.string.preferred_languages_sum), color = textColor, style = MaterialTheme.typography.bodySmall)
                 }
             }
@@ -786,7 +787,7 @@ fun FeedsSettingsScreen() {
                         Spacer(modifier = Modifier.width(20.dp))
                         Text(text = stringResource(R.string.limit_episodes_to), style = CustomTextStyles.titleCustom, color = textColor)
                         Spacer(modifier = Modifier.weight(1f))
-                        NumberEditor(feedToSet.limitEpisodesCount, label = "0 = unlimited", nz = false, modifier = Modifier.width(150.dp)) {
+                        NumberEditor(feedToSet.limitEpisodesCount, label = stringResource(R.string.ui_no_limit), nz = false, modifier = Modifier.width(150.dp)) {
                             runOnIOScope { realm.write { for (f in feedsToSet) if (f.id > MAX_SYNTHETIC_ID) findLatest(f)?.limitEpisodesCount = it } }
                         }
                     }
@@ -1050,7 +1051,7 @@ fun FeedsSettingsScreen() {
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                             termList.forEach {
                                                 FilterChip(onClick = {  }, label = { Text(it) }, selected = false,
-                                                    trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = "Close icon", modifier = Modifier.size(FilterChipDefaults.IconSize).clickable { termList.remove(it) }) })
+                                                    trailingIcon = { Icon(imageVector = Icons.Filled.Close, contentDescription = stringResource(R.string.ui_close), modifier = Modifier.size(FilterChipDefaults.IconSize).clickable { termList.remove(it) }) })
                                             }
                                         }
                                         var text by remember { mutableStateOf("") }
@@ -1067,7 +1068,7 @@ fun FeedsSettingsScreen() {
                                         TextField(value = text, onValueChange = { newTerm -> text = newTerm },
                                             placeholder = { Text(stringResource(R.string.add_term_hint)) }, keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                                             keyboardActions = KeyboardActions(onDone = { setText() }),
-                                            trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = "Add term", modifier = Modifier.size(30.dp).clickable { setText() }) },
+                                            trailingIcon = { Icon(imageVector = Icons.Filled.Add, contentDescription = stringResource(R.string.ui_add_term), modifier = Modifier.size(30.dp).clickable { setText() }) },
                                             textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = MaterialTheme.typography.bodyMedium.fontSize, fontWeight = FontWeight.Bold), modifier = Modifier.fillMaxWidth()
                                         )
                                         HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
@@ -1150,8 +1151,8 @@ fun FeedsSettingsScreen() {
                         }
                     } else {
                         Column(modifier = Modifier.padding(start = 20.dp, bottom = 5.dp)) {
-                            Text("Sorted by: " + stringResource(episodesSortOrder?.res ?: 0), modifier = Modifier.padding(start = 10.dp))
-                            Text("Filtered by: ", modifier = Modifier.padding(start = 10.dp))
+                            Text(stringResource(R.string.ui_sorted_by, stringResource(episodesSortOrder?.res ?: R.string.archive_automatic)), modifier = Modifier.padding(start = 10.dp))
+                            Text(stringResource(R.string.ui_filtered_by), modifier = Modifier.padding(start = 10.dp))
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.padding(start = 20.dp)) {
                                 episodeFilter.propertySet.forEach { FilterChip(onClick = { }, label = { Text(it) }, selected = false) }
                             }
@@ -1249,7 +1250,7 @@ fun FeedsSettingsScreen() {
                             if (intervals.isEmpty()) intervals = DEFAULT_INTERVALS.toMutableList()
                             val units = INTERVAL_UNITS.map { stringResource(it) }
                             for (i in intervals.indices) {
-                                NumberEditor(intervals[i], label = "in " + units[i], nz = false, instant = true, modifier = Modifier) { intervals[i] = it }
+                                NumberEditor(intervals[i], label = stringResource(R.string.ui_in_units, units[i]), nz = false, instant = true, modifier = Modifier) { intervals[i] = it }
                             }
                             Button(onClick = {
                                 runOnIOScope { realm.write { for (f in feedsToSet) { findLatest(f)?.repeatIntervals = intervals.toRealmList() } } }
@@ -1276,10 +1277,10 @@ fun FeedsSettingsScreen() {
                                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     val oldName = feedToSet.username?:""
                                     var newName by remember { mutableStateOf(oldName) }
-                                    TextField(value = newName, onValueChange = { newName = it }, label = { Text("Username") })
+                                    TextField(value = newName, onValueChange = { newName = it }, label = { Text(stringResource(R.string.ui_username)) })
                                     val oldPW = feedToSet.password?:""
                                     var newPW by remember { mutableStateOf(oldPW) }
-                                    TextField(value = newPW, onValueChange = { newPW = it }, label = { Text("Password") })
+                                    TextField(value = newPW, onValueChange = { newPW = it }, label = { Text(stringResource(R.string.ui_password)) })
                                     Button(onClick = {
                                         if (newName.isNotEmpty() && oldName != newName) {
                                             runOnIOScope {
@@ -1307,7 +1308,7 @@ fun FeedsSettingsScreen() {
             if (feedToSet.id > MAX_SYNTHETIC_ID) {
                 Column {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "Podcast URL", style = CustomTextStyles.titleCustom)
+                        Text(text = stringResource(R.string.ui_podcast_url), style = CustomTextStyles.titleCustom)
                         Spacer(Modifier.weight(1f))
                         @Composable
                         fun EditUrlSettingsDialog(onDismiss: () -> Unit) {
@@ -1326,7 +1327,7 @@ fun FeedsSettingsScreen() {
                                             FeedUpdater(listOf(feedToSet)).start()
                                         }
                                         onDismiss()
-                                    }) { Text("OK") }
+                                    }) { Text(stringResource(R.string.OK)) }
                                 },
                                 dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_label)) } }
                             )
@@ -1334,7 +1335,7 @@ fun FeedsSettingsScreen() {
 
                         var showDialog by remember { mutableStateOf(false) }
                         if (showDialog) EditUrlSettingsDialog { showDialog = false }
-                        IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.Edit, contentDescription = "Edit url") }
+                        IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.ui_edit_url)) }
                     }
                     Text(text = feedToSet.downloadUrl ?: "", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 15.dp))
                 }

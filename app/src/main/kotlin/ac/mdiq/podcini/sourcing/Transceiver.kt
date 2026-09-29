@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.shared.nowInMillis
 import ac.mdiq.podcini.storage.database.allFeeds
 import ac.mdiq.podcini.storage.database.appAttribsFlow
@@ -98,7 +100,7 @@ suspend fun broadcastPresence(udpPort: Int, tcpPort: Int) = withContext(Dispatch
     } catch (e: CancellationException) {
         Logd(TAG) { "listener socket is canceled" }
     } catch (e: Exception) {
-        Loge(TAG, e, "broadcastPresence error")
+        Loge(TAG, e, localizedString(R.string.message_broadcastpresence_error))
     } finally {
         socket.close()
     }
@@ -130,7 +132,7 @@ suspend fun listenForUDPBroadcasts(udpPort: Int, onReceiversUpdated: (List<Disco
 
                 val parts = message.trim().split(":")
                 if (parts.size != 6) {
-                    Loge(TAG, "listenForBroadcasts Invalid message format: $message")
+                    Loge(TAG, localizedString(R.string.message_listenforbroadcasts_invalid_message_format, (message).toString()))
                     continue
                 }
 
@@ -140,14 +142,14 @@ suspend fun listenForUDPBroadcasts(udpPort: Int, onReceiversUpdated: (List<Disco
                 val uid = parts[4]
                 val version = parts[5]
                 if (version != Version) {
-                    Loge(TAG, "listenForBroadcasts The receiver is in an incompetible version: $message")
+                    Loge(TAG, localizedString(R.string.message_listenforbroadcasts_the_receiver_is_in_an_incompetible_version, (message).toString()))
                     continue
                 }
 
                 Logd(TAG) { "listenForBroadcasts 9" }
 
                 if (port == null) {
-                    Loge(TAG, "listenForBroadcasts Invalid port in message: $message")
+                    Loge(TAG, localizedString(R.string.message_listenforbroadcasts_invalid_port_in_message, (message).toString()))
                     continue
                 }
                 Logd(TAG) { "listenForBroadcasts 10" }
@@ -157,25 +159,25 @@ suspend fun listenForUDPBroadcasts(udpPort: Int, onReceiversUpdated: (List<Disco
 
                 withContext(Dispatchers.Main) { onReceiversUpdated(receivers.values.toList()) }
             } catch (e: SocketTimeoutException) {
-                Logt(TAG, "listenForBroadcasts socket receive time out: is the receiver started")
+                Logt(TAG, localizedString(R.string.message_listenforbroadcasts_socket_receive_time_out_is_the_receiver_start))
                 val cutoff = nowInMillis() - 10_000
                 receivers.entries.removeAll { it.value.lastSeen < cutoff }
                 withContext(Dispatchers.Main) { onReceiversUpdated(receivers.values.toList()) }
             } catch (e: CancellationException) {
                 Logd(TAG) { "listener socket is canceled" }
             } catch (e: Throwable) {
-                Loge(TAG, e, "listenForBroadcasts socket exception")
+                Loge(TAG, e, localizedString(R.string.message_listenforbroadcasts_socket_exception))
                 break
             }
         }
     } catch (e: Exception) {
-        Loge(TAG, e, "listenForBroadcasts error")
+        Loge(TAG, e, localizedString(R.string.message_listenforbroadcasts_error))
     } finally {
         socket?.close()
     }
 }
 
-enum class ContentType { Feed, Catalog, Episodes }
+enum class ContentType(val labelRes: Int) { Feed(R.string.feed), Catalog(R.string.ui_catalog), Episodes(R.string.episodes_label) }
 
 abstract class Receiver(private val port: Int) {
     var serverSocket: ServerSocket? = null
@@ -185,7 +187,7 @@ abstract class Receiver(private val port: Int) {
             serverSocket = aSocket(socketSelector).tcp().bind("0.0.0.0", port)
             Logd(TAG) { "Server listening on port $port" }
         } catch (e: Exception) {
-            Loge(TAG, e, "Error starting server socket")
+            Loge(TAG, e, localizedString(R.string.message_error_starting_server_socket))
             return
         }
     }
@@ -266,9 +268,9 @@ class FeedReceiver(port: Int, val volumeId: Long): Receiver(port) {
 
                     receiveClips(channel)
 
-                    Logt(TAG, "Received ${pkg.feed.eigenTitle} with ${pkg.episodes.size} episodes and ${pkg.clips.size} clips")
+                    Logt(TAG, localizedString(R.string.message_received_with_episodes_and_clips, (pkg.feed.eigenTitle).toString(), (pkg.episodes.size).toString(), (pkg.clips.size).toString()))
                 } catch (e: Exception) {
-                    Logt(TAG, "Receiving feed terminated: ${e.message}")
+                    Logt(TAG, localizedString(R.string.message_receiving_feed_terminated, (e.message).toString()))
                 } finally {
                     withContext(NonCancellable) { withContext(Dispatchers.IO) { clientSocket.close() } }
                 }
@@ -311,9 +313,9 @@ suspend fun sendFeed(host: String, port: Int, feedId: Long, onEnd: ()->Unit) {
         channel.flush()
 
         upsert(feed) { it.freeze(true) }
-        Logt(TAG, "Sent feed: ${pkg.feed.eigenTitle} ${pkg.episodes.size} episodes (${bytes.size} bytes)")
+        Logt(TAG, localizedString(R.string.message_sent_feed_episodes_bytes, (pkg.feed.eigenTitle).toString(), (pkg.episodes.size).toString(), (bytes.size).toString()))
     } catch (e: Throwable) {
-        Logt(TAG, "Sending feed terminated: ${e.message}")
+        Logt(TAG, localizedString(R.string.message_sending_feed_terminated, (e.message).toString()))
     } finally {
         socket?.close()
         onEnd()
@@ -347,7 +349,7 @@ class EpisodesReceiver(port: Int, val onEnd: ()->Unit): Receiver(port) {
                     val json = bytes.decodeToString()
                     val pkg = Json.decodeFromString<EpisodesPackage>(json)
 
-                    Logd(TAG) { "Received ${pkg.episodes.size} episodes for ${pkg.syntheticName}" }
+                    Logd(TAG) { localizedString(R.string.message_received_episodes_for, (pkg.episodes.size).toString(), (pkg.syntheticName).toString()) }
 
                     val f = allFeeds.find { it.eigenTitle == pkg.syntheticName } ?: run {
                         val f_ = createSynthetic(0, pkg.syntheticName)
@@ -363,9 +365,9 @@ class EpisodesReceiver(port: Int, val onEnd: ()->Unit): Receiver(port) {
 
                     receiveClips(channel)
 
-                    Logt(TAG, "Received ${pkg.episodes.size} episodes for ${pkg.syntheticName}")
+                    Logt(TAG, localizedString(R.string.message_received_episodes_for, (pkg.episodes.size).toString(), (pkg.syntheticName).toString()))
                 } catch (e: Exception) {
-                    Logt(TAG, "Receiving feed terminated: ${e.message}")
+                    Logt(TAG, localizedString(R.string.message_receiving_feed_terminated, (e.message).toString()))
                 } finally {
                     withContext(NonCancellable) { withContext(Dispatchers.IO) { clientSocket.close() } }
                     onEnd()
@@ -428,9 +430,9 @@ fun sendEpisodes(host: String, port: Int, syntheticName: String, episodes: List<
 
             channel.flush()
 
-            Logt(TAG, "Sent feed: $syntheticName ${pkg.episodes.size} episodes (${bytes.size} bytes)")
+            Logt(TAG, localizedString(R.string.message_sent_feed_episodes_bytes, (syntheticName).toString(), (pkg.episodes.size).toString(), (bytes.size).toString()))
         } catch (e: Throwable) {
-            Logt(TAG, "Sending feed terminated: ${e.message}")
+            Logt(TAG, localizedString(R.string.message_sending_feed_terminated, (e.message).toString()))
         } finally {
             socket?.close()
             onEnd()
@@ -490,9 +492,9 @@ class CatalogReceiver(port: Int, val onEnd: ()->Unit): Receiver(port) {
                         }
                         Logd(TAG) { "CatalogReceiver set feed to Volume ${v.name} ${f.title}" }
                     }
-                    Logt(TAG, "CatalogReceiver Received from ${pkg.senderName} ${pkg.feedDTOs.size} feeds in catalog")
+                    Logt(TAG, localizedString(R.string.message_catalogreceiver_received_from_feeds_in_catalog, (pkg.senderName).toString(), (pkg.feedDTOs.size).toString()))
                 } catch (e: Exception) {
-                    Logt(TAG, "Receiving catalog terminated: ${e.message}")
+                    Logt(TAG, localizedString(R.string.message_receiving_catalog_terminated, (e.message).toString()))
                 } finally {
                     withContext(NonCancellable) { withContext(Dispatchers.IO) { clientSocket.close() } }
                     onEnd()
@@ -527,9 +529,9 @@ fun sendCatalog(host: String, port: Int, onEnd: ()->Unit): Job {
             output.writeByteArray(bytes)
             output.flush()
 
-            Logt(TAG, "sendCatalog Sent ${feedsDTO.size} feeds (${bytes.size} bytes)")
+            Logt(TAG, localizedString(R.string.message_sendcatalog_sent_feeds_bytes, (feedsDTO.size).toString(), (bytes.size).toString()))
         } catch (e: Throwable) {
-            Logt(TAG, "Sending catalog terminated: ${e.message}")
+            Logt(TAG, localizedString(R.string.message_sending_catalog_terminated, (e.message).toString()))
         } finally {
             socket?.close()
             onEnd()

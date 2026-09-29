@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.storage.model.QueueEntry
 import ac.mdiq.podcini.storage.model.Episode
 import kotlinx.coroutines.flow.map
@@ -276,7 +277,7 @@ fun ArchiveExpandedPlayer(vm: AVPlayerVM, onDetails: () -> Unit, singleColumn: B
                 Text(stringResource(R.string.archive_up_next), style = MaterialTheme.typography.titleMedium)
                 Text(next?.title ?: stringResource(R.string.archive_queue_finished), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (next != null) Text(listOfNotNull(next.feed?.title, next.duration.takeIf { it > 0 }?.let { durationStringAdapt(it) }).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(if(queue.isVirtual()) stringResource(R.string.archive_from_list) else queue.name, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if(queue.isVirtual()) stringResource(R.string.archive_from_list) else queue.displayName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(12.dp))
             FilledTonalButton(onClick = { player?.skip(force = true) }, enabled = next != null) { Text(stringResource(R.string.archive_next)) }

@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.StrictMode
 import android.util.Log
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,7 +47,7 @@ class PodciniApp : Application() {
 
         fun getApp(): PodciniApp = podciniApp
 
-        fun getAppContext(): Context = podciniApp.applicationContext
+        fun getAppContext(): Context = ContextCompat.getContextForLanguage(podciniApp.applicationContext)
 
         fun forceRestart() {
             val intent = Intent(podciniApp, MainActivity::class.java)

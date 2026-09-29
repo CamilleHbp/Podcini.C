@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.storage.model.displayName
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import androidx.compose.foundation.selection.selectable
 import ac.mdiq.podcini.R
@@ -295,7 +297,7 @@ fun ShareDialog(item: Episode, onDismiss: () -> Unit) {
                         if (!furl.isNullOrEmpty()) {
                             val fileUri = FileProvider.getUriForFile(context, authorityText, File(furl))
                             if (fileUri != null) context.shareFile(fileUri, item.mimeType?:"", R.string.share_file_label)
-                            else Loge(TAG, "Share file failed: fileUri is null")
+                            else Loge(TAG, localizedString(R.string.message_share_file_failed_fileuri_is_null))
                         }
                     }
                     4 -> {
@@ -306,7 +308,7 @@ fun ShareDialog(item: Episode, onDismiss: () -> Unit) {
                     6 -> context.shareText(item.joinCaptions(), R.string.share_captions)
                 }
                 onDismiss()
-            }) { Text(text = "OK") }
+            }) { Text(text = stringResource(R.string.OK)) }
         },
         dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.cancel_label)) } }
     )
@@ -334,9 +336,9 @@ fun TranscriptDialog(episode: Episode, player:  MediaPlayerBase? = null, cueInde
             Column(Modifier.fillMaxWidth().padding(horizontal = 5.dp)) {
                 var letScroll by remember { mutableStateOf(player != null) }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    if (player != null) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_center_focus_strong_24), tint = if (letScroll) Color.Green else Color.Red, contentDescription = "center", modifier = Modifier.padding(start = 10.dp).clickable { letScroll = !letScroll })
+                    if (player != null) Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_center_focus_strong_24), tint = if (letScroll) Color.Green else Color.Red, contentDescription = stringResource(R.string.ui_center), modifier = Modifier.padding(start = 10.dp).clickable { letScroll = !letScroll })
                     Spacer(Modifier.weight(1f))
-                    Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_expansion_panels_24), tint = textColor, contentDescription = "expand", modifier = Modifier.padding(end = 10.dp).clickable { isExpanded = !isExpanded })
+                    Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_expansion_panels_24), tint = textColor, contentDescription = stringResource(R.string.ui_expand), modifier = Modifier.padding(end = 10.dp).clickable { isExpanded = !isExpanded })
                 }
                 val listState = rememberLazyListState()
                 LaunchedEffect(cueIndex, letScroll) {
@@ -409,15 +411,15 @@ fun TranscriptMeta(episode: Episode) {
                     Logt(TAG, context.getString(R.string.transcript_fetched))
                 })
                 Spacer(Modifier.width(20.dp))
-                Text(text = t.language ?: "Unknown language", style = MaterialTheme.typography.bodyMedium)
+                Text(text = t.language ?: stringResource(R.string.ui_unknown_language), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(20.dp))
-                Text(text = t.type ?: "Unknown type", style = MaterialTheme.typography.bodyMedium)
+                Text(text = t.type ?: stringResource(R.string.ui_unknown_type), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.width(20.dp))
                 Text(text = t.rel ?: "", style = MaterialTheme.typography.bodyMedium)
             }
-            Text(text = t.url ?: "No url", style = MaterialTheme.typography.bodySmall, maxLines = 1, modifier = Modifier.clickable {
+            Text(text = t.url ?: stringResource(R.string.ui_unavailable), style = MaterialTheme.typography.bodySmall, maxLines = 1, modifier = Modifier.clickable {
                 ContextCompat.getSystemService(context, ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Podcini", t.url ?: "No url"))
-                Logt(TAG, "url copied to clipboard")
+                Logt(TAG, localizedString(R.string.message_url_copied_to_clipboard))
             })
         }
     }
@@ -470,7 +472,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
                         curItem_ = upsertBlk(curItem_) { it.description = desc }
                         shownotesCleaner?.processShownotes(desc, curItem_.duration)
                     } else shownotesCleaner?.processShownotes(curItem_.description ?: "", curItem_.duration)
-                } catch (e: Exception) { Loge(TAG, e, "StreamInfo error") }
+                } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_streaminfo_error)) }
             } else cleanedNotes = shownotesCleaner?.processShownotes(curItem_.description ?: "", curItem_.duration)
             return Pair(curItem_, cleanedNotes)
         }
@@ -528,7 +530,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
             var showTodos by remember { mutableStateOf(false) }
             var showDone by remember { mutableStateOf(false) }
             Row(modifier = Modifier.padding(start = 15.dp, end = 10.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Todos:", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.clickable {
+                Text(stringResource(R.string.ui_todos), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.clickable {
                     onTodo = null
                     showTodoDialog = true
                 })
@@ -556,7 +558,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
                                 showTodoDialog = true
                             })
                             Spacer(Modifier.weight(1f))
-                            Icon(ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = "delete", modifier = Modifier.padding(end = 15.dp).clickable { upsertBlk(episode) { it.todos.remove(todo) } })
+                            Icon(ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = stringResource(R.string.ui_delete), modifier = Modifier.padding(end = 15.dp).clickable { upsertBlk(episode) { it.todos.remove(todo) } })
                         }
                         Row {
                             if (todo.dueTime > 0) {
@@ -571,7 +573,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
             }
         }
 
-        if (episode.tagsAsString.isNotBlank()) Text("Tags: ${episode.tagsAsString}", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 15.dp, top = 5.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
+        if (episode.tagsAsString.isNotBlank()) Text(stringResource(R.string.filter_tag_summary, episode.tagsAsString), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 15.dp, top = 5.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
         if (episode.comment.isNotBlank()) {
             Text(stringResource(R.string.comments), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 15.dp, top = 5.dp, bottom = 5.dp).clickable { showEditComment = true })
             Text(episode.comment, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 15.dp, bottom = 5.dp))
@@ -596,7 +598,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
                                 theatres[0].mPlayerFlow.value?.seekTo(mark.toInt())
                             } else Logt(TAG, context.getString(R.string.play_mark_msg))
                         },
-                        trailingIcon = { Icon(imageVector = Icons.Filled.Delete, contentDescription = "delete", modifier = Modifier.size(FilterChipDefaults.IconSize).padding(start = 3.dp).clickable { markToRemove = mark }) }
+                        trailingIcon = { Icon(imageVector = Icons.Filled.Delete, contentDescription = stringResource(R.string.ui_delete), modifier = Modifier.size(FilterChipDefaults.IconSize).padding(start = 3.dp).clickable { markToRemove = mark }) }
                     )
                 }
             }
@@ -627,9 +629,9 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
                                 playerLocal!!.setMediaItem(MediaItem.fromUri(uri))
                                 playerLocal!!.prepare()
                                 playerLocal!!.play()
-                            } else Loge(TAG, "clip file doesn't exist: ${file.absPath}")
+                            } else Loge(TAG, localizedString(R.string.message_clip_file_doesn_t_exist, (file.absPath).toString()))
                         },
-                        trailingIcon = { Icon(imageVector = Icons.Filled.Delete, contentDescription = "delete", modifier = Modifier.size(FilterChipDefaults.IconSize).padding(start = 3.dp).clickable { cliptToRemove = clip }) }
+                        trailingIcon = { Icon(imageVector = Icons.Filled.Delete, contentDescription = stringResource(R.string.ui_delete), modifier = Modifier.size(FilterChipDefaults.IconSize).padding(start = 3.dp).clickable { cliptToRemove = clip }) }
                     )
                 }
             }
@@ -671,7 +673,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
                         curChapterIndex = index
                     }) {
                         Text(durationStringFull(ch.start.toInt()), color = buttonColor, modifier = Modifier.padding(end = 5.dp))
-                        Text(ch.title ?: "No title", color = textColor, fontWeight = if (index == curChapterIndex) FontWeight.Bold else FontWeight.Normal)
+                        Text(ch.title ?: stringResource(R.string.archive_no_title), color = textColor, fontWeight = if (index == curChapterIndex) FontWeight.Bold else FontWeight.Normal)
                     }
                 }
             }
@@ -827,7 +829,7 @@ fun PutToQueueDialog(selected: List<Episode>, onDismiss: () -> Unit) {
             var toQueue by remember { mutableStateOf(actQueueFlow.value) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                 for (q in queuesLive) {
-                    FilterChip(label = { Text(q.name) }, onClick = { toQueue = q }, selected = toQueue == q, border = filterChipBorder(toQueue == q) )
+                    FilterChip(label = { Text(q.displayName) }, onClick = { toQueue = q }, selected = toQueue == q, border = filterChipBorder(toQueue == q) )
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -874,7 +876,7 @@ fun ShelveDialog(selected: List<Episode>, onDismiss: () -> Unit) {
                 for (f in synthetics) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(selected = toFeed == f, onClick = { toFeed = f })
-                        Text(f.title ?: "No title")
+                        Text(f.title ?: stringResource(R.string.archive_no_title))
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -949,7 +951,7 @@ fun TodoDialog(episode: Episode, todo: Todo? = null, onDismiss: () -> Unit) {
                         ymdhm = it
                         setDueTime = false
                     },
-                    trailingIcon = { Icon(imageVector = Icons.Filled.AddCircle, contentDescription = "Settings icon", modifier = Modifier.size(30.dp).clickable { setDueTime = !setDueTime }) })
+                    trailingIcon = { Icon(imageVector = Icons.Filled.AddCircle, contentDescription = stringResource(R.string.archive_settings), modifier = Modifier.size(30.dp).clickable { setDueTime = !setDueTime }) })
                 if (setDueTime) Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = notify, onCheckedChange = { notify = it })
                     Text(stringResource(R.string.notify))
@@ -993,9 +995,9 @@ fun TodoDialog(episode: Episode, todo: Todo? = null, onDismiss: () -> Unit) {
                                 if (priorDueTime > 0L && priorDueTime != dueTime) cancelTimer(priorDueTime)
                                 playEpisodeAtTime(dueTime, episode.id)
                             }
-                            else Logt(TAG, "Can not notify at the due time in the past")
+                            else Logt(TAG, localizedString(R.string.message_can_not_notify_at_the_due_time_in_the_past))
                         }
-                    } catch (e: Throwable) { Loge(TAG, e, "editing Todo error")}
+                    } catch (e: Throwable) { Loge(TAG, e, localizedString(R.string.message_editing_todo_error))}
                 }
                 onDismiss()
             }) { Text(stringResource(R.string.confirm_label)) }
@@ -1015,7 +1017,7 @@ fun EpisodeTimetableDialog(episode: Episode, onDismiss: () -> Unit, cb: (Timer)-
                         onDismiss()
                     })
                     Spacer(Modifier.width(100.dp))
-                    Icon(imageVector = Icons.Filled.Delete, contentDescription = "delete", modifier = Modifier.clickable {
+                    Icon(imageVector = Icons.Filled.Delete, contentDescription = stringResource(R.string.ui_delete), modifier = Modifier.clickable {
                         cancel(timer)
                         upsertBlk(appAttribsFlow!!.value) { it.timetable.remove(timer) }
                         onDismiss()
@@ -1220,7 +1222,7 @@ fun DatesFilterDialog(from: Long? = null, to: Long? = null, oldestDate: Long, on
                 isError = !isValidMonthYear(monthYear.text),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (!isValid) Text(text = "Invalid format. Please use MM/YYYY.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            if (!isValid) Text(text = stringResource(R.string.ui_invalid_month), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
     }
     fun convertMonthYearToUnixTime(monthYear: String, start: Boolean = true): Long? {
@@ -1283,7 +1285,7 @@ fun DatesFilterDialog(from: Long? = null, to: Long? = null, oldestDate: Long, on
                 }
                 callback(timeFilterFrom, timeFilterTo)
                 onDismiss()
-            }) { Text(text = "OK") }
+            }) { Text(text = stringResource(R.string.OK)) }
         },
         dismissButton = { TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.cancel_label)) } }
     )
@@ -1327,7 +1329,7 @@ fun MulticastDialog(selected: List<Episode>, onDismiss: ()->Unit) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                     for (receiver in receivers) FilterChip(label = { Text(receiver.name) }, selected = false, onClick = {})
                 }
-                TextField(value = synthName, label = { Text("in " + stringResource(R.string.synthetic)) }, singleLine = true, modifier = Modifier.padding(end = 8.dp), onValueChange = { synthName = it })
+                TextField(value = synthName, label = { Text(stringResource(R.string.ui_in_collection, stringResource(R.string.synthetic))) }, singleLine = true, modifier = Modifier.padding(end = 8.dp), onValueChange = { synthName = it })
             }
         },
         confirmButton = {
@@ -1367,7 +1369,7 @@ fun ConfirmAddToFeed(onDismiss: () -> Unit, cb: suspend (Feed)-> Unit) {
                                     toFeed = f
                                     showComfirmButton = true
                                 })
-                                Text(f.title ?: "No title", color = textColor)
+                                Text(f.title ?: stringResource(R.string.archive_no_title), color = textColor)
                             }
                         }
                     }

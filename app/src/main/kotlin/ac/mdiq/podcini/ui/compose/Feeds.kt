@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.settings.OpmlTransporter
 import ac.mdiq.podcini.sourcing.feed.FeedBuilder
@@ -194,15 +195,15 @@ fun OnlineFeedItem(result: FeedSearchResult, log: SubscriptionLog? = null) {
                 }
                 fipc.episodes = eList
                 subscribe(fipc)
-            } else Loge(TAG, "Subscribe feed failed")
+            } else Loge(TAG, localizedString(R.string.message_subscribe_feed_failed))
         } else {
-            val fbb = FeedBuilder { message, details -> Loge("OnineFeedItem", "Subscribe error: $message \n $details") }
+            val fbb = FeedBuilder { message, details -> Loge("OnineFeedItem", localizedString(R.string.message_subscribe_error_n, (message).toString(), (details).toString())) }
             fbb.buildPodcast(url, "", "") { feed, _ -> subscribe(feed) }
         }
     }
     if (showSubscribeDialog.value) CommonPopupCard(onDismiss = { showSubscribeDialog.value = false }) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Text("Subscribe: \"${result.title}\" ?", color = textColor, modifier = Modifier.padding(bottom = 10.dp))
+            Text(stringResource(R.string.ui_subscribe_confirm, result.title.orEmpty()), color = textColor, modifier = Modifier.padding(bottom = 10.dp))
             Button(onClick = {
                 runOnIOScope { subscribeFeed(result) }
                 showSubscribeDialog.value = false
@@ -221,24 +222,24 @@ fun OnlineFeedItem(result: FeedSearchResult, log: SubscriptionLog? = null) {
         
         Row {
             Box(modifier = Modifier.width(80.dp).height(80.dp)) {
-                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.fillMaxSize())
+                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.fillMaxSize())
                 if (result.feedId > 0 || log != null) {
                     Logd("OnlineFeedItem") { "${result.feedId} $log" }
                     val iRes = remember(result) { if (result.feedId > 0) R.drawable.ic_check else R.drawable.baseline_clear_24 }
-                    Icon(imageVector = ImageVector.vectorResource(iRes), tint = textColor, contentDescription = "played_mark", modifier = Modifier.background(Color.Green).alpha(1.0f).align(Alignment.BottomEnd))
+                    Icon(imageVector = ImageVector.vectorResource(iRes), tint = textColor, contentDescription = stringResource(R.string.archive_played), modifier = Modifier.background(Color.Green).alpha(1.0f).align(Alignment.BottomEnd))
                 }
             }
             Column(Modifier.padding(start = 10.dp)) {
                 Text(result.title, color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp))
                 val authorText = remember(result.author) { result.author?.takeIf { it.isNotBlank() }?.trim { it <= ' ' }?: "Anonymous" }
                 Text(authorText, color = textColor, style = MaterialTheme.typography.bodyMedium)
-                if (result.subscriberCount > 0) Text(formatLargeInteger(result.subscriberCount) + " subscribers", color = textColor, style = MaterialTheme.typography.bodyMedium)
+                if (result.subscriberCount > 0) Text(stringResource(R.string.ui_subscribers, formatLargeInteger(result.subscriberCount)), color = textColor, style = MaterialTheme.typography.bodyMedium)
                 Row {
-                    Text(result.count.toString() + " episodes", color = textColor, style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.archive_episode_count, result.count ?: 0), color = textColor, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.weight(1f))
                     if (result.update != null) Text(result.update!!, color = textColor, style = MaterialTheme.typography.bodyMedium)
                 }
-                Text("${result.source}:\u00A0${result.feedUrl ?: "unavailable"}", color = textColor, style = MaterialTheme.typography.labelSmall)
+                Text("${result.source}:\u00A0${result.feedUrl ?: stringResource(R.string.ui_unavailable)}", color = textColor, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
@@ -287,12 +288,12 @@ fun AmendSyntheticFeed(feed_: Feed? = null, name_: String? = null, volume: Volum
 fun OpmlImportSelectionDialog(readElements: List<OpmlTransporter.OpmlElement>, onDismiss: () -> Unit) {
     val selectedItems = remember {  mutableStateMapOf<Int, Boolean>() }
     AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { onDismiss() },
-        title = { Text("Import OPML file") },
+        title = { Text(stringResource(R.string.ui_opml_import)) },
         text = {
             var isSelectAllChecked by remember { mutableStateOf(false) }
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(modifier = Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Select/Deselect All", modifier = Modifier.weight(1f))
+                    Text(text = stringResource(R.string.ui_toggle_all), modifier = Modifier.weight(1f))
                     Checkbox(checked = isSelectAllChecked, onCheckedChange = { isChecked ->
                         isSelectAllChecked = isChecked
                         readElements.forEachIndexed { index, _ -> selectedItems[index] = isChecked }
@@ -329,7 +330,7 @@ fun OpmlImportSelectionDialog(readElements: List<OpmlTransporter.OpmlElement>, o
                 onDismiss()
             }) { Text(stringResource(R.string.confirm_label)) }
         },
-        dismissButton = { Button(onClick = { onDismiss() }) { Text("Dismiss") } }
+        dismissButton = { Button(onClick = { onDismiss() }) { Text(stringResource(R.string.ui_dismiss)) } }
     )
 }
 
@@ -377,7 +378,7 @@ fun AssociatedFeedsGrid(feedsAssociated: List<Feed>) {
         items(feedsAssociated, key = {it.id}) { feed ->
             ConstraintLayout {
                 val (coverImage, episodeCount, rating, _) = createRefs()
-                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "coverImage",
+                AsyncImage(model = ImageRequest.Builder(context).data(feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover),
                     colorFilter = if (!feed.inNormalVolume) ColorFilter.tint(color = Color.Gray.copy(alpha = 0.5f), blendMode = BlendMode.SrcAtop) else null,
                     modifier = Modifier.height(100.dp).aspectRatio(1f)
                         .constrainAs(coverImage) {
@@ -395,7 +396,7 @@ fun AssociatedFeedsGrid(feedsAssociated: List<Feed>) {
                         top.linkTo(coverImage.top)
                     })
                 if (feed.rating != Rating.UNRATED.code)
-                    Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating",
+                    Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(feed.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_rating),
                         modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).constrainAs(rating) {
                             start.linkTo(parent.start)
                             centerVerticallyTo(coverImage)

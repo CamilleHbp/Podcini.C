@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.utils
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.storage.database.appPrefsFlow
 import ac.mdiq.podcini.storage.database.upsert
@@ -67,7 +69,7 @@ val mediaDir: UnifiedFile
                 Logd(TAG) { "mediaDir: $customMediaUriString" }
                 return d
             } else {
-                Loge(TAG, "The chosen custom media folder is not valid: ${appPrefsFlow!!.value.customMediaUri}. Reset!")
+                Loge(TAG, localizedString(R.string.message_the_chosen_custom_media_folder_is_not_valid_reset, (appPrefsFlow!!.value.customMediaUri).toString()))
                 upsertBlk(appPrefsFlow!!.value) {
                     it.useCustomMediaFolder = false
                     it.customMediaUri = ""

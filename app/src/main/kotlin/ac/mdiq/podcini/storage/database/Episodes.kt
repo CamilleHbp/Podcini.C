@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.storage.database
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.NotificationIds
@@ -248,7 +249,7 @@ fun checkAndMarkDuplicates(episode: Episode): Episode {
     realm.writeBlocking {
         val candidates = query(Episode::class, "title == $0 OR downloadUrl == $1", episode.title, episode.downloadUrl).find()
         if (candidates.size > 1) {
-            Logt(TAG, "Found ${candidates.size - 1} duplicate episodes, setting to Ignored")
+            Logt(TAG, localizedString(R.string.message_found_duplicate_episodes_setting_to_ignored, (candidates.size - 1).toString()))
             val duplicates = mutableListOf<Episode>()
             for (e in candidates) {
                 if (e.id == episode.id) continue

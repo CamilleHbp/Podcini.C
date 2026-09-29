@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.automation
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.sourcing.download.EpisodeAdrDLManager
 import ac.mdiq.podcini.playback.isCurMedia
 import ac.mdiq.podcini.shared.nowInMillis
@@ -72,10 +74,10 @@ class AutoDownloadAlgorithm {
             if (allowedCount > 0) {
                 var itemsToDownload = candidates.toMutableList()
                 if (allowedCount < candidates.size) itemsToDownload = itemsToDownload.subList(0, allowedCount)
-                Logt(TAG, "Auto download requesting episodes: ${itemsToDownload.size}")
+                Logt(TAG, localizedString(R.string.message_auto_download_requesting_episodes, (itemsToDownload.size).toString()))
                 EpisodeAdrDLManager.manager.download(itemsToDownload)
                 itemsToDownload.clear()
-            } else Logt(TAG, "Auto download not performed, allowed count exceeded: candidates: ${candidates.size} allowedCount: $allowedCount")
+            } else Logt(TAG, localizedString(R.string.message_auto_download_not_performed_allowed_count_exceeded_candidates_all, (candidates.size).toString(), (allowedCount).toString()))
             candidates.clear()
         }
     }
@@ -94,7 +96,7 @@ class AutoEnqueueAlgorithm {
             Logd(TAG) { "Enqueueing ${candidates.size} items" }
             realm.write { for (e in candidates) findLatest(e)?.isAutoDownloadEnabled = false }
             addToAssQueue(candidates.toList())
-            Logt(TAG, "Auto enqueued episodes: ${candidates.size}")
+            Logt(TAG, localizedString(R.string.message_auto_enqueued_episodes, (candidates.size).toString()))
             candidates.clear()
         }
     }

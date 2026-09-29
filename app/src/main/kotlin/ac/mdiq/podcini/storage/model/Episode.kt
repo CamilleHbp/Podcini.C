@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.model
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.utils.NetworkUtils.isImageDownloadAllowed
 import ac.mdiq.podcini.shared.EpisodeIPC
 import ac.mdiq.podcini.shared.PodciniHttpClient.getKtorClient
@@ -434,7 +436,7 @@ class Episode : RealmObject {
             when {
                 fileUrl != null -> size_ = if (fileUrl!!.isNotBlank()) fileUrl!!.toSafeUri().toUF().size() ?: -1L else -1L
                 !isImageDownloadAllowed -> {
-                    Logt(TAG, "fetchMediaSize need unrestricted network or allow image on mobile for fetchMediaSize")
+                    Logt(TAG, localizedString(R.string.message_fetchmediasize_need_unrestricted_network_or_allow_image_on_mobile))
                     return@withContext -1
                 }
                 force || !isSizeSetUnknown() -> {
@@ -489,7 +491,7 @@ class Episode : RealmObject {
         val text = try {
             getKtorClient().get(trans.url!!) { expectSuccess = true }.bodyAsText()
         } catch (e: Exception) {
-            Loge(TAG, e, "Failed to fetch transcript: ${trans.url}")
+            Loge(TAG, e, localizedString(R.string.message_failed_to_fetch_transcript, (trans.url).toString()))
             null
         } ?: return
 

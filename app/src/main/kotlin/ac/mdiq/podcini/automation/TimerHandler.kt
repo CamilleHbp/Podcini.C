@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.automation
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.receiver.TimerReceiver
 import ac.mdiq.podcini.storage.database.appAttribsFlow
@@ -114,7 +116,7 @@ fun requestExactAlarmPermission() {
         }
 
         if (context is ComponentActivity) context.startActivity(intent)
-        else Loge(TAG, "Cannot request permission without an Activity context.")
+        else Loge(TAG, localizedString(R.string.message_cannot_request_permission_without_an_activity_context))
     }
 }
 

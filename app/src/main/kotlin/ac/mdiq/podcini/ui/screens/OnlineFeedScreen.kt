@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import androidx.compose.material3.IconButton
 import ac.mdiq.podcini.ui.compose.ArchiveEmpty
@@ -204,7 +205,7 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
         }
         gatewayClient = clientBySearcher(source)
 
-        if (feedUrl.isEmpty()) Loge(TAG, "feedUrl is null.")
+        if (feedUrl.isEmpty()) Loge(TAG, localizedString(R.string.message_feedurl_is_null))
         else {
             Logd(TAG) { "Activity was started with url $feedUrl" }
             showProgress = true
@@ -544,7 +545,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                 }
                                 fipc.episodes = eList
                                 vm.handleFeed(fipc.toFeed())
-                            } else Loge(TAG, "Subscribe feed failed")
+                            } else Loge(TAG, localizedString(R.string.message_subscribe_feed_failed))
                         }
                     }
                     onDismiss()
@@ -558,7 +559,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
     LaunchedEffect(vm.errorMessage) {
         if (vm.errorMessage.isNotBlank()) {
             vm.showProgress = false
-            Loge(TAG, "${vm.errorMessage}\n${vm.errorDetails}")
+            Loge(TAG, localizedString(R.string.message_n, (vm.errorMessage).toString(), (vm.errorDetails).toString()))
         }
     }
 
@@ -569,7 +570,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
             Box {
                 TopAppBar(title = {  Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = stringResource(R.string.archive_discover), modifier = Modifier.weight(1f))
-                    if (vm.showEpisodes && vm.episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = "butSort", modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
+                    if (vm.showEpisodes && vm.episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = stringResource(R.string.archive_sort), modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
                 } },
                     navigationIcon = {
                         IconButton(onClick = { if (vm.showEpisodes) vm.showEpisodes = false else navBack() }) {
@@ -641,7 +642,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                     //                    TODO: add alternate_urls_spinner
                     if (vm.feedId == 0L) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.limit_episodes_to), modifier = Modifier.weight(0.5f))
-                        NumberEditor(vm.limitEpisodesCount, label = "0 = unlimited", nz = false, instant = false, modifier = Modifier.weight(0.5f)) {
+                        NumberEditor(vm.limitEpisodesCount, label = stringResource(R.string.ui_no_limit), nz = false, instant = false, modifier = Modifier.weight(0.5f)) {
                             Logd(TAG) { "limitEpisodesCount: $it" }
                             vm.limitEpisodesCount = it
                         }
@@ -664,14 +665,14 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                     Icon(imageVector = ImageVector.vectorResource(ratingRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = null)
                                 }
                                 if (!sLog.description.isNullOrBlank()) Text(sLog.description ?: "", color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 15.dp, bottom = 5.dp))
-                                Text(sLog.url ?: "no url", color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 15.dp, bottom = 5.dp))
+                                Text(sLog.url ?: stringResource(R.string.ui_unavailable), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 15.dp, bottom = 5.dp))
                                 val cancelDate = remember(sLog.id) { formatAbbrev(sLog.cancelDate) }
                                 Text(stringResource(R.string.removed_on) + ": " + cancelDate, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 15.dp, bottom = 10.dp))
                             }
                         }
                         if (!vm.feed?.medium.isNullOrBlank()) Text(stringResource(R.string.medium) + ": " + vm.feed!!.medium!!, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                         if (vm.feed?.aiContent == true) Text(stringResource(R.string.is_ai_content), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-                        Text("${vm.numEpisodes} episodes", color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 10.dp))
+                        Text(stringResource(R.string.archive_episode_count, vm.numEpisodes), color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 10.dp))
                         Text(stringResource(R.string.description_label), color = textColor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
                         Text(HtmlToPlainText.getPlainText(vm.feed?.description ?: ""), color = textColor, style = MaterialTheme.typography.bodyMedium)
                         if (!vm.feed?.episodes.isNullOrEmpty()) {
@@ -684,7 +685,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                         })
                         LazyRow(state = rememberLazyListState(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             items(vm.relatedResults) { result ->
-                                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", modifier = Modifier.width(100.dp).height(100.dp).clickable {
+                                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.width(100.dp).height(100.dp).clickable {
                                     navTo(OnlineFeed(url = result.feedUrl ?: "", source = result.source))
                                 })
                             }

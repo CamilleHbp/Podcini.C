@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.activity
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.BuildConfig
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.AppConfig.initialize
@@ -26,7 +27,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.Window
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -68,7 +69,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
-class BugReportActivity : ComponentActivity() {
+class BugReportActivity : AppCompatActivity() {
     private var crashDetailsTextView by mutableStateOf("")
     private var showConfirmExport = mutableStateOf(false)
     private val systemInfo: String
@@ -134,7 +135,7 @@ class BugReportActivity : ComponentActivity() {
         Box {
             TopAppBar(title = { Text(stringResource(R.string.bug_report_title)) }, navigationIcon = { Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "", modifier = Modifier.padding(7.dp).clickable { finish() })  },
                 actions = {
-                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                    IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                     DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.export_logs_menu_title)) }, onClick = {
                             showConfirmExport.value = true
@@ -156,7 +157,7 @@ class BugReportActivity : ComponentActivity() {
                 val authority = getString(R.string.provider_authority)
                 val fileUri = FileProvider.getUriForFile(this@BugReportActivity, authority, java.io.File(logfile.absPath))
                 if (fileUri != null) shareFile(fileUri, "text/*", R.string.share_file_label)
-                else Loge(TAG, "Share file failed: fileUri is null")
+                else Loge(TAG, localizedString(R.string.message_share_file_failed_fileuri_is_null))
             } catch (e: Throwable) { Logs(TAG, e, "Can't export logcat") }
         }
     }

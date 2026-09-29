@@ -1,5 +1,5 @@
 files:
-  - source: /app/src/main/res/values/strings.xml
+  - source: /app/src/main/res/values/*.xml
     translation: /app/src/main/res/values-%two_letters_code%/%original_file_name%
     languages_mapping:
       two_letters_code:

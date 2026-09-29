@@ -250,15 +250,15 @@ fun StatisticsScreen() {
         var expanded by remember { mutableStateOf(false) }
         val buttonAltColor = lerp(MaterialTheme.colorScheme.tertiary, Color.Green, 0.5f)
         Box {
-            TopAppBar(title = { Text("") }, navigationIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_chart_box), contentDescription = "Open Drawer", modifier = Modifier.padding(7.dp).clickable { drawerController?.open() }) },
+            TopAppBar(title = { Text("") }, navigationIcon = { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_chart_box), contentDescription = stringResource(R.string.ui_open_drawer), modifier = Modifier.padding(7.dp).clickable { drawerController?.open() }) },
                 actions = {
                 if (vm.selectedTabIndex.intValue <= 2 && (hasHistory || hasDateFilter)) {
                     IconButton(onClick = { vm.showFilter = true }) {
                         val filterColor = if (vm.timeFilterFrom > 0L || vm.timeFilterTo < Long.MAX_VALUE) buttonAltColor else buttonColor
-                        Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = filterColor, contentDescription = "filter")
+                        Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_filter), tint = filterColor, contentDescription = stringResource(R.string.filter))
                     }
                 }
-                if (vm.selectedTabIndex.intValue <= 1 && hasHistory) IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                if (vm.selectedTabIndex.intValue <= 1 && hasHistory) IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                     if (vm.selectedTabIndex.intValue == 0 || vm.selectedTabIndex.intValue == 1) DropdownMenuItem(text = { Text(stringResource(R.string.statistics_reset_data)) }, onClick = {
                         vm.showResetDialog.value = true
@@ -298,7 +298,7 @@ fun StatisticsScreen() {
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             itemsIndexed(statisticsData.feedStats, key = { _, item -> item.feed.id }) { index, feedStats ->
                 Row(Modifier.background(MaterialTheme.colorScheme.surface).fillMaxWidth()) {
-                    AsyncImage(model = ImageRequest.Builder(context).data(feedStats.feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, contentDescription = "imgvCover", placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentScale = ContentScale.FillBounds,
+                    AsyncImage(model = ImageRequest.Builder(context).data(feedStats.feed.images.firstOrNull()?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, contentDescription = stringResource(R.string.ui_cover), placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentScale = ContentScale.FillBounds,
                         modifier = Modifier.width(40.dp).height(90.dp).padding(end = 5.dp).clickable { navTo(FeedDetails(feedId=feedStats.feed.id, modeName=FeedScreenMode.Info.name)) })
                     Column(modifier = Modifier.clickable {
                         feedId = feedStats.feed.id
@@ -306,7 +306,7 @@ fun StatisticsScreen() {
                         showFeedStats = true
                     }) {
                         val chipColor = lineChartData.getComposeColorOfItem(index)
-                        Text("⬤" + (feedStats.feed.title?:"No title"), maxLines = 1, color = chipColor, style = MaterialTheme.typography.bodyMedium)
+                        Text("⬤" + (feedStats.feed.title ?: stringResource(R.string.archive_no_title)), maxLines = 1, color = chipColor, style = MaterialTheme.typography.bodyMedium)
                         infoCB(feedStats)
                     }
                 }

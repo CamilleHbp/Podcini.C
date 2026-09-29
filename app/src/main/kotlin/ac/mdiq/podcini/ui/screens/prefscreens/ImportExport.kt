@@ -1,5 +1,8 @@
 package ac.mdiq.podcini.ui.screens.prefscreens
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.forceRestart
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
@@ -32,16 +35,11 @@ import ac.mdiq.podcini.storage.utils.autoBackupDirName
 import ac.mdiq.podcini.storage.utils.persistedTrees
 import ac.mdiq.podcini.storage.utils.tempRoottree
 import ac.mdiq.podcini.storage.utils.toAndroidUri
-import ac.mdiq.podcini.storage.utils.toSafeUri
 import ac.mdiq.podcini.storage.utils.toUF
 import ac.mdiq.podcini.ui.compose.ConfirmDialog
 import ac.mdiq.podcini.ui.compose.CommonConfirmAttrib
 import ac.mdiq.podcini.ui.compose.CommonPopupCard
-import ac.mdiq.podcini.ui.compose.CustomTextStyles
-import ac.mdiq.podcini.ui.compose.NumberEditor
 import ac.mdiq.podcini.ui.compose.OpmlImportSelectionDialog
-import ac.mdiq.podcini.ui.compose.TitleSummaryActionColumn
-import ac.mdiq.podcini.ui.compose.TitleSummarySwitchRow
 import ac.mdiq.podcini.ui.compose.commonConfirms
 import ac.mdiq.podcini.ui.compose.textColor
 import ac.mdiq.podcini.utils.Logd
@@ -58,43 +56,25 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
@@ -160,7 +140,7 @@ fun ImportExportScreen() {
             cancelRes = R.string.no,
             onConfirm = {
                 if (uri != null) context.shareFile(uri, mimeType?:"", R.string.share_file_label)
-                else Loge(TAG, "Share file failed: uri is null")
+                else Loge(TAG, localizedString(R.string.message_share_file_failed_uri_is_null))
             }))
     }
     val showImporSuccessDialog = remember { mutableStateOf(false) }
@@ -171,7 +151,7 @@ fun ImportExportScreen() {
     ConfirmDialog(titleRes = R.string.import_export_error_label, message = importErrorMessage, showDialog = showImporErrortDialog) {}
 
     fun exportWithWriter(exportWriter: ExportWriter, uri: Uri?, exportType: ExportTypes) {
-        processingText = "Exporting ..."
+        processingText = context.getString(R.string.settings_exporting)
         if (uri == null) {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -180,7 +160,7 @@ fun ImportExportScreen() {
                 } catch (e: Exception) {
                     processingText = ""
                     Logs(TAG, e, "export error")
-                    importErrorMessage = e.message?:"Reason unknown"
+                    importErrorMessage = e.message ?: context.getString(R.string.settings_transfer_error)
                     showImporErrortDialog.value = true
                 } finally { processingText = "" }
             }
@@ -193,7 +173,7 @@ fun ImportExportScreen() {
                 } catch (e: Exception) {
                     processingText = ""
                     Logs(TAG, e, "export error")
-                    importErrorMessage = e.message?:"Reason unknown"
+                    importErrorMessage = e.message ?: context.getString(R.string.settings_transfer_error)
                     showImporErrortDialog.value = true
                 } finally { processingText = "" }
             }
@@ -225,7 +205,7 @@ fun ImportExportScreen() {
         val uri = result.data!!.data
         uri?.let {
             if (isJsonFile(uri)) {
-                processingText = "Restoring..."
+                processingText = context.getString(R.string.restore_backup_progress)
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
                         EpisodeProgressReader().readDocument(uri.toUF().source().buffer())
@@ -236,14 +216,14 @@ fun ImportExportScreen() {
                     } catch (e: Throwable) {
                         processingText = ""
                         Logs(TAG, e, "export error")
-                        importErrorMessage = e.message?:"Reason unknown"
+                        importErrorMessage = e.message ?: context.getString(R.string.settings_transfer_error)
                         showImporErrortDialog.value = true
                     }
                 }
             } else {
                 val message = context.getString(R.string.import_file_type_toast) + ".json"
                 processingText = ""
-                Loge(TAG, "export error: $message")
+                Loge(TAG, localizedString(R.string.message_export_error, (message).toString()))
                 importErrorMessage = message
                 showImporErrortDialog.value = true
             }
@@ -264,24 +244,21 @@ fun ImportExportScreen() {
     val comboDic = remember { mutableStateMapOf<String, Boolean>() }
     var showComboImportDialog by remember { mutableStateOf(false) }
     if (showComboImportDialog) {
-        AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { showComboImportDialog = false },
-            title = { Text(stringResource(R.string.pref_select_properties), style = CustomTextStyles.titleCustom) },
+        AlertDialog(onDismissRequest = { showComboImportDialog = false },
+            title = { Text(stringResource(R.string.combo_import_label)) },
             text = {
                 Column {
                     comboDic.keys.forEach { option ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Checkbox(checked = comboDic[option] == true, onCheckedChange = { comboDic[option] = it })
-                            Text(backupOptionLabel(option), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
-                        }
+                        SettingsCheckbox(backupOptionLabel(option), comboDic[option] == true) { comboDic[option] = it }
                     }
-                    Text(stringResource(R.string.restore_backup_restart), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.restore_backup_restart), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val uri = tempRoottree
                     if (uri == null) {
-                        Loge(TAG, "Import uri is null")
+                        Loge(TAG, localizedString(R.string.message_import_uri_is_null))
                         return@TextButton
                     }
                     val selection = comboDic.toMap()
@@ -320,15 +297,12 @@ fun ImportExportScreen() {
     }
     var showComboExportDialog by remember { mutableStateOf(false) }
     if (showComboExportDialog) {
-        AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { showComboExportDialog = false },
-            title = { Text(stringResource(R.string.pref_select_properties), style = CustomTextStyles.titleCustom) },
+        AlertDialog(onDismissRequest = { showComboExportDialog = false },
+            title = { Text(stringResource(R.string.combo_export_label)) },
             text = {
                 Column {
                     comboDic.keys.forEach { option ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            Checkbox(checked = comboDic[option] == true, onCheckedChange = { comboDic[option] = it })
-                            Text(backupOptionLabel(option), modifier = Modifier.padding(start = 16.dp), style = MaterialTheme.typography.bodyMedium)
-                        }
+                        SettingsCheckbox(backupOptionLabel(option), comboDic[option] == true) { comboDic[option] = it }
                     }
                 }
             },
@@ -336,10 +310,10 @@ fun ImportExportScreen() {
                 TextButton(onClick = {
                     val uri = tempRoottree
                     if (uri == null) {
-                        Loge(TAG, "Export uri is null")
+                        Loge(TAG, localizedString(R.string.message_export_uri_is_null))
                         return@TextButton
                     }
-                    processingText = "Exporting..."
+                    processingText = context.getString(R.string.settings_exporting)
                     CoroutineScope(Dispatchers.IO).launch {
                         val chosenDir = uri.toUF()
                         val exportSubDir = chosenDir.createDirectory(dateStampFilename("$backupDirName-%s"))
@@ -352,7 +326,7 @@ fun ImportExportScreen() {
                         withContext(Dispatchers.Main) { processingText = "" }
                     }
                     showComboExportDialog = false
-                }) { Text(text = "OK") }
+                }, enabled = comboDic.values.any { it }) { Text(stringResource(R.string.combo_export_label)) }
             },
             dismissButton = { TextButton(onClick = { showComboExportDialog = false }) { Text(stringResource(R.string.cancel_label)) } }
         )
@@ -389,7 +363,7 @@ fun ImportExportScreen() {
         } else {
             val message = context.getString(R.string.import_directory_toast) + backupDirName + " or " + autoBackupDirName
             processingText = ""
-            Loge(TAG, "export error: $message")
+            Loge(TAG, localizedString(R.string.message_export_error, (message).toString()))
             importErrorMessage = message
             showImporErrortDialog.value = true
         }
@@ -410,7 +384,7 @@ fun ImportExportScreen() {
 
     val chooseAPImportPathLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            processingText = "Importing AP..."
+            processingText = context.getString(R.string.settings_importing_ap)
             importAP(uri) {
                 showImporSuccessDialog.value = true
                 processingText = ""
@@ -421,9 +395,9 @@ fun ImportExportScreen() {
     var importPADirectory by remember { mutableStateOf(false) }
     val choosePAImportPathLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
-            processingText = "Importing PA..."
+            processingText = context.getString(R.string.settings_importing_pa)
             CoroutineScope(Dispatchers.IO).launch {
-                if (importPADB) importPA(uri, true, importPADirectory) {}
+                importPA(uri, importPADB, importPADirectory) {}
                 showImporSuccessDialog.value = true
                 processingText = ""
             }
@@ -456,9 +430,9 @@ fun ImportExportScreen() {
 
     if (processingText.isNotBlank()) {
         CommonPopupCard(onDismiss = { processingText = "" }) {
-            Column {
-                CircularProgressIndicator(strokeWidth = 10.dp, color = textColor, modifier = Modifier.size(50.dp))
-                Text(processingText, color = textColor, modifier = Modifier)
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator()
+                Text(processingText, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
             }
         }
     }
@@ -480,57 +454,9 @@ fun ImportExportScreen() {
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp).verticalScroll(rememberScrollState()).background(MaterialTheme.colorScheme.surface)) {
-        Text(stringResource(R.string.archive_backup_section), style = MaterialTheme.typography.titleLarge)
-        TitleSummarySwitchRow(R.string.pref_backup_on_google_title, R.string.pref_backup_on_google_sum, appPrefs.OPMLBackup) {
-            upsertBlk(appPrefs) { p -> p.OPMLBackup = it}
-        }
-        TitleSummarySwitchRow(R.string.pref_auto_backup_title, R.string.pref_auto_backup_sum, appPrefs.autoBackup) {
-            upsertBlk(appPrefs) { p -> p.autoBackup = it}
-            appPrefs.autoBackupFolder?.toSafeUri()?.let { uri->
-                try { getAppContext().contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) } catch (e: Exception) { Logd(TAG) { "uri can not be released: $uri" }}
-            }
-        }
-        if (appPrefs.autoBackup) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
-                Text(stringResource(R.string.pref_auto_backup_interval), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                NumberEditor(appPrefs.autoBackupIntervall, label = "hours", nz = false, modifier = Modifier.weight(0.5f)) {
-                    upsertBlk(appPrefs) { p-> p.autoBackupIntervall = it }
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp)) {
-                Text(stringResource(R.string.pref_auto_backup_limit), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                var count by remember { mutableStateOf(appPrefs.autoBackupLimit.toString()) }
-                var showIcon by remember { mutableStateOf(false) }
-                TextField(value = count, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true, modifier = Modifier.weight(0.4f),  label = { Text("1:9", style = MaterialTheme.typography.bodySmall) },
-                    onValueChange = {
-                        val intVal = it.toIntOrNull()
-                        if (it.isEmpty() || (intVal != null && intVal>0 && intVal<10)) {
-                            count = it
-                            showIcon = true
-                        }
-                    },
-                    trailingIcon = {
-                        if (showIcon) Icon(imageVector = Icons.Filled.Settings, contentDescription = "Settings icon",
-                            modifier = Modifier.size(30.dp).clickable {
-                                if (count.isEmpty()) count = "0"
-                                upsertBlk(appPrefs) { p-> p.autoBackupLimit = count.toIntOrNull()?:0 }
-                                showIcon = false
-                            })
-                    })
-            }
-            Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 10.dp).clickable {
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-                selectAutoBackupDirLauncher.launch(intent)
-            }) {
-                Text(stringResource(R.string.pref_auto_backup_folder), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-                Text(appPrefs.autoBackupFolder ?: stringResource(R.string.pref_auto_backup_folder_sum), color = textColor, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
-        TitleSummaryActionColumn(R.string.combo_export_label, R.string.combo_export_summary) {
+    SettingsPage {
+        SettingsSection(R.string.settings_backup_restore)
+        SettingsAction(R.string.combo_export_label, R.string.combo_export_summary) {
             val uri = "content://com.android.externalstorage.documents/tree/primary:".toUri()
             try {
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
@@ -538,7 +464,7 @@ fun ImportExportScreen() {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                 }
                 backupComboLauncher.launch(intent)
-            } catch (e: Exception) { Loge(TAG, e, "Export failed")}
+            } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_export_failed))}
         }
         val showComboImportDialog = remember { mutableStateOf(false) }
         ConfirmDialog(titleRes = R.string.combo_import_label, message = stringResource(R.string.combo_import_warning), showDialog = showComboImportDialog, confirmRes = R.string.combo_import_label) {
@@ -547,53 +473,69 @@ fun ImportExportScreen() {
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 intent.addCategory(Intent.CATEGORY_DEFAULT)
                 restoreComboLauncher.launch(intent)
-            } catch (e: Exception) { Loge(TAG, e, "Import failed")}
+            } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_import_failed))}
         }
-        TitleSummaryActionColumn(R.string.combo_import_label, R.string.combo_import_summary) { showComboImportDialog.value = true }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
+        SettingsAction(R.string.combo_import_label, R.string.combo_import_summary) { showComboImportDialog.value = true }
+        SettingsSection(R.string.settings_automatic_backups)
+        SettingsSwitch(R.string.pref_backup_on_google_title, R.string.pref_backup_on_google_sum, appPrefs.OPMLBackup) {
+            upsertBlk(appPrefs) { p -> p.OPMLBackup = it}
+        }
+        SettingsSwitch(R.string.pref_auto_backup_title, R.string.pref_auto_backup_sum, appPrefs.autoBackup) {
+            upsertBlk(appPrefs) { p -> p.autoBackup = it}
+
+        }
+        if (appPrefs.autoBackup) {
+            SettingsNumber(R.string.pref_auto_backup_interval, 0, appPrefs.autoBackupIntervall,
+                stringResource(R.string.ui_hours), min = 1) { value ->
+                upsertBlk(appPrefs) { it.autoBackupIntervall = value }
+            }
+            SettingsNumber(R.string.pref_auto_backup_limit, 0, appPrefs.autoBackupLimit,
+                stringResource(R.string.settings_backups_unit), min = 1, max = 9) { value ->
+                upsertBlk(appPrefs) { it.autoBackupLimit = value }
+            }
+            SettingsAction(stringResource(R.string.pref_auto_backup_folder),
+                appPrefs.autoBackupFolder ?: stringResource(R.string.pref_auto_backup_folder_sum)) {
+                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                selectAutoBackupDirLauncher.launch(intent)
+            }
+        }
+        SettingsSection(R.string.settings_import_other_apps)
         val showAPImportDialog = remember { mutableStateOf(false) }
         ConfirmDialog(titleRes = R.string.import_AP_label, message = stringResource(R.string.import_SQLite_message), showDialog = showAPImportDialog) {
             try { chooseAPImportPathLauncher.launch("*/*") } catch (e: ActivityNotFoundException) { Logs(TAG, e, "No activity found. Should never happen...") }
         }
-        TitleSummaryActionColumn(R.string.import_AP_label, 0) { showAPImportDialog.value = true }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
+        SettingsAction(R.string.import_AP_label, R.string.settings_import_ap_summary) { showAPImportDialog.value = true }
         val showPAImportDialog = remember { mutableStateOf(false) }
         if (showPAImportDialog.value) {
-            AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = { showPAImportDialog.value = false },
+            AlertDialog(onDismissRequest = { showPAImportDialog.value = false },
                 title = { Text(stringResource(R.string.import_PA_label)) },
                 text = {
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = importPADB, onCheckedChange = { importPADB = it })
-                            Text(text = stringResource(R.string.import_PA_DB_label), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 10.dp))
-                        }
-                        Text(stringResource(R.string.import_PA_DB_message), color = textColor, style = MaterialTheme.typography.bodySmall)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = importPADirectory, onCheckedChange = { importPADirectory = it })
-                            Text(text = stringResource(R.string.import_PA_directory_label), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 10.dp))
-                        }
-                        Text(stringResource(R.string.import_PA_directory_message), color = textColor, style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(R.string.import_PA_message), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp))
+                        SettingsCheckbox(stringResource(R.string.import_PA_DB_label), importPADB) { importPADB = it }
+                        Text(stringResource(R.string.import_PA_DB_message), color = textColor, style = MaterialTheme.typography.bodyMedium)
+                        SettingsCheckbox(stringResource(R.string.import_PA_directory_label), importPADirectory) { importPADirectory = it }
+                        Text(stringResource(R.string.import_PA_directory_message), color = textColor, style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.import_PA_message), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp))
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         try { choosePAImportPathLauncher.launch("*/*") } catch (e: ActivityNotFoundException) { Logs(TAG, e, "No activity found. Should never happen...") }
                         showPAImportDialog.value = false
-                    }) { Text(stringResource(R.string.confirm_label)) }
+                    }, enabled = importPADB || importPADirectory) { Text(stringResource(R.string.settings_choose_file)) }
                 },
                 dismissButton = { TextButton(onClick = { showPAImportDialog.value = false }) { Text(stringResource(R.string.cancel_label)) } }
             )
         }
-        TitleSummaryActionColumn(R.string.import_PA_label, 0) { showPAImportDialog.value = true }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
-        Text(stringResource(R.string.archive_subscriptions_section), style = MaterialTheme.typography.titleLarge)
-        TitleSummaryActionColumn(R.string.opml_export_label, R.string.opml_export_summary) { openExportPathPicker(ExportTypes.OPML, chooseOpmlExportPathLauncher, OpmlWriter()) }
+        SettingsAction(R.string.import_PA_label, R.string.settings_import_pa_summary) { showPAImportDialog.value = true }
+        SettingsSection(R.string.archive_subscriptions_section)
+        SettingsAction(R.string.opml_export_label, R.string.opml_export_summary) { openExportPathPicker(ExportTypes.OPML, chooseOpmlExportPathLauncher, OpmlWriter()) }
         if (showOpmlImportSelectionDialog) OpmlImportSelectionDialog(readElements) { showOpmlImportSelectionDialog = false }
-        TitleSummaryActionColumn(R.string.opml_import_label, R.string.opml_import_summary) {
+        SettingsAction(R.string.opml_import_label, R.string.opml_import_summary) {
             try { chooseOpmlImportPathLauncher.launch("*/*") } catch (e: ActivityNotFoundException) { Logs(TAG, e, "No activity found. Should never happen...") } }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
-        TitleSummaryActionColumn(R.string.progress_export_label, R.string.progress_export_summary) { openExportPathPicker(ExportTypes.PROGRESS, chooseProgressExportPathLauncher, EpisodesProgressWriter()) }
+        SettingsSection(R.string.settings_listening_progress)
+        SettingsAction(R.string.progress_export_label, R.string.progress_export_summary) { openExportPathPicker(ExportTypes.PROGRESS, chooseProgressExportPathLauncher, EpisodesProgressWriter()) }
         val showProgressImportDialog = remember { mutableStateOf(false) }
         ConfirmDialog(titleRes = R.string.progress_import_label, message = stringResource(R.string.progress_import_warning), showDialog = showProgressImportDialog) {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
@@ -602,10 +544,10 @@ fun ImportExportScreen() {
             intent.addCategory(Intent.CATEGORY_OPENABLE)
             restoreProgressLauncher.launch(intent)
         }
-        TitleSummaryActionColumn(R.string.progress_import_label, R.string.progress_import_summary) { showProgressImportDialog.value = true }
-        HorizontalDivider(modifier = Modifier.fillMaxWidth().padding(top = 5.dp))
-        TitleSummaryActionColumn(R.string.html_export_label, R.string.html_export_summary) { openExportPathPicker(ExportTypes.HTML, chooseHtmlExportPathLauncher, HtmlWriter()) }
-        TitleSummaryActionColumn(R.string.favorites_export_label, R.string.favorites_export_summary) { openExportPathPicker(ExportTypes.FAVORITES, chooseFavoritesExportPathLauncher, FavoritesWriter()) }
+        SettingsAction(R.string.progress_import_label, R.string.progress_import_summary) { showProgressImportDialog.value = true }
+        SettingsSection(R.string.settings_readable_exports)
+        SettingsAction(R.string.html_export_label, R.string.html_export_summary) { openExportPathPicker(ExportTypes.HTML, chooseHtmlExportPathLauncher, HtmlWriter()) }
+        SettingsAction(R.string.favorites_export_label, R.string.favorites_export_summary) { openExportPathPicker(ExportTypes.FAVORITES, chooseFavoritesExportPathLauncher, FavoritesWriter()) }
     }
 }
 

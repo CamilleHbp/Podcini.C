@@ -172,7 +172,7 @@ class MainActivity : BaseActivity() {
                 MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         Column(verticalArrangement = Arrangement.Center) {
-                            AsyncImage(model = R.drawable.teaser, contentDescription = "Teaser", modifier = Modifier.fillMaxWidth())
+                            AsyncImage(model = R.drawable.teaser, contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.fillMaxWidth())
                             Text(text = stringResource(R.string.init_text), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
                             Text(text = "$step: $prog" , style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
                         }
@@ -193,6 +193,7 @@ class MainActivity : BaseActivity() {
                 initialize()
 
                 withContext(Dispatchers.Main) {
+                    ac.mdiq.podcini.config.createNotificationChannels(this@MainActivity)
                     handleNavIntent()
                     intentState = intent
 
@@ -239,7 +240,7 @@ class MainActivity : BaseActivity() {
     @Composable
     fun UnrestrictedBackgroundPermissionDialog(onDismiss: () -> Unit) {
         var dontAskAgain by remember { mutableStateOf(false) }
-        AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = onDismiss, title = { Text("Permission Required") },
+        AlertDialog(modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary, MaterialTheme.shapes.extraLarge), onDismissRequest = onDismiss, title = { Text(stringResource(R.string.ui_permission_required)) },
             text = {
                 Column {
                     Text(stringResource(R.string.unrestricted_background_permission_text))
@@ -255,7 +256,7 @@ class MainActivity : BaseActivity() {
                     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply { data = "package:$packageName".toUri() }
                     this@MainActivity.startActivity(intent)
                     onDismiss()
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.OK)) }
             },
             dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_label)) } }
         )

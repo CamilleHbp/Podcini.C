@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.actQueueFlow
 import ac.mdiq.podcini.storage.database.*
@@ -143,9 +144,9 @@ fun ListenScreen() {
                     if (tab == 1) {
                         var pickQueue by remember { mutableStateOf(false) }
                         Box(Modifier.weight(1f)) {
-                            TextButton(onClick = { pickQueue = true }) { Text(activeQueue.name, style = MaterialTheme.typography.titleMedium) }
+                            TextButton(onClick = { pickQueue = true }) { Text(activeQueue.displayName, style = MaterialTheme.typography.titleMedium) }
                             DropdownMenu(expanded = pickQueue, onDismissRequest = { pickQueue = false }) {
-                                queues.forEach { queue -> DropdownMenuItem(text = { Text(queue.name) }, onClick = { actQueueFlow.value = queue; pickQueue = false }) }
+                                queues.forEach { queue -> DropdownMenuItem(text = { Text(queue.displayName) }, onClick = { actQueueFlow.value = queue; pickQueue = false }) }
                                 HorizontalDivider()
                                 DropdownMenuItem(text = { Text(stringResource(R.string.archive_manage_queues)) }, onClick = { pickQueue = false; navTo(Queues(activeQueue.id)) })
                             }

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.storage.model.displayName
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.ui.compose.ArchiveTopBar
 import ac.mdiq.podcini.ui.compose.ArchiveFilterChips
@@ -212,7 +214,7 @@ class FeedDetailsVM(feedId: Long = 0L, modeName: String = FeedScreenMode.List.na
                     try {
                         getEpisodesAsListFlow(feed.episodeFilter, feed.episodeSortOrder, feed.id)
                     } catch (e: Throwable) {
-                        Loge(TAG, e, "getEpisodesAsFlow error, retry")
+                        Loge(TAG, e, localizedString(R.string.message_getepisodesasflow_error_retry))
                         val feed_ = upsert(feed) {
                             it.episodeFilter = EpisodeFilter("")
                             it.episodeSortOrder = EpisodeSortOrder.DATE_DESC
@@ -299,7 +301,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                     }
                     updateFeedFull(feed_, removeUnlistedItems = true)
                 }
-                Logt(TAG, "Folder $uri connected " + context.getString(R.string.OK))
+                Logt(TAG, localizedString(R.string.message_folder_connected, (uri).toString()) + context.getString(R.string.OK))
             } catch (e: Throwable) { Loge(TAG, e.localizedMessage ?: "No message") }
         }
     }
@@ -405,8 +407,8 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                     if (episodes.size > 5) {
                         val index = episodes.indexOfFirst { it.id == theatres[i].mPlayerFlow.value?.curMediaFlow?.value?.id }
                         if (index >= 0) scope.launch { lazyListState.scrollToItem(index) }
-                        else Logt(TAG, "can not find curMediaFlow.value to scroll to")
-                    } else Logt(TAG, "only scroll when episodes number is larger than 5")
+                        else Logt(TAG, localizedString(R.string.message_can_not_find_curmediaflow_value_to_scroll_to))
+                    } else Logt(TAG, localizedString(R.string.message_only_scroll_when_episodes_number_is_larger_than_5))
                 } else vm.screenModeFlow.value = (FeedScreenMode.List)
             } else if (theatres[i].mPlayerFlow.value?.curMediaFlow?.value?.feedId != null) navTo(FeedDetails(feedId = theatres[i].mPlayerFlow.value?.curMediaFlow?.value!!.feedId!!))
         }
@@ -420,7 +422,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                 IconButton(onClick = { navTo(Search) }) { Icon(ImageVector.vectorResource(R.drawable.ic_search), stringResource(R.string.archive_search)) }
                     if (feed != null) {
                         Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                            IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                            IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                             DropdownMenu(expanded = expanded, shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                                 DropdownMenuItem(text = { Text(stringResource(R.string.settings_label)) }, onClick = {
                                     feedsToSet = listOf(feed!!)
@@ -434,7 +436,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                                 if (!feed?.link.isNullOrBlank()) DropdownMenuItem(text = { Text(stringResource(R.string.visit_website_label)) }, onClick = {
                                     val isCallable = if (!feed?.link.isNullOrEmpty()) isCallable(Intent(Intent.ACTION_VIEW, feed!!.link!!.toSafeUri())) else false
                                     if (isCallable) openInSystemDefault(feed!!.link!!)
-                                    else Loge(TAG, "feed link is not valid: ${feed?.link}")
+                                    else Loge(TAG, localizedString(R.string.message_feed_link_is_not_valid, (feed?.link).toString()))
                                     expanded = false
                                 })
                                 DropdownMenuItem(text = { Text(stringResource(R.string.transfer_to_device)) }, onClick = {
@@ -520,7 +522,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
         Column(modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp)) {
             SelectionContainer {
                 Column {
-                    Text(feed?.title ?: "No title", color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
+                    Text(feed?.title ?: stringResource(R.string.archive_no_title), color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
                     Text(stringResource(R.string.by) + ": " + (feed?.author?.ifBlank { "Anonymous" } ?: "Anonymous"), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                     if (!feed?.medium.isNullOrBlank()) Text(stringResource(R.string.medium) + ": " + feed!!.medium!!, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                     if (feed?.aiContent == true) Text(stringResource(R.string.is_ai_content), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
@@ -552,9 +554,9 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
             val curVolumeName = remember(feed?.volumeId) { if (feed?.volumeId == -1L) "None" else allVolumes.find { it.id == feed?.volumeId }?.name ?: "None" }
             Text(stringResource(R.string.archive_parent_folder_value, curVolumeName), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
-            Text(stringResource(R.string.archive_default_queue_value, feed?.queue?.name ?: stringResource(R.string.archive_no_queue)), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
+            Text(stringResource(R.string.archive_default_queue_value, feed?.queue?.displayName ?: stringResource(R.string.archive_no_queue)), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
-            Text("Tags: ${feed?.tagsAsString?:""}", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
+            Text(stringResource(R.string.filter_tag_summary, feed?.tagsAsString.orEmpty()), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
             Text(stringResource(R.string.comments) + if (feed?.comment.isNullOrBlank()) " (Add)" else "", color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom,
                 modifier = Modifier.padding(top = 10.dp, bottom = 5.dp).clickable {
                     editCommentText = TextFieldValue((if (feed?.comment.isNullOrBlank()) "" else feed!!.comment + "\n") + fullDateTimeString(localTime) + ":\n")
@@ -593,7 +595,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                         }
                     }
                 }
-                AsyncImage(model = feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, contentDescription = "imgvCover", contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
+                AsyncImage(model = feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, contentDescription = stringResource(R.string.ui_cover), contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
                 Text(text = feed?.downloadUrl ?: "", color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 15.dp).combinedClickable(
                     onClick = { if (!feed?.downloadUrl.isNullOrBlank()) openInSystemDefault(feed!!.downloadUrl!!) },
                     onLongClick = {
@@ -610,7 +612,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                         val url = fund.url.takeIf { !it.isNullOrBlank() } ?: continue
                         Text("${fund.content?:""} $url", color = textColor, modifier = Modifier.clickable {
                             val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-                            try { context.startActivity(intent) } catch (e: ActivityNotFoundException) { Loge(TAG, e,"No app found to handle this link") }
+                            try { context.startActivity(intent) } catch (e: ActivityNotFoundException) { Loge(TAG, e,localizedString(R.string.message_no_app_found_to_handle_this_link)) }
                         })
                     }
                 }
@@ -673,7 +675,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                         swipeActions = swipeActions, lazyListState = lazyListState, scrollToOnStart = scrollToOnStart,
                         refreshCB = {
                             when {
-                                feed == null -> Logt(TAG, "feed is null, can not refresh")
+                                feed == null -> Logt(TAG, localizedString(R.string.message_feed_is_null_can_not_refresh))
                                 feed!!.isSynthetic() -> {
                                     val eps = realm.query(Episode::class).query("feedId == ${feed!!.id}").find()
                                     val count = eps.size
@@ -682,10 +684,10 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                                         it.episodesCount = count
                                         it.totleDuration = dur.toLong()
                                     }
-                                    Logt(TAG, "episode count updated for synthetic feed: $count")
+                                    Logt(TAG, localizedString(R.string.message_episode_count_updated_for_synthetic_feed, (count).toString()))
                                 }
                                 feed!!.inNormalVolume -> runOnceOrAsk(feeds = listOf(feed!!))
-                                else -> Logt(TAG, "feed is archived, can not refresh")
+                                else -> Logt(TAG, localizedString(R.string.message_feed_is_archived_can_not_refresh))
                             }
                         },
                         selectModeCB = { vm.showHeader = !it },

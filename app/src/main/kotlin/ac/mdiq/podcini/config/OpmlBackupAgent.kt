@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.config
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.config.settings.OpmlTransporter
 import ac.mdiq.podcini.sourcing.feed.FeedUpdateManager
 import ac.mdiq.podcini.storage.database.appPrefsFlow
@@ -81,7 +83,7 @@ class OpmlBackupAgent : BackupAgentHelper() {
                     }
                     data.writeEntityHeader(OPML_ENTITY_KEY, bytes.size)
                     data.writeEntityData(bytes, bytes.size)
-                    Logt(TAG, "OPML file backed up")
+                    Logt(TAG, localizedString(R.string.message_opml_file_backed_up))
                 } catch (e: Exception) {
                     Logs(TAG, e, "Error during backup.")
                 }
@@ -174,9 +176,9 @@ class OpmlBackupAgent : BackupAgentHelper() {
                         feed.episodes.clear()
                         updateFeedFull(feed, false)
                     }
-                    Logt(TAG, "${opmlElements.size} feeds were restored")
+                    Logt(TAG, localizedString(R.string.message_feeds_were_restored, (opmlElements.size).toString()))
                     FeedUpdateManager.runOnce()
-                } else Loge(TAG, "No backup data found in ${tempFile.absPath}")
+                } else Loge(TAG, localizedString(R.string.message_no_backup_data_found_in, (tempFile.absPath).toString()))
             }
         }
     }

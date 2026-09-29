@@ -2,6 +2,8 @@
 
 package ac.mdiq.podcini.utils
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.BuildConfig
 import ac.mdiq.podcini.PodciniApp.Companion.appMainScope
 import ac.mdiq.podcini.shared.nowInMillis
@@ -40,7 +42,7 @@ fun Loge(t: String, m: String) {
     if (BuildConfig.DEBUG || appPrefsFlow!!.value.showLogLevel <= LogLevel.Debug.code) Log.e(t, m)
     appMainScope.launch {
         trimSessionLogs()
-        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = "Error: $m")) }
+        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = localizedString(R.string.ui_error_message, m))) }
         sessionLogsFlow.update { it + "${fullDateTimeString()} $t: Error: $m" }
     }
 }
@@ -50,7 +52,7 @@ fun Loge(t: String, e: Throwable, m: String) {
     val me = e.message
     appMainScope.launch {
         trimSessionLogs()
-        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = "Error: $m: $me")) }
+        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = localizedString(R.string.ui_error_message, "$m: $me"))) }
         sessionLogsFlow.update { it + "${fullDateTimeString()} $t: Error: $m: $me" }
     }
 }
@@ -59,7 +61,7 @@ fun LogeFor(t: String, episodeId: Long?, m: String) {
     if (BuildConfig.DEBUG || appPrefsFlow!!.value.showLogLevel <= LogLevel.Debug.code) Log.e(t, m)
     appMainScope.launch {
         trimSessionLogs()
-        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = "Error: $m")) }
+        if (appPrefsFlow!!.value.showLogLevel <= LogLevel.Error.code) toastMessagesFlow.update { it + (ToastMessage(t = t, m = localizedString(R.string.ui_error_message, m))) }
         sessionLogsFlow.update { it + "${fullDateTimeString()} $t: $episodeId Error: $m" }
     }
 }
@@ -124,8 +126,8 @@ fun LogtFor(t: String, episodeId: Long?, m: String) {
 
 fun LogFor(t: String, feed: Feed, success: Boolean, message: String, reason:  DownloadError? = null, toastAnyway: Boolean = false) {
     runOnIOScope { logDownloadResult(DownloadResult(feed, reason, success, message)) }
-    if (toastAnyway && success) Logt(t, "Feed operation: success=$success, $message: ${feed.title}")
-    if (!success) Loge(t, "Feed operation: success=$success, $message: ${feed.title}")
+    if (toastAnyway && success) Logt(t, localizedString(R.string.message_feed_operation_success, (success).toString(), (message).toString(), (feed.title).toString()))
+    if (!success) Loge(t, localizedString(R.string.message_feed_operation_success, (success).toString(), (message).toString(), (feed.title).toString()))
 }
 
 fun showStackTrace() {

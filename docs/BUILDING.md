@@ -42,6 +42,6 @@ The APKs are exported to `app/build/exported-apks/freeRelease/`. Choose the `Pod
 
 ## Restore into Podcini.C
 
-Install the release APK, then open **Settings → Backups & transfers → Restore backup**. Select the exported `Podcini-Backups-…` folder, keep library/settings, downloaded media, and clips selected, and tap **Restore backup** once. The app restarts automatically when the restore is ready. Regrant access to local media folders if needed.
+Install the release APK, then open **Settings → Backups & exports → Restore backup**. Select the exported `Podcini-Backups-…` folder, keep library/settings, downloaded media, and clips selected, and tap **Restore backup** once. The app restarts automatically when the restore is ready. Regrant access to local media folders if needed.
 
 Check your subscriptions, listening progress, and downloaded playback before removing the old app. Podcini.A, Podcini.C Debug, and Podcini.C Release have separate app data. Installing Podcini.C Release does not import data from either of the other apps automatically.

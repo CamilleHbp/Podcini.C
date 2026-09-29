@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.actions
 
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.actQueueFlow
@@ -216,7 +217,7 @@ class AddToAssociatedQueue : EpisodeAction() {
     override val id: String
         get() = "ADD_TO_ASSOCIATED"
     override val title: String
-        get() = onEpisode?.feed?.queue?.name?.let { getAppContext().getString(R.string.archive_add_named_queue, it) } ?: getAppContext().getString(R.string.add_to_associated_queue)
+        get() = onEpisode?.feed?.queue?.displayName?.let { getAppContext().getString(R.string.archive_add_named_queue, it) } ?: getAppContext().getString(R.string.add_to_associated_queue)
 
     override val iconRes:  Int = R.drawable.ic_playlist_play
     override val color: Color = Color(0xFF5599FF)
@@ -236,7 +237,7 @@ class AddToActiveQueue : EpisodeAction() {
     override val id: String
         get() = "ADD_TO_ACT_QUEUE"
     override val title: String
-        get() = getAppContext().getString(R.string.archive_add_named_queue, actQueueFlow.value.name)
+        get() = getAppContext().getString(R.string.archive_add_named_queue, actQueueFlow.value.displayName)
 
     override val iconRes:  Int = R.drawable.ic_playlist_play
     override val color: Color = Color(0xFF55BBFF)

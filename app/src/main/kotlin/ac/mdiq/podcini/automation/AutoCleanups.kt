@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.automation
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.sourcing.download.EpisodeAdrDLManager
 import ac.mdiq.podcini.storage.database.EPISODE_CACHE_SIZE_UNLIMITED
 import ac.mdiq.podcini.storage.database.appPrefsFlow
@@ -95,7 +97,7 @@ class APQueueCleanupAlgorithm : EpisodeCleanupAlgorithm() {
 class APNullCleanupAlgorithm : EpisodeCleanupAlgorithm() {
     public override suspend fun performCleanup(numToRemove: Int): Int {
         // never clean anything up
-        Logt(TAG, "performCleanup: Not removing anything")
+        Logt(TAG, localizedString(R.string.message_performcleanup_not_removing_anything))
         return 0
     }
     public override fun getDefaultCleanupParameter(): Int {
@@ -154,14 +156,14 @@ abstract class EpisodeCleanupAlgorithm {
         }
         if (appPrefsFlow!!.value.deleteRemovesFromQueue) removeFromAllQueues(toDelete)
         val counter = toDelete.size
-        Logt(TAG, "Auto-delete deleted $counter episodes ($numToRemove requested)")
+        Logt(TAG, localizedString(R.string.message_auto_delete_deleted_episodes_requested, (counter).toString(), (numToRemove).toString()))
         return counter
     }
 
     protected abstract fun getDefaultCleanupParameter(): Int
     suspend fun makeRoomForEpisodes(amountOfRoomNeeded: Int): Int {
         val numToRemove = getNumEpisodesToCleanup(amountOfRoomNeeded)
-        Logt("EpisodeCleanupAlgorithm", "makeRoomForEpisodes: $numToRemove")
+        Logt("EpisodeCleanupAlgorithm", localizedString(R.string.message_makeroomforepisodes, (numToRemove).toString()))
         if (numToRemove <= 0) return 0
         return performCleanup(numToRemove)
     }

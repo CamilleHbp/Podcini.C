@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.ui.screens.prefscreens
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import ac.mdiq.podcini.BuildConfig
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.*
@@ -9,18 +11,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import ac.mdiq.podcini.ui.screens.ReceiveContentDialog
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.activity.BugReportActivity
-import ac.mdiq.podcini.config.settings.developerEmail
 import ac.mdiq.podcini.config.settings.getCopyrightNoticeText
 import ac.mdiq.podcini.config.settings.githubAddress
 import ac.mdiq.podcini.ui.compose.ConfirmDialog
 import ac.mdiq.podcini.ui.compose.CommonPopupCard
-import ac.mdiq.podcini.ui.compose.CustomTextStyles
-import ac.mdiq.podcini.ui.compose.IconTitleSummaryActionRow
 import ac.mdiq.podcini.ui.compose.textColor
-import ac.mdiq.podcini.ui.screens.LocalDrawerController
-import ac.mdiq.podcini.ui.screens.PopMode
-import ac.mdiq.podcini.ui.screens.defaultNavKey
-import ac.mdiq.podcini.ui.screens.navTo
 import ac.mdiq.podcini.utils.Logs
 import ac.mdiq.podcini.utils.Logt
 import ac.mdiq.podcini.utils.openInSystemDefault
@@ -31,13 +26,9 @@ import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -45,11 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,23 +47,19 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.entryProvider
@@ -143,17 +126,17 @@ val pfEntryProvider = entryProvider {
         var receive by remember { mutableStateOf(false) }
         if (receive) ReceiveContentDialog { receive = false }
         BackHandler { pfNavBack() }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-            Text(stringResource(R.string.archive_transfer_backup), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.archive_transfer_backup_body), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { pfBackStack.add(PFNav.ImportExport) }) { Text(stringResource(R.string.archive_transfer_backup)) }
-            Text(stringResource(R.string.archive_device_transfer), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.archive_device_transfer_body), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { receive = true }) { Text(stringResource(R.string.receive_contents)) }
-            HorizontalDivider(Modifier.padding(vertical = 16.dp))
-            Text(stringResource(R.string.archive_server_sync), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.archive_server_sync_body), style = MaterialTheme.typography.bodyMedium)
+        SettingsPage {
+            SettingsSection(R.string.archive_server_sync)
+            SettingsDescription(stringResource(R.string.archive_server_sync_body))
             SynchronizationScreen()
+            SettingsSection(R.string.archive_device_transfer)
+            SettingsDescription(stringResource(R.string.archive_device_transfer_body))
+            val appAttribs by ac.mdiq.podcini.storage.database.appAttribsFlow!!.collectAsStateWithLifecycle()
+            SettingsText(R.string.identifier, R.string.network_identifier_sum, appAttribs.name) { name ->
+                ac.mdiq.podcini.storage.database.upsertBlk(appAttribs) { it.name = name }
+            }
+            SettingsAction(R.string.receive_contents, R.string.settings_receive_summary) { receive = true }
         }
     }
     entry<PFNav.Interface>{ UserInterfaceScreen() }
@@ -187,7 +170,7 @@ fun PrefsScreen() {
     }
     val owner = checkNotNull(LocalViewModelStoreOwner.current)
     Scaffold(contentWindowInsets = WindowInsets(0,0,0,0), topBar = {
-        TopAppBar(title = { Text(stringResource(title)) }, navigationIcon = {
+        TopAppBar(title = { Text(stringResource(title), style = MaterialTheme.typography.headlineSmall) }, navigationIcon = {
             IconButton(onClick = { if (!pfNavBack()) navBack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.archive_back)) }
         })
     }) { padding ->
@@ -202,7 +185,7 @@ fun PrefPortalScreen() {
     val context = LocalContext.current
     var search by rememberSaveable { mutableStateOf("") }
     BackHandler { navBack() }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    SettingsPage {
         OutlinedTextField(value = search, onValueChange = { search = it }, singleLine = true,
             label = { Text(stringResource(R.string.archive_search_settings)) }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp))
         @Composable fun Setting(title: Int, summary: Int, icon: Int, action: () -> Unit) {
@@ -218,6 +201,7 @@ fun PrefPortalScreen() {
         Setting(R.string.archive_library_automation, R.string.archive_automation_summary, R.drawable.ic_subscriptions) { pfBackStack.add(PFNav.Automation) }
         Setting(R.string.archive_appearance, R.string.archive_appearance_summary, R.drawable.ic_appearance) { pfBackStack.add(PFNav.Interface) }
         Setting(R.string.archive_providers, R.string.archive_provider_summary, R.drawable.archive_explore) { pfBackStack.add(PFNav.Providers) }
+        Setting(R.string.import_export_pref, R.string.settings_backup_summary, R.drawable.ic_storage) { pfBackStack.add(PFNav.ImportExport) }
         Setting(R.string.archive_sync_backup, R.string.archive_sync_summary, R.drawable.ic_storage) { pfBackStack.add(PFNav.Sync) }
         Setting(R.string.notification_pref_fragment, 0, R.drawable.ic_notifications) { pfBackStack.add(PFNav.Notification) }
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -235,37 +219,25 @@ fun PrefPortalScreen() {
 
 @Composable
 fun AboutScreen() {
-    val context by rememberUpdatedState(LocalContext.current)
-    
-    BackHandler(enabled = true) { pfBackStack.removeLastOrNull() }
-
-    Column(modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 10.dp).background(MaterialTheme.colorScheme.surface)) {
-        Image(painter = painterResource(R.drawable.teaser), contentDescription = "")
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, top = 5.dp, bottom = 5.dp)) {
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_star), contentDescription = "", tint = textColor)
-            Column(Modifier.padding(start = 10.dp).clickable {
-                val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                val versionText = "Version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
-                val clip = ClipData.newPlainText(context.getString(R.string.bug_report_title), versionText)
-                clipboard.setPrimaryClip(clip)
-                if (Build.VERSION.SDK_INT <= 32) Logt(TAG, context.getString(R.string.copied_to_clipboard))
-            }) {
-                Text(stringResource(R.string.podcini_version), color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-                Text(BuildConfig.VERSION_NAME, color = textColor)
-            }
+    val context = LocalContext.current
+    BackHandler { pfNavBack() }
+    SettingsPage {
+        SettingsSection(R.string.settings_app_information)
+        SettingsAction(stringResource(R.string.podcini_version), stringResource(R.string.settings_copy_version),
+            value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})") {
+            val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            val versionText = "Podcini.C ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+            clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.podcini_version), versionText))
+            if (Build.VERSION.SDK_INT <= 32) Logt(TAG, context.getString(R.string.copied_to_clipboard))
         }
-        IconTitleSummaryActionRow(R.drawable.ic_questionmark, R.string.online_help, R.string.online_help_sum) { openInSystemDefault(githubAddress) }
-        IconTitleSummaryActionRow(R.drawable.ic_info, R.string.privacy_policy, R.string.privacy_policy) { openInSystemDefault("${githubAddress}/blob/main/PrivacyPolicy.md") }
-        IconTitleSummaryActionRow(R.drawable.ic_info, R.string.licenses, R.string.licenses_summary) { pfBackStack.add(PFNav.Licenses) }
-        IconTitleSummaryActionRow(R.drawable.baseline_mail_outline_24, R.string.email_developer, R.string.email_sum) {
-            val emailIntent = Intent(Intent.ACTION_SEND).apply {
-                putExtra(Intent.EXTRA_EMAIL, arrayOf(developerEmail))
-                putExtra(Intent.EXTRA_SUBJECT, "Regarding Podcini")
-                type = "message/rfc822"
-            }
-            if (emailIntent.resolveActivity(context.packageManager) != null) context.startActivity(emailIntent)
-            else Logt(TAG, context.getString(R.string.need_email_client))
-        }
+        SettingsAction(R.string.privacy_policy, R.string.settings_privacy_summary) { openInSystemDefault("${githubAddress}/blob/main/PrivacyPolicy.md") }
+        SettingsAction(R.string.licenses, R.string.licenses_summary) { pfBackStack.add(PFNav.Licenses) }
+        SettingsSection(R.string.settings_help_feedback)
+        SettingsAction(R.string.online_help, R.string.online_help_sum) { openInSystemDefault(githubAddress) }
+        SettingsAction(R.string.settings_report_issue, R.string.settings_report_issue_summary) { openInSystemDefault("${githubAddress}/issues") }
+        SettingsAction(R.string.settings_upstream_project, R.string.settings_upstream_summary) { openInSystemDefault("https://github.com/XilinJia/Podcini.A") }
+        val notice = remember { getCopyrightNoticeText() }
+        if (notice.isNotBlank()) SettingsDescription(notice)
     }
 }
 
@@ -284,7 +256,7 @@ fun LicensesScreen() {
             val libraryList = docBuilder.parse(stream).getElementsByTagName("library")
             for (i in 0 until libraryList.length) {
                 val lib = libraryList.item(i).attributes
-                licenses.add(LicenseItem(lib.getNamedItem("name").textContent, "By ${lib.getNamedItem("author").textContent}, ${lib.getNamedItem("license").textContent} license", lib.getNamedItem("website").textContent, lib.getNamedItem("licenseText").textContent))
+                licenses.add(LicenseItem(lib.getNamedItem("name").textContent, context.getString(R.string.settings_license_credit, lib.getNamedItem("author").textContent, lib.getNamedItem("license").textContent), lib.getNamedItem("website").textContent, lib.getNamedItem("licenseText").textContent))
             }
         }
     }
@@ -297,11 +269,10 @@ fun LicensesScreen() {
     var curLicenseIndex by remember { mutableIntStateOf(-1) }
     if (showDialog) CommonPopupCard(onDismiss = { showDialog = false }) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(licenses[curLicenseIndex].title, color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-            Row {
-                Button(onClick = { openInSystemDefault(licenses[curLicenseIndex].licenseUrl) }) { Text("View website") }
-                Spacer(Modifier.weight(1f))
-                Button(onClick = {
+            Text(licenses[curLicenseIndex].title, color = textColor, style = MaterialTheme.typography.titleLarge)
+            Column {
+                TextButton(onClick = { openInSystemDefault(licenses[curLicenseIndex].licenseUrl) }) { Text(stringResource(R.string.ui_view_website)) }
+                TextButton(onClick = {
                     try {
                         val reader = BufferedReader(InputStreamReader(context.assets.open(licenses[curLicenseIndex].licenseTextFile), "UTF-8"))
                         val sb = StringBuilder()
@@ -311,18 +282,24 @@ fun LicensesScreen() {
                         showLicense.value = true
                     } catch (e: IOException) { Logs(TAG, e) }
                     //                            showLicenseText(licenses[curLicenseIndex].licenseTextFile)
-                }) { Text("View license") }
+                }) { Text(stringResource(R.string.ui_view_license)) }
             }
         }
     }
-    LazyColumn(state = lazyListState, modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp).background(MaterialTheme.colorScheme.surface), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        itemsIndexed(licenses) { index, item ->
-            Column(Modifier.clickable {
-                curLicenseIndex = index
-                showDialog = true
-            }) {
-                Text(item.title, color = textColor, style = CustomTextStyles.titleCustom, fontWeight = FontWeight.Bold)
-                Text(item.subtitle, color = textColor, style = MaterialTheme.typography.bodySmall)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(state = lazyListState, modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item {
+                SettingsSection(R.string.settings_open_source)
+                SettingsDescription(stringResource(R.string.settings_licenses_intro))
+                SettingsAction(R.string.settings_app_license, R.string.settings_app_license_summary) { openInSystemDefault("${githubAddress}/blob/main/LICENSE") }
+                SettingsAction(R.string.settings_library_licenses, R.string.settings_library_licenses_summary) { openInSystemDefault("${githubAddress}/blob/main/Licenses_and_permissions.md") }
+                SettingsAction(R.string.settings_contributors, R.string.settings_contributors_summary) { openInSystemDefault("${githubAddress}/blob/main/CONTRIBUTORS.md") }
+            }
+            itemsIndexed(licenses) { index, item ->
+                SettingsAction(item.title, item.subtitle) {
+                    curLicenseIndex = index
+                    showDialog = true
+                }
             }
         }
     }
@@ -330,11 +307,19 @@ fun LicensesScreen() {
 
 @Composable
 fun NotificationPrefScreen() {
-    val context by rememberUpdatedState(LocalContext.current)
-    BackHandler(enabled = true) { pfBackStack.removeLastOrNull() }
-
-    val intent = Intent()
-    intent.action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
-    intent.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-    context.startActivity(intent)
+    val context = LocalContext.current
+    BackHandler { pfNavBack() }
+    val appPrefs by ac.mdiq.podcini.storage.database.appPrefsFlow!!.collectAsStateWithLifecycle()
+    SettingsPage {
+        SettingsSection(R.string.settings_android_notifications)
+        SettingsAction(R.string.settings_manage_notifications, R.string.settings_notifications_summary) {
+            context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            })
+        }
+        SettingsSection(R.string.settings_playback_notification)
+        SettingsSwitch(R.string.pref_show_notification_skip_title, R.string.pref_show_notification_skip_sum, appPrefs.showSkip) {
+            ac.mdiq.podcini.storage.database.upsertBlk(appPrefs) { prefs -> prefs.showSkip = it }
+        }
+    }
 }

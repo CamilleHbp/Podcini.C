@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.activity
 
+import ac.mdiq.podcini.R
+import androidx.compose.ui.res.stringResource
 import ac.mdiq.podcini.config.AppConfig.initialize
 import ac.mdiq.podcini.playback.actQueueFlow
 import ac.mdiq.podcini.receiver.PodciniWidget
@@ -9,7 +11,7 @@ import ac.mdiq.podcini.ui.compose.AppThemes
 import ac.mdiq.podcini.ui.compose.PodciniTheme
 import ac.mdiq.podcini.ui.compose.filterChipBorder
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,7 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
-class QueuePickerActivity : ComponentActivity() {
+class QueuePickerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawableResource(android.R.color.transparent)
@@ -53,7 +55,7 @@ class QueuePickerActivity : ComponentActivity() {
             PodciniTheme(AppThemes.BLACK) {
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Column(modifier = Modifier.padding(24.dp)) {
-                        Text(text = "Select queue", style = MaterialTheme.typography.headlineSmall)
+                        Text(text = stringResource(R.string.select_queue), style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(16.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
                             var curIndex by remember { mutableIntStateOf(-1) }

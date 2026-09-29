@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.parser
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.storage.utils.CountingSource
 import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Loge
@@ -110,7 +112,7 @@ abstract class VorbisCommentReader internal constructor(private val source: Coun
             Logd(TAG) { "commentHeader: $commentHeader" }
             val count = commentHeader.userCommentLength.coerceAtMost(1000)
             repeat(count.toInt()) { readUserComment() }
-        } catch (e: Throwable) { Loge(TAG, e, "Vorbis parser") }
+        } catch (e: Throwable) { Loge(TAG, e, localizedString(R.string.message_vorbis_parser)) }
     }
 
     /**

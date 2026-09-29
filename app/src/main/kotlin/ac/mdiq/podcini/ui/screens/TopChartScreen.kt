@@ -330,7 +330,7 @@ fun TopChartScreen() {
                     Spacer(Modifier.weight(1f))
                     Text(vm.countryCode, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end=20.dp).clickable { showSelectCounrty = true })
                 } },
-                navigationIcon = { Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back or drawer", modifier = Modifier.padding(7.dp).clickable { if (!navBack()) drawerController?.open() }) })
+                navigationIcon = { Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.archive_back), modifier = Modifier.padding(7.dp).clickable { if (!navBack()) drawerController?.open() }) })
             HorizontalDivider(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(), thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant)
         }
     }

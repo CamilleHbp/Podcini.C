@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.utils.NetworkUtils
@@ -67,7 +68,7 @@ object TTSEngine {
             tts = TextToSpeech(context) { status: Int ->
                 if (status == TextToSpeech.SUCCESS) {
                     ttsReady = true
-                    Logt(TAG, "TTS init success")
+                    Logt(TAG, localizedString(R.string.message_tts_init_success))
                 } else Loge(TAG, context.getString(R.string.tts_init_failed))
             }
         }
@@ -197,7 +198,7 @@ object TTSEngine {
                         status = tts?.synthesizeToFile(chunk, null, tempFile, tempFile.absolutePath) ?: 0
                         Logd(TAG) { "status: $status chunk: ${chunk.take(min(80, chunk.length))}" }
                         if (status == TextToSpeech.ERROR) {
-                            Loge(TAG, "Error generating audio file ${tempFile.absolutePath}")
+                            Loge(TAG, localizedString(R.string.message_error_generating_audio_file, (tempFile.absolutePath).toString()))
                             break
                         }
                     } catch (e: Exception) { Logs(TAG, e, "writing temp file error")}
@@ -283,7 +284,7 @@ object TTSEngine {
                         dataBytes[1] = mergeFilesStream[b]!!.readByte()
                     } catch (e: EOFException) {
                         amplifyOutputStream.close()
-                        Loge(TAG, e, "mergeAudios error")
+                        Loge(TAG, e, localizedString(R.string.message_mergeaudios_error))
                     }
 
                     val dataInShort = ByteBuffer.wrap(dataBytes).order(ByteOrder.LITTLE_ENDIAN).getShort()

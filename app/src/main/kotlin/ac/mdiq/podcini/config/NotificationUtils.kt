@@ -35,8 +35,7 @@ object NotificationIds {
     const val gpodnet_sync_autherror = 502
 }
 
-fun createNotificationChannels() {
-    val c = getAppContext()
+fun createNotificationChannels(c: android.content.Context = getAppContext()) {
     val mNotificationManager = NotificationManagerCompat.from(c)
 
     val channelGroups = listOf(
@@ -114,4 +113,3 @@ fun createNotificationChannels() {
 //            .setShowBadge(false)
 //            .build()
 //    }
-

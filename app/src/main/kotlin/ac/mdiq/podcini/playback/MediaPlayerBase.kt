@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.appMainScope
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
@@ -327,7 +328,7 @@ abstract class MediaPlayerBase {
     fun startPlaying(media_: Episode? = null) {
         Logd(TAG) { "startPlaying called" }
         if (curMediaFlow.value == null && media_ == null) {
-            Logt(TAG, "startPlaying: No media to play")
+            Logt(TAG, localizedString(R.string.message_startplaying_no_media_to_play))
             return
         }
         val media = media_ ?: curMediaFlow.value!!
@@ -401,7 +402,7 @@ abstract class MediaPlayerBase {
 
     fun getPosition(): Int {
         //        showStackTrace()
-        if (castPlayer?.isPlaying == true && !status.isAtLeast(PlayerStatus.PREPARED)) Logt(TAG, "exoPlayer playbackState ${castPlayer?.playbackState} player statusFlow $status")
+        if (castPlayer?.isPlaying == true && !status.isAtLeast(PlayerStatus.PREPARED)) Logt(TAG, localizedString(R.string.message_exoplayer_playbackstate_player_statusflow, (castPlayer?.playbackState).toString(), (status).toString()))
         var retVal = getPlayerPosition()
         if (retVal <= 0 && curMediaFlow.value != null) retVal = curMediaFlow.value!!.position
         return retVal
@@ -521,7 +522,7 @@ abstract class MediaPlayerBase {
                 isStartWhenPrepared = true
                 prepareInitialized()
             }
-            else -> Loge(TAG, "Play/Pause button was pressed and PlaybackService state was unknown: $status")
+            else -> Loge(TAG, localizedString(R.string.message_play_pause_button_was_pressed_and_playbackservice_state_was_unkno, (status).toString()))
         }
     }
 
@@ -563,7 +564,7 @@ abstract class MediaPlayerBase {
 //            if (mediaType == MediaType.VIDEO) videoSize = Pair(videoWidth, videoHeight)
             handlePlayerStatus(PlayerStatus.PREPARED, curMediaFlow.value)
             if (isStartWhenPrepared) play()
-        } else Logt(TAG, "prepare() call ignored with statusFlow: $status")
+        } else Logt(TAG, localizedString(R.string.message_prepare_call_ignored_with_statusflow, (status).toString()))
     }
 
     fun reinit() {
@@ -901,7 +902,7 @@ abstract class MediaPlayerBase {
         }
         Logd(TAG) { "setAudioSpec asl: ${asl.size}" }
         if (asl.isEmpty()) {
-            Loge(TAG, "setAudioSpec: eligible audio stream list is empty.\nAvailable languages: ${curLocales.joinToString()}.\nYou prefer: ${useLocales.joinToString()}")
+            Loge(TAG, localizedString(R.string.message_setaudiospec_eligible_audio_stream_list_is_empty_navailable_langu, (curLocales.joinToString()).toString(), (useLocales.joinToString()).toString()))
             bitrateFlow.value = 0
             resolutionFlow.value = ""
             return null
@@ -912,7 +913,7 @@ abstract class MediaPlayerBase {
             if (audioSpec != null) {
                 bitrateFlow.value = audioSpec.bitrate
                 return audioSpec
-            } else Logt(TAG, "setAudioSpec Requested audio doesn't exist ($useLocale, $useCodex, $useABPS), getting one based on settings.")
+            } else Logt(TAG, localizedString(R.string.message_setaudiospec_requested_audio_doesn_t_exist_getting_one_based_on_s, (useLocale).toString(), (useCodex).toString(), (useABPS).toString()))
         }
 
         val prefLowQualityMedia: Boolean = appPrefsFlow!!.value.lowQualityOnMobile
@@ -954,7 +955,7 @@ abstract class MediaPlayerBase {
                 resolutionFlow.value = videoSpec.resolution ?: ""
                 Logd(TAG) { "setVideoSpec use video quality: ${videoSpec.resolution}" }
                 return videoSpec
-            } else Logt(TAG, "setVideoSpec Requested video with ($useVCodex and $useResolution) doesn't exist, getting one based on settings")
+            } else Logt(TAG, localizedString(R.string.message_setvideospec_requested_video_with_and_doesn_t_exist_getting_one_b, (useVCodex).toString(), (useResolution).toString()))
         }
         val videoIndex =
             if (networkMonitor.isNetworkRestricted && appPrefsFlow!!.value.lowQualityOnMobile && media.feed?.videoQualitySetting == AVQuality.GLOBAL) 0
@@ -1044,7 +1045,7 @@ abstract class MediaPlayerBase {
                 return false
             }
             if (!networkMonitor.isConnected) {
-                Loge(TAG, "streaming media but network is not available, abort")
+                Loge(TAG, localizedString(R.string.message_streaming_media_but_network_is_not_available_abort))
                 return false
             }
             return true

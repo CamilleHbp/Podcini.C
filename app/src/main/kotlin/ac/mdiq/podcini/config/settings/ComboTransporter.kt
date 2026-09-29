@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.config.settings
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.storage.database.allFeeds
 import ac.mdiq.podcini.storage.database.getEpisodes
 import ac.mdiq.podcini.storage.database.realm
@@ -143,7 +145,7 @@ class ClipsTransporter(val filesDirName: String) {
 
     suspend fun copyRecursive(srcFile: UnifiedFile, destRootDir: UnifiedFile, move: Boolean) {
         Logd(TAG) { "copyRecursive srcFile: ${srcFile.absPath}" }
-        if (srcFile.isDirectory()) Loge(TAG, "srcFile should not be a directory: ${srcFile.absPath}")
+        if (srcFile.isDirectory()) Loge(TAG, localizedString(R.string.message_srcfile_should_not_be_a_directory, (srcFile.absPath).toString()))
         else {
             val destName = srcFile.name
             Logd(TAG) { "copyMediaFile srcFile.name: $destName" }

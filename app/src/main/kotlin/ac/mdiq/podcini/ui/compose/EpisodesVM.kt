@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.storage.model.displayName
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -152,15 +153,15 @@ fun EpisodeListInfoBar(
 fun InforBar(swipeActions: SwipeActions?, content: @Composable (RowScope.()->Unit)) {
     Row {
         if (swipeActions != null) {
-            Icon(imageVector = ImageVector.vectorResource(swipeActions.left.iconRes), tint = buttonColor, contentDescription = "left_action_icon", modifier = Modifier.width(24.dp).height(24.dp).clickable { showSwipeActionsDialog = true })
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_left_alt_24), tint = textColor, contentDescription = "left_arrow", modifier = Modifier.width(24.dp).height(24.dp))
+            Icon(imageVector = ImageVector.vectorResource(swipeActions.left.iconRes), tint = buttonColor, contentDescription = stringResource(R.string.ui_left_action), modifier = Modifier.width(24.dp).height(24.dp).clickable { showSwipeActionsDialog = true })
+            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_left_alt_24), tint = textColor, contentDescription = stringResource(R.string.ui_left), modifier = Modifier.width(24.dp).height(24.dp))
         }
         Spacer(modifier = Modifier.weight(1f))
         content()
         Spacer(modifier = Modifier.weight(1f))
         if (swipeActions != null) {
-            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), tint = textColor, contentDescription = "right_arrow", modifier = Modifier.width(24.dp).height(24.dp))
-            Icon(imageVector = ImageVector.vectorResource(swipeActions.right.iconRes), tint = buttonColor, contentDescription = "right_action_icon", modifier = Modifier.width(24.dp).height(24.dp).clickable { showSwipeActionsDialog = true })
+            Icon(imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), tint = textColor, contentDescription = stringResource(R.string.ui_right), modifier = Modifier.width(24.dp).height(24.dp))
+            Icon(imageVector = ImageVector.vectorResource(swipeActions.right.iconRes), tint = buttonColor, contentDescription = stringResource(R.string.ui_right_action), modifier = Modifier.width(24.dp).height(24.dp).clickable { showSwipeActionsDialog = true })
         }
     }
 }
@@ -421,19 +422,19 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                             showPlayStateDialog = true
                             onSelected()
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_mark_played), contentDescription = "Set played state")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_mark_played), contentDescription = stringResource(R.string.ui_play_status))
                             Text(stringResource(id = R.string.set_play_state_label)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
                             showChooseRatingDialog = true
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_star), contentDescription = "Set rating")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_star), contentDescription = stringResource(R.string.ui_rating))
                             Text(stringResource(id = R.string.set_rating_label)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
                             showEditTagsDialog = true
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_label_24), contentDescription = "Edit tags")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_label_24), contentDescription = stringResource(R.string.ui_edit_tags))
                             Text(stringResource(id = R.string.edit_tags)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
@@ -455,7 +456,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                     onNeutral = { EpisodeAdrDLManager.manager.downloadNow(selected, true) }))
                             }
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_download), contentDescription = "Download")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_download), contentDescription = stringResource(R.string.download))
                             Text(stringResource(id = R.string.download_label)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
@@ -468,18 +469,18 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                             runOnIOScope { addToQueue(selected, actQueueFlow.value) }
                         }) {
                             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_play), contentDescription = null)
-                            Text(stringResource(R.string.archive_add_named_queue, activeQueue.name)) } },
+                            Text(stringResource(R.string.archive_add_named_queue, activeQueue.displayName)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
                             showPutToQueueDialog = true
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_play), contentDescription = "Add to queue...")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_play), contentDescription = stringResource(R.string.enqueue))
                             Text(stringResource(id = R.string.add_to_queue)) } },
                         { if (!isExternal) Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
                             runOnIOScope { for (e in selected) smartRemoveFromQueues(e) }
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_remove), contentDescription = "Remove from active queue")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_remove), contentDescription = stringResource(R.string.remove_from_cur_queue))
                             Text(stringResource(id = R.string.remove_from_all_queues)) } }
                     )
                     if (selected.isNotEmpty()) {
@@ -489,7 +490,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                     onSelected()
                                     runOnIOScope { for (e in selected) smartRemoveFromQueues(e, listOf(curQueue)) }
                                 }) {
-                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_remove), contentDescription = "Remove from active queue")
+                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_playlist_remove), contentDescription = stringResource(R.string.remove_from_cur_queue))
                                     Text(stringResource(id = R.string.remove_from_cur_queue))
                                 }
                             }
@@ -510,14 +511,14 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                     }
                                 }
                             }) {
-                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = "Set related")
+                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = stringResource(R.string.set_related))
                                 Text(stringResource(id = R.string.set_related)) }
                         }
                         if (!isExternal) options.add { Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.clickable {
                             onSelected()
                             showShelveDialog = true
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_shelves_24), contentDescription = "Shelve")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_shelves_24), contentDescription = stringResource(R.string.ui_shelve))
                             Text(stringResource(id = R.string.shelve_label)) }
                         }
                         if (isExternal)
@@ -536,7 +537,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                         if (clientEpisodes.isNotEmpty()) showAddEpisodesDialog = true
                                     }
                                 }) {
-                                    Icon(Icons.Filled.AddCircle, contentDescription = "Reserve episodes")
+                                    Icon(Icons.Filled.AddCircle, contentDescription = stringResource(R.string.ui_reserve))
                                     Text(stringResource(id = R.string.reserve_episodes_label))
                                 }
                             }
@@ -558,7 +559,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                     deleteEpisodesWarnLocalRepeat(selected)
                                 }
                             }) {
-                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = "Delete media")
+                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete), contentDescription = stringResource(R.string.archive_delete_local))
                                 Text(stringResource(id = R.string.delete_episode_label))
                             }
                         }
@@ -568,7 +569,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                                     onSelected()
                                     showEraseDialog = true
                                 }) {
-                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_delete_forever_24), contentDescription = "Erase episodes")
+                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.baseline_delete_forever_24), contentDescription = stringResource(R.string.ui_erase))
                                     Text(stringResource(id = R.string.erase_episodes_label))
                                 }
                             }
@@ -577,7 +578,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                             onSelected()
                             showMulticastDialog = true
                         }) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_share), contentDescription = "Multicast")
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_share), contentDescription = stringResource(R.string.multicast_to_devices))
                             Text(stringResource(id = R.string.multicast_to_devices)) }
                         }
                     }

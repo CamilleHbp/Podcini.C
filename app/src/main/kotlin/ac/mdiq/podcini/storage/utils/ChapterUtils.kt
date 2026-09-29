@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.storage.utils
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.shared.PodciniHttpClient.getKtorClient
 import ac.mdiq.podcini.storage.database.canCheckMediaSize
 import ac.mdiq.podcini.storage.database.upsert
@@ -107,7 +109,7 @@ private fun mergeChapters(chapters1: List<Chapter>?, chapters2: List<Chapter>?):
                 val chapterOther = chapters1[i]
 
                 if (abs((chapterTarget.start - chapterOther.start).toDouble()) > 1000) {
-                    Loge(TAG, "Chapter lists are too different. Cancelling merge.")
+                    Loge(TAG, localizedString(R.string.message_chapter_lists_are_too_different_cancelling_merge))
                     return if (score(chapters1) > score(chapters2)) chapters1 else chapters2
                 }
 
@@ -183,7 +185,7 @@ class ChapterReader(input: CountingSource) : ID3Reader(input) {
         if (FRAME_ID_CHAPTER == frameHeader.id) {
             val size = frameHeader.size.toLong()
             if (size > remainingTagBytes) {
-                Loge(TAG, "Frame exceeds tag boundary: size=$size remaining=$remainingTagBytes")
+                Loge(TAG, localizedString(R.string.message_frame_exceeds_tag_boundary_size_remaining, (size).toString(), (remainingTagBytes).toString()))
                 return
             }
             Logd(TAG) { "readFrame size: $size remainingTagBytes: $remainingTagBytes" }
@@ -371,18 +373,18 @@ suspend fun loadChaptersFromMedia(episode: Episode): List<Chapter> {
 //            Logd(TAG) { "openSource fileUrl: $fileUrl" }
             val file = fileUrl.toUF()
             if (!file.exists()) {
-                Loge(TAG, "Failed loading chapters for ${episode.title}: file doesn't exist: $fileUrl")
+                Loge(TAG, localizedString(R.string.message_failed_loading_chapters_for_file_doesn_t_exist, (episode.title).toString(), (fileUrl).toString()))
                 return
             }
             val size = file.size()
 //            Logd(TAG) { "openSource size: $size" }
             if (size == null || size > 0) cb(file.source().buffer(), size)
-            else Loge(TAG, "Failed loading chapters for ${episode.title}: file is empty: $fileUrl")
+            else Loge(TAG, localizedString(R.string.message_failed_loading_chapters_for_file_is_empty, (episode.title).toString(), (fileUrl).toString()))
         } else {
             if (streamurl != null && (streamurl.startsWith(ContentResolver.SCHEME_CONTENT) || streamurl.startsWith(ContentResolver.SCHEME_FILE))) {
                 val file = streamurl.toUF()
                 if (!file.exists()) {
-                    Loge(TAG, "Failed loading chapters for ${episode.title}: streamurl file doesn't exist: $streamurl")
+                    Loge(TAG, localizedString(R.string.message_failed_loading_chapters_for_streamurl_file_doesn_t_exist, (episode.title).toString(), (streamurl).toString()))
                     return
                 }
                 val size = file.size()

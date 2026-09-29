@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.AppConfig
@@ -382,7 +383,7 @@ class PlaybackService : MediaLibraryService() {
                 it.shutdown()
             }
         } catch (e: Exception) {
-            Loge(TAG, e, "Error shutting down player $id")
+            Loge(TAG, e, localizedString(R.string.message_error_shutting_down_player, (id).toString()))
         }
     }
 

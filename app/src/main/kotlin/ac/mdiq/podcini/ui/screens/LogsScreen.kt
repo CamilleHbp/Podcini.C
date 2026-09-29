@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.screens
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.ui.compose.ArchiveEmpty
 import ac.mdiq.podcini.activity.MainActivity
@@ -146,7 +147,7 @@ class LogsVM: ViewModel() {
                         val logs = withContext(Dispatchers.Default) { v.toList().distinctBy { it.url }.toList() }
                         if (logs.isNotEmpty()) shareLogs = logs
                         else {
-                            Logt(TAG, "Share log is empty")
+                            Logt(TAG, localizedString(R.string.message_share_log_is_empty))
                             mode = LogsModes.Session
                         }
                     }
@@ -154,14 +155,14 @@ class LogsVM: ViewModel() {
                         val logs = withContext(Dispatchers.Default) { v.toList().distinctBy { it.feedfileId } }
                         if (logs.isNotEmpty()) downloadLogs = logs
                         else {
-                            Logt(TAG, "Download log is empty")
+                            Logt(TAG, localizedString(R.string.message_download_log_is_empty))
                             mode = LogsModes.Session
                         }
                     }
                     LogsModes.Deletions -> realm.query(SubscriptionLog::class).sort("cancelDate", Sort.DESCENDING).asFlow().distinctUntilChanged().map { it.list }.collect { v->
                         if (v.isNotEmpty()) deletionLogs = v
                         else {
-                            Logt(TAG, "Deletion log is empty")
+                            Logt(TAG, localizedString(R.string.message_deletion_log_is_empty))
                             mode = LogsModes.Session
                         }
                     }
@@ -244,7 +245,7 @@ fun LogsScreen(initialMode: LogsModes? = null) {
                     Spacer(Modifier.weight(0.5f))
                     Text(stringResource(R.string.copy_to_clipboard), color = textColor, modifier = Modifier.clickable { copyToClipboard(message) })
                     Spacer(Modifier.weight(0.3f))
-                    Text("OK", color = textColor, modifier = Modifier.clickable { onDismiss() })
+                    Text(stringResource(R.string.OK), color = textColor, modifier = Modifier.clickable { onDismiss() })
                     Spacer(Modifier.weight(0.2f))
                 }
             }
@@ -298,7 +299,7 @@ fun LogsScreen(initialMode: LogsModes? = null) {
                         client = null
                         existing = null
                         theLog = log
-                        Logt(TAG, "Handling shared url...")
+                        Logt(TAG, localizedString(R.string.message_handling_shared_url))
                         runOnIOScope {
                             handleShared(log.url!!, context as MainActivity, false, log) { cl, ex ->
                                 client = cl
@@ -327,7 +328,7 @@ fun LogsScreen(initialMode: LogsModes? = null) {
                     }
                     if (hasError) {
                         runOnIOScope {
-                            Logt(TAG, "Handling shared url...")
+                            Logt(TAG, localizedString(R.string.message_handling_shared_url))
                             val log_ = upsertBlk(log) { it.status = ShareLog.Status.MISSING.code }
                             vm.shareLogs = listOf()
                             handleShared(log_.url!!, context as MainActivity, false, log_) { _, _ -> sharedUrl = log_.url!! }
@@ -340,13 +341,13 @@ fun LogsScreen(initialMode: LogsModes? = null) {
                         Spacer(Modifier.weight(1f))
                         if (log.status < ShareLog.Status.SUCCESS.code) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_delete), tint = textColor, contentDescription = null, modifier = Modifier.width(25.dp).height(25.dp).clickable {})
                     }
-                    Text(log.title ?: "unknown title", color = textColor)
-                    Text(log.url ?: "unknown url", color = textColor)
+                    Text(log.title ?: stringResource(R.string.archive_no_title), color = textColor)
+                    Text(log.url ?: stringResource(R.string.ui_unavailable), color = textColor)
                     Row {
                         val statusText = remember(log.status) { ShareLog.Status.entries.firstOrNull { it.code == log.status }?.name ?: ShareLog.Status.ERROR.name }
                         Text(statusText, color = textColor)
                         Spacer(Modifier.weight(1f))
-                        Text(log.type ?: "unknow type", color = textColor)
+                        Text(log.type ?: stringResource(R.string.ui_unknown_type), color = textColor)
                     }
                 }
             }
@@ -361,16 +362,16 @@ fun LogsScreen(initialMode: LogsModes? = null) {
                 Text(stringResource(R.string.title), color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(log.title, color = textColor, modifier = Modifier.padding(bottom = 5.dp))
                 Text(stringResource(R.string.comments), color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(log.comment.ifEmpty { "None" }, color = textColor, modifier = Modifier.padding(bottom = 5.dp))
+                Text(log.comment.ifEmpty { stringResource(R.string.archive_no_queue) }, color = textColor, modifier = Modifier.padding(bottom = 5.dp))
                 Text(stringResource(R.string.description_label), color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(log.description?:"None", color = textColor, modifier = Modifier.padding(bottom = 5.dp))
-                Text("URL:", color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(log.url ?:"None", color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 5.dp))
-                Text("Link:", color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(log.link ?: "None", color = textColor, style = MaterialTheme.typography.bodySmall)
+                Text(log.description?:stringResource(R.string.archive_no_queue), color = textColor, modifier = Modifier.padding(bottom = 5.dp))
+                Text(stringResource(R.string.ui_url), color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(log.url ?:stringResource(R.string.archive_no_queue), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 5.dp))
+                Text(stringResource(R.string.ui_link), color = textColor,  style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(log.link ?: stringResource(R.string.archive_no_queue), color = textColor, style = MaterialTheme.typography.bodySmall)
                 Row(Modifier.padding(top = 10.dp)) {
                     Spacer(Modifier.weight(0.3f))
-                    Text("OK", color = textColor, modifier = Modifier.clickable { onDismiss() })
+                    Text(stringResource(R.string.OK), color = textColor, modifier = Modifier.clickable { onDismiss() })
                     Spacer(Modifier.weight(0.2f))
                 }
             }
@@ -387,7 +388,7 @@ fun LogsScreen(initialMode: LogsModes? = null) {
             items(vm.deletionLogs) { log ->
                 Row (verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, end = 10.dp).clickable { dialogParam = log }) {
                     val iconRes = remember { fromCode(log.rating).res  }
-                    Icon(imageVector = ImageVector.vectorResource(iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(40.dp).height(40.dp).padding(end = 15.dp))
+                    Icon(imageVector = ImageVector.vectorResource(iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_rating), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(40.dp).height(40.dp).padding(end = 15.dp))
                     Column {
                         Text(log.type + ": " + formatDateTimeFlex(log.id) + " -- " + formatDateTimeFlex(log.cancelDate), color = textColor)
                         Text(log.title, color = textColor)
@@ -501,28 +502,28 @@ fun LogsScreen(initialMode: LogsModes? = null) {
     @Composable
      fun MyTopAppBar() {
         Box {
-            TopAppBar(title = {  }, navigationIcon = { Icon(imageVector = ImageVector.vectorResource(vm.mode.res), contentDescription = "Open Drawer", modifier = Modifier.padding(7.dp).clickable { drawerController?.open() }) },
+            TopAppBar(title = {  }, navigationIcon = { Icon(imageVector = ImageVector.vectorResource(vm.mode.res), contentDescription = stringResource(R.string.ui_open_drawer), modifier = Modifier.padding(7.dp).clickable { drawerController?.open() }) },
                 actions = {
                     if (hasLogs && vm.mode in listOf(LogsModes.Session, LogsModes.Downloads, LogsModes.Shares)) Switch(checked = vm.showSuccessLogs, onCheckedChange = { vm.showSuccessLogs = !vm.showSuccessLogs },
                         thumbContent = { Icon(imageVector = if (vm.showSuccessLogs) Icons.Filled.Info else Icons.Filled.Warning, contentDescription = null, tint = if (vm.showSuccessLogs) Color.Green else Color.Yellow , modifier = Modifier.size(SwitchDefaults.IconSize)) })
                     if (vm.mode != LogsModes.Session) IconButton(onClick = {
                         vm.clearAllLogs()
                         vm.mode = LogsModes.Session
-                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Session.res), contentDescription = "session") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Session.res), contentDescription = stringResource(R.string.ui_session)) }
                     if (vm.mode != LogsModes.Downloads) IconButton(onClick = {
                         vm.clearAllLogs()
                         vm.mode = LogsModes.Downloads
-                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Downloads.res), contentDescription = "download") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Downloads.res), contentDescription = stringResource(R.string.download)) }
                     if (vm.mode != LogsModes.Shares) IconButton(onClick = {
                         vm.clearAllLogs()
                         vm.mode = LogsModes.Shares
-                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Shares.res), contentDescription = "share") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Shares.res), contentDescription = stringResource(R.string.share_label)) }
                     if (vm.mode != LogsModes.Deletions) IconButton(onClick = {
                         vm.clearAllLogs()
                         vm.mode = LogsModes.Deletions
-                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Deletions.res), contentDescription = "Deletions") }
+                    }) { Icon(imageVector = ImageVector.vectorResource(LogsModes.Deletions.res), contentDescription = stringResource(R.string.ui_delete)) }
                     var expanded by remember { mutableStateOf(false) }
-                    if (hasLogs && vm.mode in listOf(LogsModes.Downloads, LogsModes.Shares)) IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                    if (hasLogs && vm.mode in listOf(LogsModes.Downloads, LogsModes.Shares)) IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                     if (vm.mode != LogsModes.Deletions) DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.clear_logs)) }, onClick = {
                             showDeleteConfirmDialog.value = true

@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.sourcing.download
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.sourcing.download.Downloader.Companion.downloadStatesFlow
 import ac.mdiq.podcini.sync.SynchronizationSettings.isSyncProviderConnected
 import ac.mdiq.podcini.sync.model.EpisodeAction
@@ -43,7 +45,7 @@ abstract class EpisodeDLManager {
 
             var item = realm.query(Episode::class).query("id == ${request.feedfileId}").first().find()
             if (item == null) {
-                Loge(TAG, "Could not find downloaded episode object in database")
+                Loge(TAG, localizedString(R.string.message_could_not_find_downloaded_episode_object_in_database))
                 return
             }
             //                val broadcastUnreadStateUpdate = item.isNew

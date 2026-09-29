@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.ui.compose
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.PlayerStatusSimple
 import ac.mdiq.podcini.playback.playerOf
@@ -226,7 +227,7 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
         if (showTransMetaDialog) CommonPopupCard(onDismiss = { showTransMetaDialog = false }) {
             val client = remember(episode.id) { clientByEpisode(episode) }
             if (client == null) {
-                Logt(TAG, "can not find service app for episode")
+                Logt(TAG, localizedString(R.string.message_can_not_find_service_app_for_episode))
                 return@CommonPopupCard
             }
             LaunchedEffect(Unit) {
@@ -267,18 +268,18 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
         var expanded by remember { mutableStateOf(false) }
         val buttonAltColor = lerp(MaterialTheme.colorScheme.tertiary, Color.Green, 0.5f)
         Box(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
-            AsyncImage(model = (episode.images.firstOrNull() ?: episodeFeed?.images?.firstOrNull())?.href, imageLoader = imageLoader, contentDescription = "bgImage", contentScale = ContentScale.FillBounds, error = painterResource(R.drawable.teaser), modifier = Modifier.matchParentSize().blur(radiusX = 5.dp, radiusY = 5.dp))
+            AsyncImage(model = (episode.images.firstOrNull() ?: episodeFeed?.images?.firstOrNull())?.href, imageLoader = imageLoader, contentDescription = null, contentScale = ContentScale.FillBounds, error = painterResource(R.drawable.teaser), modifier = Modifier.matchParentSize().blur(radiusX = 5.dp, radiusY = 5.dp))
             Box(modifier = Modifier.matchParentSize().background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)))
             Column {
                 Row(modifier = Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (showClose) Icon(Icons.Filled.Close, contentDescription = "close", modifier = Modifier.padding(7.dp).clickable { episodeForInfo = null })
+                    if (showClose) Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.ui_close), modifier = Modifier.padding(7.dp).clickable { episodeForInfo = null })
                     Spacer(Modifier.weight(1f))
                     if (episode.captionCues.isNotEmpty()) {
-                        IconButton(onClick = { showTransDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = "transcript") }
+                        IconButton(onClick = { showTransDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_description_24), contentDescription = stringResource(R.string.transcript)) }
                         Spacer(Modifier.weight(1f))
                     }
                     if (episode.transcriptMetas.isEmpty() && isExtFeed(episode.feed)) {
-                        IconButton(onClick = { showTransMetaDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_closed_caption_add_24), contentDescription = "fetch transcript") }
+                        IconButton(onClick = { showTransMetaDialog = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_closed_caption_add_24), contentDescription = stringResource(R.string.ui_fetch_transcript)) }
                         Spacer(Modifier.weight(1f))
                     }
                     if (allowOpenFeed && episodeFeed != null) {
@@ -286,19 +287,19 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
                             navTo(FeedDetails(feedId = episodeFeed.id))
                             episodeForInfo = null
                             psState = PSState.PartiallyExpanded
-                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_feed), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "Open podcast", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer)) }
+                        }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_feed), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_open_podcast), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer)) }
                         Spacer(Modifier.weight(1f))
                     }
-                    IconButton(onClick = { comboAction.performAction(episode) }) { Icon(imageVector = ImageVector.vectorResource(comboAction.iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "Combo", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer)) }
+                    IconButton(onClick = { comboAction.performAction(episode) }) { Icon(imageVector = ImageVector.vectorResource(comboAction.iconRes), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_episode_action), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer)) }
                     Spacer(Modifier.weight(1f))
                     if (!isExtFeed(episode.feed) && !episode.link.isNullOrEmpty()) {
-                        IconButton(onClick = { showHomeScreen = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_article_shortcut_24), contentDescription = "home") }
+                        IconButton(onClick = { showHomeScreen = true }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_article_shortcut_24), contentDescription = stringResource(R.string.ui_home)) }
                         Spacer(Modifier.weight(1f))
                     }
-                    IconButton(onClick = { episode.linkOrFeedlink?.let { openInSystemDefault(it) } }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_web), contentDescription = "web") }
+                    IconButton(onClick = { episode.linkOrFeedlink?.let { openInSystemDefault(it) } }) { Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_web), contentDescription = stringResource(R.string.ui_web)) }
                     Spacer(Modifier.weight(1f))
                     Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                        IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                         DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                             DropdownMenuItem(text = { Text(stringResource(R.string.share_label)) }, onClick = {
                                 showShareDialog = true
@@ -310,10 +311,10 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
                 Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp)) {
                     SelectionContainer { Text(episode.title?:"", color = textColor, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), modifier = Modifier.fillMaxWidth()) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (episode.downloadUrl.isNullOrBlank()) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = "error")
+                        if (episode.downloadUrl.isNullOrBlank()) Icon(imageVector = ImageVector.vectorResource(R.drawable.ic_error), tint = Color.Red, contentDescription = stringResource(R.string.error_label))
                         val playState = remember(episode.playState) { EpisodeState.fromCode(episode.playState) }
-                        Icon(imageVector = ImageVector.vectorResource(playState.res), tint = playState.color ?: MaterialTheme.colorScheme.tertiary, contentDescription = "playState", modifier = Modifier.background(if (episode.playState >= EpisodeState.SKIPPED.code) Color.Green.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface).width(16.dp).height(16.dp))
-                        if (episode.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(episode.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = "rating", modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(16.dp).height(16.dp))
+                        Icon(imageVector = ImageVector.vectorResource(playState.res), tint = playState.color ?: MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_play_status), modifier = Modifier.background(if (episode.playState >= EpisodeState.SKIPPED.code) Color.Green.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface).width(16.dp).height(16.dp))
+                        if (episode.rating != Rating.UNRATED.code) Icon(imageVector = ImageVector.vectorResource(Rating.fromCode(episode.rating).res), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_rating), modifier = Modifier.background(MaterialTheme.colorScheme.tertiaryContainer).width(16.dp).height(16.dp))
                         val pubTimeText = remember(episode.id) { formatDateTimeFlex(episode.pubDate) }
                         val txtvDuration = remember(episode.id) { if (episode.duration > 0) durationStringFull(episode.duration) else "" }
                         var txtvSize by remember(episode.id) { mutableStateOf("") }
@@ -332,7 +333,7 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
                         }
                         Text("$pubTimeText · $txtvDuration · $txtvSize", color = textColor, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.weight(1f))
-                        Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_timer_24), tint = if (timers.isEmpty()) buttonColor else buttonAltColor, contentDescription = "timer", modifier = Modifier.width(28.dp).height(32.dp).combinedClickable(
+                        Icon(imageVector = ImageVector.vectorResource(R.drawable.outline_timer_24), tint = if (timers.isEmpty()) buttonColor else buttonAltColor, contentDescription = stringResource(R.string.browse_timers), modifier = Modifier.width(28.dp).height(32.dp).combinedClickable(
                             onClick = {
                                 if (timers.isEmpty()) showAddTimerDialog = true
                                 else showTimetableDialog = true
@@ -365,13 +366,13 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
                 TopBar()
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 50.dp)) {
                     EpisodeDetails(episode)
-                    AsyncImage(model = ImageRequest.Builder(context).data((episode.images.firstOrNull() ?: episodeFeed?.images?.firstOrNull())?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = "imgvCover", contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
-                    Text(episode.link ?: "Link not included", color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 15.dp).combinedClickable(
+                    AsyncImage(model = ImageRequest.Builder(context).data((episode.images.firstOrNull() ?: episodeFeed?.images?.firstOrNull())?.href).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth().padding(10.dp))
+                    Text(episode.link ?: stringResource(R.string.ui_link_missing), color = textColor, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 15.dp).combinedClickable(
                         onClick = { if (!episode.link.isNullOrBlank()) openInSystemDefault(episode.link!!) },
                         onLongClick = { if (!episode.link.isNullOrBlank()) context.shareText(episode.link!!, R.string.share_url_label) }
                     ) )
-                    Text("Time spent: " + durationStringShort(episode.timeSpent, true))
-                    Text("Played duration: " + durationStringShort(episode.playedDuration.toLong(), true))
+                    Text(stringResource(R.string.ui_time_spent, durationStringShort(episode.timeSpent, true)))
+                    Text(stringResource(R.string.ui_played_duration, durationStringShort(episode.playedDuration.toLong(), true)))
                 }
             }
         }
@@ -441,7 +442,7 @@ fun EpisodeWebView(episode: Episode) {
                                         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED)
                                             Loge(TAG, context.getString(R.string.language_not_supported_by_tts) + lang)
                                     }
-                                    Logt(TAG, "TTS init success")
+                                    Logt(TAG, localizedString(R.string.message_tts_init_success))
                                 } else Loge(TAG, context.getString(R.string.tts_init_failed))
                             }
                         }
@@ -485,7 +486,7 @@ fun EpisodeWebView(episode: Episode) {
         var expanded by remember { mutableStateOf(false) }
         val context = LocalContext.current
         Row(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Back or drawer", modifier = Modifier.padding(7.dp).clickable { navBack() })
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = stringResource(R.string.archive_back), modifier = Modifier.padding(7.dp).clickable { navBack() })
             Spacer(Modifier.weight(1f))
             if (readMode && tts != null) {
                 val iconRes = if (ttsPlaying) R.drawable.ic_pause else R.drawable.ic_play_24dp
@@ -504,19 +505,19 @@ fun EpisodeWebView(episode: Episode) {
                             }
                         }
                     } else ttsPlaying = false
-                }) { Icon(imageVector = ImageVector.vectorResource(iconRes), contentDescription = "home") }
+                }) { Icon(imageVector = ImageVector.vectorResource(iconRes), contentDescription = stringResource(R.string.ui_home)) }
             }
             val showJSIconRes = if (readMode) R.drawable.outline_eyeglasses_24 else R.drawable.javascript_icon_245402
-            IconButton(onClick = { jsEnabled = !jsEnabled }) { Icon(imageVector = ImageVector.vectorResource(showJSIconRes), contentDescription = "JS") }
+            IconButton(onClick = { jsEnabled = !jsEnabled }) { Icon(imageVector = ImageVector.vectorResource(showJSIconRes), contentDescription = stringResource(R.string.ui_javascript)) }
             val homeIconRes = if (readMode) R.drawable.baseline_home_24 else R.drawable.outline_home_24
             IconButton(onClick = {
                 readMode = !readMode
                 Logd(TAG) { "readMode: $readMode" }
                 jsEnabled = false
                 prepareContent()
-            }) { Icon(imageVector = ImageVector.vectorResource(homeIconRes), contentDescription = "switch home") }
+            }) { Icon(imageVector = ImageVector.vectorResource(homeIconRes), contentDescription = stringResource(R.string.ui_switch_home)) }
             Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Menu") }
+                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.archive_more)) }
                 DropdownMenu(expanded = expanded, border = BorderStroke(1.dp, borderColor), onDismissRequest = { expanded = false }) {
                     if (readMode && !readerhtml.isNullOrEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.share_notes_label)) }, onClick = {
                         val shareText = readerhtml!!.parseAsHtml(HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
@@ -564,7 +565,7 @@ fun EpisodeWebView(episode: Episode) {
                                         (v.parent as? ViewGroup)?.removeView(v)
                                         v.destroy()
                                     }
-                                    Loge(TAG, "WebViewClient failure")
+                                    Loge(TAG, localizedString(R.string.message_webviewclient_failure))
                                     return true
                                 }
                             }
@@ -614,7 +615,7 @@ fun EpisodeWebView(episode: Episode) {
                                         (v.parent as? ViewGroup)?.removeView(v)
                                         v.destroy()
                                     }
-                                    Loge(TAG, "WebViewClient failure")
+                                    Loge(TAG, localizedString(R.string.message_webviewclient_failure))
                                     return true
                                 }
                             }

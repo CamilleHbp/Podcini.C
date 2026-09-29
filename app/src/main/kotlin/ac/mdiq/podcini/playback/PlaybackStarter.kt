@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.playback.Media3Player.Companion.getCache
 import ac.mdiq.podcini.playback.Media3Player.Companion.simpleCache
 import ac.mdiq.podcini.playback.MediaPlayerBase.Companion.isStreamingCapable
@@ -74,7 +76,7 @@ class PlaybackStarter(private val media: Episode) {
             val player = theatres[playerId].mPlayerFlow.value
             sameMedia = !forcePlaybackReset && player?.curMediaFlow?.value?.id == media_.id
             if (player == null) {
-                Loge(TAG, "processTask mPlayerFlow.value == null")
+                Loge(TAG, localizedString(R.string.message_processtask_mplayerflow_value_null))
                 return
             }
             if (shouldStreamThisTime && !isStreamingCapable(media_)) {

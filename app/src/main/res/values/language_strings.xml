@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_language">App language</string>
+    <string name="app_language_summary">Use your device language or choose a language for this app.</string>
+    <string name="app_language_system">Follow device language</string>
+    <string name="app_language_english" translatable="false">English</string>
+    <string name="app_language_french" translatable="false">Français</string>
+</resources>

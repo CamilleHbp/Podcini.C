@@ -12,7 +12,7 @@ import ac.mdiq.podcini.ui.screens.navTo
 import ac.mdiq.podcini.utils.Logd
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 private const val TAG = "EpisodeInfoActivity"
 
-class EpisodeInfoActivity : ComponentActivity() {
+class EpisodeInfoActivity : AppCompatActivity() {
     private val currentEpisodeId = MutableStateFlow<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {

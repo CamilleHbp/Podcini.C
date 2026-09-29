@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.sourcing.download
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.sourcing.download.DownloadRequest.Companion.CredentialsKey
 import ac.mdiq.podcini.utils.NetworkUtils.getURIFromRequestUrl
@@ -61,9 +62,9 @@ abstract class Downloader(val request: DownloadRequest) {
         this.result = DownloadResult(this.request.feedfileId, this.request.title?:"", null, false, "", this.request.feedfileType, nowInMillis())
     }
 
-    open suspend fun download() { Loge(TAG, "download() method is not implemented") }
+    open suspend fun download() { Loge(TAG, localizedString(R.string.message_download_method_is_not_implemented)) }
 
-    open suspend fun download(cb: suspend (Source)->Unit) { Loge(TAG, "download(cb) method is not implemented") }
+    open suspend fun download(cb: suspend (Source)->Unit) { Loge(TAG, localizedString(R.string.message_download_cb_method_is_not_implemented)) }
 
     fun cancel() {
         cancelled = true
@@ -122,7 +123,7 @@ abstract class Downloader(val request: DownloadRequest) {
 
         fun downloaderFor(request: DownloadRequest): Downloader? {
             if (!isNetworkUrl(request.source)) {
-                Loge(TAG, "Could not find appropriate downloader for " + request.source)
+                Loge(TAG, localizedString(R.string.message_could_not_find_appropriate_downloader_for) + request.source)
                 return null
             }
             return if (request.feedfileType == RequestType.FEED.code) FeedDownloader(request) else EpisodeDownloader(request)
@@ -192,7 +193,7 @@ class FeedDownloader(request: DownloadRequest): Downloader(request) {
                         if (fileExists && response.status == HttpStatusCode.PartialContent && !contentRangeHeader.isNullOrEmpty()) {
                             val start = contentRangeHeader.removePrefix("bytes ").substringBefore('-').toLong()
                             if (start != request.soFar) {
-                                Logt(TAG, "Unexpected resume offset $start, restarting download")
+                                Logt(TAG, localizedString(R.string.message_unexpected_resume_offset_restarting_download, (start).toString()))
                                 destFile.delete()
                             } else Logd(TAG) { "Resuming download at $start" }
                             val remaining = response.contentLength()

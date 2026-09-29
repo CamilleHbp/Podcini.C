@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.config.settings
 
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.storage.model.Feed
@@ -179,7 +180,7 @@ class OpmlTransporter {
                     if (docFile.exists()) {
                         val opmlElements = OpmlReader().readDocument(docFile)
                         withContext(Dispatchers.Main) { CB(opmlElements) }
-                    } else Loge(TAG, "OPML file doesn't exist: $uri")
+                    } else Loge(TAG, localizedString(R.string.message_opml_file_doesn_t_exist, (uri).toString()))
                 } catch (e: Throwable) {
                     withContext(Dispatchers.Main) {
                         Logs(TAG, e)

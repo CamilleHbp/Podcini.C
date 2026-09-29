@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.R
+import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
 import ac.mdiq.podcini.playback.cast.CastMediaPlayer.buildCastPlayer
 import ac.mdiq.podcini.playback.PlaybackService.Companion.isAutoController
@@ -219,7 +221,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                             val totalDuration = exoPlayer?.duration ?: 0L
                             Logd(TAG) { "exoplayerListener onPlaybackStateChanged currentPos: $currentPos totalDuration: $totalDuration" }
                             if (totalDuration > 0 && (totalDuration - currentPos) > 5000) {
-                                Logt(TAG, "Stream ended prematurely at $currentPos ms. Resuming...")
+                                Logt(TAG, localizedString(R.string.message_stream_ended_prematurely_at_ms_resuming, (currentPos).toString()))
 //                                exoPlayer?.stop()
 //                                val currentMediaItem = exoPlayer?.currentMediaItem
 //                                currentMediaItem?.let { item ->
@@ -252,7 +254,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                             val currentPos = player.currentPosition
                             val totalDuration = player.duration
                             if (player.playbackState == STATE_ENDED && totalDuration > 0 && (totalDuration - currentPos) > 10000) {
-                                Logt(TAG, "Cast device disconnected stream early at $currentPos ms. Remotely resuming...")
+                                Logt(TAG, localizedString(R.string.message_cast_device_disconnected_stream_early_at_ms_remotely_resuming, (currentPos).toString()))
                                 val currentItem = player.currentMediaItem
                                 currentItem?.let { item ->
                                     player.setMediaItem(item, currentPos)
@@ -267,7 +269,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                         val curDuration = curMediaFlow.value?.duration
                         if (duration != C.TIME_UNSET && duration > 0 && curDuration != null && abs(duration - curDuration) > 5000) {
                             runOnIOScope { upsert(curMediaFlow.value!!) { it.duration = duration.toInt() } }
-                            Logt(TAG, "Media duration adjusted to : ${durationStringFull(duration.toInt())}")
+                            Logt(TAG, localizedString(R.string.message_media_duration_adjusted_to, (durationStringFull(duration.toInt())).toString()))
                         }
                     }
                     if (events.contains(Player.EVENT_IS_LOADING_CHANGED) || events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
@@ -316,11 +318,11 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                         castPlayer?.clearMediaItems()
                         handlePlayerStatus(PlayerStatus.STOPPED, curMediaFlow.value)
                     }
-                    Loge(TAG, error, "exoplayerListener onPlayerError: error code: ${error.errorCode}")
+                    Loge(TAG, error, localizedString(R.string.message_exoplayerlistener_onplayererror_error_code, (error.errorCode).toString()))
                     when (error.errorCode) {
                         PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED -> {
                             curMediaFlow.value?.let { getCache().removeResource(it.id.toString()) }
-                            Logt(TAG, "corrupted cache is cleared, try playing it again")
+                            Logt(TAG, localizedString(R.string.message_corrupted_cache_is_cleared_try_playing_it_again))
                         }
                         PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                         PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
@@ -378,7 +380,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                         }
                         PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED-> {
                             forcePlaybackReset = true
-                            Logt(TAG, "Player error: if media is served by an external app, try play again, or try toggling 'Use external apps' in Settings, and play again.")
+                            Logt(TAG, localizedString(R.string.message_player_error_if_media_is_served_by_an_external_app_try_play_again))
                         }
                         else -> {
                             // Terminal errors (404, Media Unsupported)
@@ -387,7 +389,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                             when {
                                 cause is AudioSink.InitializationException -> {
                                     if (enableFloat) {
-                                        Logt(TAG, "system can not handle float sampling, recreating players with float off")
+                                        Logt(TAG, localizedString(R.string.message_system_can_not_handle_float_sampling_recreating_players_with_floa))
                                         enableFloat = false
                                         playbackService?.switchPlayersMode()
                                     }
@@ -582,7 +584,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                 bufferForPlaybackUsField?.set(delegate, playbackMs * 1000L)
                 bufferForPlaybackAfterRebufferUsField?.set(delegate, rebufferMs * 1000L)
                 prioritizeTimeOverSizeThresholdsField?.set(delegate, prioritizeTime)
-            }.onFailure { e -> Loge(TAG, e, "Failed to dynamically update buffer parameters ") }
+            }.onFailure { e -> Loge(TAG, e, localizedString(R.string.message_failed_to_dynamically_update_buffer_parameters)) }
         }
 
         override fun onPrepared(playerId: PlayerId) = delegate.onPrepared(playerId)
@@ -707,9 +709,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     mSource = vSource
                     playingVideoFlow.value = true
                     playingMuxedVideo = true
-                    Logt(TAG, "Using muxed video stream")
-                } else Loge(TAG, "videoStream or url is null or blank")
-            } else Logt(TAG, "Client provided no muxed video stream")
+                    Logt(TAG, localizedString(R.string.message_using_muxed_video_stream))
+                } else Loge(TAG, localizedString(R.string.message_videostream_or_url_is_null_or_blank))
+            } else Logt(TAG, localizedString(R.string.message_client_provided_no_muxed_video_stream))
         }
 
         Logd(TAG) { "mediaSourceFromClient setting for source needVideo: $needVideo media: ${media.title}" }
@@ -749,9 +751,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                 if (!it.url.isNullOrBlank()) {
                     aSource = ProgressiveMediaSource.Factory(recordingFactory!!).createMediaSource(MediaItem.Builder().setMediaId(media.id.toString()).setMediaMetadata(metadata).setTag(metadata).setUri(it.url!!.toSafeUri()).setCustomCacheKey(media.id.toString()).build())
                     Logd(TAG) { "mediaSourceFromClient aSource set to: ${it.url}" }
-                } else Loge(TAG, "eligible audioStream or its url is null or blank")
+                } else Loge(TAG, localizedString(R.string.message_eligible_audiostream_or_its_url_is_null_or_blank))
             }
-        } else Logt(TAG, "Client provided no audio stream, trying with muxed video stream")
+        } else Logt(TAG, localizedString(R.string.message_client_provided_no_audio_stream_trying_with_muxed_video_stream))
 
         if ((aSource == null || needVideo) && curClient?.attributes?.hasVideo == true) {
             if (aSource == null) {
@@ -769,8 +771,8 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                     mediaSources.add(aSource)
                     mSource = MergingMediaSource(true, *mediaSources.toTypedArray<MediaSource>())
                     Logd(TAG) { "mediaSourceFromClient vSource set to: ${curVideoSpec?.url}" }
-                } else Loge(TAG, "videoStream or url is null or blank")
-            } else Logt(TAG, "Client provided no video stream")
+                } else Loge(TAG, localizedString(R.string.message_videostream_or_url_is_null_or_blank))
+            } else Logt(TAG, localizedString(R.string.message_client_provided_no_video_stream))
         } else mSource = aSource
         return mSource
     }
@@ -1047,11 +1049,11 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
 
     override fun recordClip(startPositionMs: Long, endPositionMs: Long?) {
         val mediaItem = exoPlayer!!.currentMediaItem ?: run {
-            Loge(TAG, "recordClip failed: No current media item.")
+            Loge(TAG, localizedString(R.string.message_recordclip_failed_no_current_media_item))
             return
         }
         val uri = mediaItem.localConfiguration?.uri ?: run {
-            Loge(TAG, "recordClip failed: No URI in MediaItem.")
+            Loge(TAG, localizedString(R.string.message_recordclip_failed_no_uri_in_mediaitem))
             return
         }
         val tracks = exoPlayer!!.currentTracks
@@ -1059,14 +1061,14 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             .flatMap { group -> (0 until group.length).map { group.getTrackFormat(it) } }
             .firstOrNull { it.sampleMimeType?.startsWith("audio/") == true }
         if (audioFormat == null) {
-            Loge(TAG,  "recordClip failed: No audio track found.")
+            Loge(TAG,  localizedString(R.string.message_recordclip_failed_no_audio_track_found))
             return
         }
         val mimeType = audioFormat.sampleMimeType
         Logd(TAG) { "mimeType: [$mimeType]" }
         val ext = getFileExtensionFromMimeType(mimeType)
         if (ext == null) {
-            Loge(TAG, "recordClip failed: Audio format not supported for recording: $ext")
+            Loge(TAG, localizedString(R.string.message_recordclip_failed_audio_format_not_supported_for_recording, (ext).toString()))
             return
         }
         if (endPositionMs == null) {
@@ -1109,8 +1111,8 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                             outputFile.writeBytes(adjustedSegment)
                             upsert(curMediaFlow.value!!) { it.clips.add(clipname) }
                             Logd(TAG) { "Saved local clip to: ${outputFile.absPath}" }
-                        } else Loge(TAG, "recordClip: Failed to extract segment from local media")
-                    } catch (e: Exception) { Loge(TAG, e, "recordClip failed: FileKit operation failed") } finally { tempFile.delete() }
+                        } else Loge(TAG, localizedString(R.string.message_recordclip_failed_to_extract_segment_from_local_media))
+                    } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_recordclip_failed_filekit_operation_failed)) } finally { tempFile.delete() }
                 }
                 else -> {   // streaming
                     Logd(TAG) { "curDataSource==null: ${curDataSource==null}" }
@@ -1132,7 +1134,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                                 tempOutput.writeBytes(segmentData)
                                 Logd(TAG) { "Total written: $totalRead bytes" }
                             }
-                        } catch (e: Exception) { Loge(TAG, e, "recordClip: Failed to extract from temp files") }
+                        } catch (e: Exception) { Loge(TAG, e, localizedString(R.string.message_recordclip_failed_to_extract_from_temp_files)) }
                         val segment = tempOutput.readBytes()
                         tempOutput.delete()
                         if (segment.isNotEmpty()) {
@@ -1146,9 +1148,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                             outputFile.writeBytes(adjustedSegment)
                             upsert(curMediaFlow.value!!) { it.clips.add(clipname) }
                             Logd(TAG) { "Saved clip to: ${outputFile.absPath}" }
-                        } else Loge(TAG, "recordClip: Failed to extract segment from temp file")
+                        } else Loge(TAG, localizedString(R.string.message_recordclip_failed_to_extract_segment_from_temp_file))
                         tempFileDS.delete()
-                    } else Loge(TAG, "recordClip: Failed saving clip: No temp file available after stopping recording")
+                    } else Loge(TAG, localizedString(R.string.message_recordclip_failed_saving_clip_no_temp_file_available_after_stoppi))
                 }
             }
         }
@@ -1269,7 +1271,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             val cacheDir = File(getAppContext().cacheDir, "media_cache")
             if (cacheDir.exists()) {
                 val success = cacheDir.deleteRecursively()
-                Logt(TAG, "Physical cache folder deleted: $success")
+                Logt(TAG, localizedString(R.string.message_physical_cache_folder_deleted, (success).toString()))
             }
         }
 
