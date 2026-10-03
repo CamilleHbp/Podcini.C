@@ -120,16 +120,21 @@ fun LibraryMetadataLinks(item: Episode, editTags: () -> Unit) {
         creators.forEach { creator -> TextButton(onClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("creator", creator = creator)) }) { Text(creator) } }
         if (item.album.isNotBlank()) TextButton(onClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("album", album = libraryAlbumKey(item.album, item.albumArtist, item.artist), title = item.album, sort = 21)) }) { Text(item.album) }
     }
-    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item.tags.forEach { tag -> SuggestionChip(onClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = tag)) }, label = { Text(tagLabel(tag)) }) }
-        if (item.tags.isNotEmpty()) TextButton(onClick = editTags) { Text(stringResource(R.string.edit_tags)) }
-    }
+    CompactTagList(item.tags, onTagClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = it)) },
+        onShowAll = editTags, modifier = Modifier.padding(horizontal = 16.dp))
+    TextButton(onClick = editTags, modifier = Modifier.padding(horizontal = 8.dp)) { Text(stringResource(R.string.edit_tags)) }
     val inherited = item.feed?.tags.orEmpty().filter { it !in item.tags }
     if (inherited.isNotEmpty()) {
+        var expanded by rememberSaveable(item.id) { mutableStateOf(false) }
         Text(stringResource(R.string.browse_inherited_tags), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            inherited.forEach { tag -> SuggestionChip(onClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = tag)) }, label = { Text(tagLabel(tag)) }) }
-        }
+        if (expanded) {
+            val colors = rememberTagColors()
+            FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                inherited.forEach { path -> ColoredTagChip(path, colors, { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = path)) }) }
+            }
+            TextButton(onClick = { expanded = false }) { Text(stringResource(R.string.tag_show_less)) }
+        } else CompactTagList(inherited, onTagClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = it)) },
+            onShowAll = { expanded = true }, modifier = Modifier.padding(horizontal = 16.dp))
     }
 }
 

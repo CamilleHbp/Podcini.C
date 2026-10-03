@@ -97,6 +97,7 @@ fun UnifiedLibraryScreen() {
     if (dialog == "url") AddMediaUrlDialog { dialog = "" }
     if (dialog == "playlist" || playlistRules != null) PlaylistEditorDialog(rules = playlistRules) { dialog = ""; playlistRules = null }
     if (dialog == "fileTags") FileTagManagerDialog { dialog = "" }
+    if (dialog == "tagColor") TagColorPickerDialog(destination.tag) { dialog = "" }
     if (dialog == "pin") LibraryNameDialog(stringResource(R.string.browse_pin_view), title, onDismiss = { dialog = "" }) { name ->
         preferencesEdit { it.copy(pins = it.pins + LibraryPin(UUID.randomUUID().toString(), name, destination)) }; dialog = ""
     }
@@ -155,7 +156,7 @@ fun UnifiedLibraryScreen() {
                                     menu = false; playlistRules = PlayQueue().apply { smart = true; ruleBrowseFilter = destination.query().encode(); sortOrder = EpisodeSortOrder.fromCode(destination.sort) }
                                 })
                             }
-                            if (TagPath.parse(destination.tag) != null) listOf("newTag" to R.string.browse_add_subtag, "renameTag" to R.string.rename,
+                            if (TagPath.parse(destination.tag) != null) listOf("tagColor" to R.string.tag_color_title, "newTag" to R.string.browse_add_subtag, "renameTag" to R.string.rename,
                                 "moveTag" to R.string.browse_move_tag, "mergeTag" to R.string.browse_merge_tag, "removeTag" to R.string.browse_remove_tag).forEach { (key, label) ->
                                 DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = { menu = false; dialog = key })
                             }
@@ -429,6 +430,7 @@ private fun LibraryBrowser(destination: LibraryDestination, catalogue: LibraryCa
                     val paths = if (destination.filter.copy(text = "").isActive) candidatePaths.filter { (rows.tagCounts[libraryKey(it)] ?: 0) > 0 } else candidatePaths
                     LazyColumn {
                         item { header() }
+                        item { Text(stringResource(R.string.tag_color_hint), Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         items(paths, key = { it }) { path -> TagBrowseRow(path, rows.tagCounts[libraryKey(path)] ?: 0, visit, destination.filter.copy(text = ""), showPath = destination.filter.text.isNotBlank()) }
                         if (paths.isEmpty()) item { LibraryEmptyMessage(R.string.browse_no_tags, R.string.browse_no_tags_hint) }
                     }
@@ -484,8 +486,15 @@ private fun LibraryCover(title: String, subtitle: String, image: String?, onClic
 
 @Composable
 private fun TagBrowseRow(path: String, count: Int, visit: (LibraryDestination) -> Unit, filter: LibraryFilter, showPath: Boolean = false) {
-    LibraryBrowseRow(tagLeafLabel(path), if (showPath) tagLabel(path) else pluralStringResource(R.plurals.browse_media_count, count, count),
-        onClick = { visit(LibraryDestination("tag", tag = path, filter = filter)) })
+    val colors = rememberTagColors()
+    var pickingColor by rememberSaveable(path) { mutableStateOf(false) }
+    if (pickingColor) TagColorPickerDialog(path) { pickingColor = false }
+    ListItem(headlineContent = { Text(tagLeafLabel(path), style = MaterialTheme.typography.titleMedium) },
+        leadingContent = { TagColorButton(path, colors) { pickingColor = true } },
+        supportingContent = { Text(if (showPath) tagLabel(path) else pluralStringResource(R.plurals.browse_media_count, count, count), style = MaterialTheme.typography.bodySmall) },
+        trailingContent = { Icon(ImageVector.vectorResource(R.drawable.baseline_arrow_right_alt_24), null) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { visit(LibraryDestination("tag", tag = path, filter = filter)) })
 }
 
 @Composable

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tag_color_choose_for">Changer la couleur de %1$s</string>
+    <string name="tag_color_title">Couleur du tag</string>
+    <string name="tag_color_local_hint">Les couleurs apparaissent uniquement dans Podcini. Vos fichiers multimédias restent inchangés.</string>
+    <string name="tag_color_automatic">Automatique · suit le parent</string>
+    <string name="tag_color_custom">Couleur personnalisée</string>
+    <string name="tag_color_hue">Teinte de la couleur</string>
+    <string name="tag_color_save_failed">Impossible d’enregistrer la couleur. Réessayez.</string>
+    <string name="tag_color_coral">Corail</string>
+    <string name="tag_color_amber">Ambre</string>
+    <string name="tag_color_olive">Olive</string>
+    <string name="tag_color_green">Vert</string>
+    <string name="tag_color_teal">Bleu sarcelle</string>
+    <string name="tag_color_blue">Bleu</string>
+    <string name="tag_color_indigo">Indigo</string>
+    <string name="tag_color_violet">Violet</string>
+    <string name="tag_color_orchid">Orchidée</string>
+    <string name="tag_color_rose">Rose</string>
+    <plurals name="tag_more_count">
+        <item quantity="one">+%1$d autre</item>
+        <item quantity="other">+%1$d autres</item>
+    </plurals>
+    <string name="tag_clear_search">Effacer la recherche de tags</string>
+    <string name="tag_browse">Parcourir</string>
+    <string name="tag_selected_count">Sélectionnés (%1$d)</string>
+    <string name="tag_categories">Catégories</string>
+    <string name="tag_partial_hint">Un tiret indique que ce tag figure sur certains fichiers sélectionnés. Sélectionnez-le pour l’ajouter à tous.</string>
+    <string name="tag_none_selected">Aucun tag sélectionné. Parcourez les catégories ou recherchez un tag à ajouter.</string>
+    <string name="tag_no_matches">Aucun tag correspondant. Essayez une autre recherche.</string>
+    <string name="tag_file_details">Enregistrement et tags hérités</string>
+    <string name="tag_hide_file_details">Masquer les détails des fichiers</string>
+    <string name="tag_show_less">Afficher moins de tags</string>
+    <string name="tag_retry">Réessayer</string>
+    <string name="tag_color_hint">Touchez une couleur pour la modifier.</string>
+    <string name="tag_color_default">Automatique</string>
+</resources>

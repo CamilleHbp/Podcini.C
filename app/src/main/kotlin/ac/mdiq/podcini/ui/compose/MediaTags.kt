@@ -13,15 +13,22 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -62,65 +69,141 @@ fun tagStatusLabel(status: String): String = stringResource(when (status) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagTreeEditor(initial: List<Set<String>>, onSave: (List<String>, List<String>) -> Unit) {
+private fun TagTreeEditor(initial: List<Set<String>>, onDismiss: () -> Unit,
+                          details: (@Composable () -> Unit)? = null,
+                          onSave: (List<String>, List<String>) -> Unit) {
     val catalogue by remember { libraryCatalogueFlow() }.collectAsStateWithLifecycle(initialValue = LibraryCatalogue())
     val prefs by appPrefsFlow!!.collectAsStateWithLifecycle()
+    val colors = rememberTagColors()
     val recent = remember(prefs.recentMediaTags) { runCatching { libraryJson.decodeFromString<List<String>>(prefs.recentMediaTags) }.getOrDefault(emptyList()) }
-    var parent by remember { mutableStateOf("") }
-    var search by remember { mutableStateOf("") }
-    var newName by remember { mutableStateOf("") }
-    val added = remember { mutableStateListOf<String>() }
-    val removed = remember { mutableStateListOf<String>() }
-    val all = (catalogue.tags + initial.flatten() + added + recent + TagKind.entries.map { it.root }).flatMap(::tagParents).distinctBy(::tagIdentity)
+    var parent by rememberSaveable { mutableStateOf("") }
+    var search by rememberSaveable { mutableStateOf("") }
+    var newName by rememberSaveable { mutableStateOf("") }
+    var selectedOnly by rememberSaveable { mutableStateOf(false) }
+    var showDetails by rememberSaveable { mutableStateOf(false) }
+    var editingColor by rememberSaveable { mutableStateOf<String?>(null) }
+    var added by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var removed by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val all = remember(catalogue.tags, initial, added, recent) {
+        (catalogue.tags + initial.flatten() + added + recent + TagKind.entries.map { it.root })
+            .flatMap(::tagParents).distinctBy(::tagIdentity).sortedBy(::tagIdentity)
+    }
+    val counts = remember(initial) { initial.flatMap { it.distinctBy(::tagIdentity).map(::tagIdentity) }.groupingBy { it }.eachCount() }
+    val addedKeys = added.map(::tagIdentity).toSet()
+    val removedKeys = removed.map(::tagIdentity).toSet()
     fun selected(path: String): ToggleableState {
-        if (removed.any { tagIdentity(it) == tagIdentity(path) }) return ToggleableState.Off
-        if (added.any { tagIdentity(it) == tagIdentity(path) }) return ToggleableState.On
-        val count = initial.count { tags -> tags.any { tagIdentity(it) == tagIdentity(path) } }
+        val key = tagIdentity(path)
+        if (key in removedKeys) return ToggleableState.Off
+        if (key in addedKeys) return ToggleableState.On
+        val count = counts[key] ?: 0
         return when { count == 0 -> ToggleableState.Off; count == initial.size -> ToggleableState.On; else -> ToggleableState.Indeterminate }
     }
     fun toggle(path: String) {
         val old = selected(path)
-        added.removeAll { tagIdentity(it) == tagIdentity(path) }; removed.removeAll { tagIdentity(it) == tagIdentity(path) }
-        if (old == ToggleableState.On) removed.add(path) else added.add(path)
+        added = added.filterNot { tagIdentity(it) == tagIdentity(path) }
+        removed = removed.filterNot { tagIdentity(it) == tagIdentity(path) }
+        if (old == ToggleableState.On) removed = removed + path else added = added + path
     }
-    OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.file_tags_search)) }, singleLine = true)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { parent = encodeTagSegments(decodeTagSegments(parent).orEmpty().dropLast(1)) }, enabled = parent.isNotBlank()) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.file_tags_parent))
-        }
-        Text(if (parent.isBlank()) stringResource(R.string.tags_label) else tagLabel(parent), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
-    }
-    val visible = if (search.isBlank()) libraryTagChildren(all, parent) else all.filter { it.contains(search, true) }
-    visible.forEach { path ->
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (TagPath.parse(path) != null) {
-                val label = tagLabel(path)
-                TriStateCheckbox(selected(path), onClick = { toggle(path) }, modifier = Modifier.semantics { contentDescription = label })
+    val chosen = (initial.flatten() + added).distinctBy(::tagIdentity).filter { selected(it) != ToggleableState.Off }.sortedBy(::tagIdentity)
+    if (editingColor != null) TagColorPickerDialog(editingColor!!) { editingColor = null }
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.file_tags_search)) }, singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Search, null) },
+                trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) {
+                    Icon(Icons.Default.Close, stringResource(R.string.tag_clear_search))
+                } })
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(!selectedOnly, { selectedOnly = false }, label = { Text(stringResource(R.string.tag_browse)) })
+                FilterChip(selectedOnly, { selectedOnly = true }, label = { Text(stringResource(R.string.tag_selected_count, chosen.size)) })
             }
-            else Spacer(Modifier.width(48.dp))
-            Text(if (search.isNotBlank()) tagLabel(path) else tagLeafLabel(path),
-                Modifier.weight(1f).clickable { parent = path; search = "" }.padding(vertical = 12.dp))
-            IconButton(onClick = { parent = path; search = "" }) { Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.file_tags_open_branch)) }
+            if (!selectedOnly && search.isBlank()) Row(verticalAlignment = Alignment.CenterVertically) {
+                if (parent.isNotBlank()) IconButton(onClick = { parent = encodeTagSegments(decodeTagSegments(parent).orEmpty().dropLast(1)) }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.file_tags_parent))
+                }
+                Text(if (parent.isBlank()) stringResource(R.string.tag_categories) else tagLabel(parent),
+                    Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+            }
+        }
+        Text(stringResource(R.string.tag_color_hint), Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val candidates = when {
+            selectedOnly -> chosen
+            search.isNotBlank() -> all.filter { TagPath.parse(it) != null }
+            else -> libraryTagChildren(all, parent)
+        }
+        val rootLabels = mapOf("Genre" to stringResource(R.string.file_tags_genre), "Mood" to stringResource(R.string.file_tags_mood), "Tags" to stringResource(R.string.tags_label))
+        val visible = candidates.filter { path ->
+            val parts = decodeTagSegments(path).orEmpty()
+            val label = (listOf(rootLabels[parts.firstOrNull()] ?: parts.firstOrNull().orEmpty()) + parts.drop(1)).joinToString(" ")
+            search.isBlank() || label.contains(search, true) || path.contains(search, true)
+        }
+        val branches = remember(all) { all.flatMap { tagParents(it).dropLast(1) }.map(::tagIdentity).toSet() }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+            if (initial.size > 1) item {
+                Text(stringResource(R.string.tag_partial_hint), Modifier.padding(bottom = 8.dp),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            items(visible, key = { it }) { path ->
+                val hasChildren = tagIdentity(path) in branches || TagPath.parse(path) == null
+                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (TagPath.parse(path) != null) {
+                        val label = tagLabel(path)
+                        TriStateCheckbox(selected(path), onClick = { toggle(path) }, modifier = Modifier.semantics { contentDescription = label })
+                    }
+                    TagColorButton(path, colors) { editingColor = path }
+                    val fullLabel = tagLabel(path)
+                    Column(Modifier.weight(1f).clickable {
+                        if (hasChildren && !selectedOnly && search.isBlank()) parent = path else toggle(path)
+                    }.padding(vertical = 12.dp).semantics { contentDescription = fullLabel }) {
+                        Text(tagLeafLabel(path), style = MaterialTheme.typography.bodyLarge)
+                        if (selectedOnly || search.isNotBlank()) Text(tagLabel(encodeTagSegments(decodeTagSegments(path).orEmpty().dropLast(1))),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (hasChildren) IconButton(onClick = { parent = path; search = ""; selectedOnly = false }) {
+                        Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.file_tags_open_branch))
+                    }
+                }
+            }
+            if (visible.isEmpty()) item {
+                Text(stringResource(if (selectedOnly && search.isBlank()) R.string.tag_none_selected else R.string.tag_no_matches),
+                    Modifier.padding(vertical = 16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (!selectedOnly && search.isBlank() && parent.isNotBlank()) item {
+                OutlinedTextField(newName, { newName = it }, Modifier.fillMaxWidth().padding(top = 8.dp),
+                    label = { Text(stringResource(R.string.file_tags_new_child)) }, singleLine = true,
+                    trailingIcon = { IconButton(enabled = normalizeTagSegment(newName).isNotBlank(), onClick = {
+                        val path = encodeTagSegments(decodeTagSegments(parent).orEmpty() + normalizeTagSegment(newName))
+                        if (TagPath.parse(path) != null) {
+                            added = (added + path).distinctBy(::tagIdentity)
+                            removed = removed.filterNot { tagIdentity(it) == tagIdentity(path) }
+                            newName = ""
+                        }
+                    }) { Icon(Icons.Default.Add, stringResource(R.string.archive_add)) } })
+            }
+            if (!selectedOnly && search.isBlank() && parent.isBlank() && recent.isNotEmpty()) item {
+                Text(stringResource(R.string.file_tags_recent), Modifier.padding(top = 16.dp), style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    recent.take(6).forEach { path ->
+                        FilterChip(selected(path) == ToggleableState.On, { toggle(path) }, label = { Text(tagLabel(path)) },
+                            leadingIcon = { TagColorDot(path, colors) })
+                    }
+                }
+            }
+            if (details != null) item {
+                TextButton(onClick = { showDetails = !showDetails }) {
+                    Text(stringResource(if (showDetails) R.string.tag_hide_file_details else R.string.tag_file_details))
+                }
+                if (showDetails) details()
+            }
+        }
+        HorizontalDivider()
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel_label)) }
+            Button(onClick = { onSave(added, removed) }) { Text(stringResource(R.string.confirm_label)) }
         }
     }
-    if (parent.isNotBlank()) OutlinedTextField(newName, { newName = it }, Modifier.fillMaxWidth(),
-        label = { Text(stringResource(R.string.file_tags_new_child)) }, singleLine = true,
-        trailingIcon = { IconButton(enabled = normalizeTagSegment(newName).isNotBlank(), onClick = {
-            val path = encodeTagSegments(decodeTagSegments(parent).orEmpty() + normalizeTagSegment(newName))
-            if (TagPath.parse(path) != null) { added.add(path); removed.remove(path); newName = "" }
-        }) { Icon(Icons.Default.Add, stringResource(R.string.archive_add)) } })
-    if (recent.isNotEmpty() && search.isBlank() && parent.isBlank()) {
-        Text(stringResource(R.string.file_tags_recent), style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { recent.take(8).forEach { path ->
-            FilterChip(selected = selected(path) == ToggleableState.On, onClick = { toggle(path) }, label = { Text(tagLabel(path)) })
-        } }
-    }
-    val chosen = (initial.flatten() + added).distinctBy(::tagIdentity).filter { selected(it) != ToggleableState.Off }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { chosen.forEach { path ->
-        InputChip(selected = true, onClick = { toggle(path) }, label = { Text(tagLabel(path)) },
-            trailingIcon = { Icon(Icons.Default.Close, stringResource(R.string.file_tags_remove)) })
-    } }
-    Button(onClick = { onSave(added.toList(), removed.toList()) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.confirm_label)) }
 }
 
 @Composable
@@ -141,20 +224,18 @@ fun TagSettingDialog(tagType: TagType, existingTags: Set<String>, multiples: Boo
         text = { Text(stringResource(R.string.file_tags_embed_summary)) },
         confirmButton = { TextButton(onClick = { save(embedChoice!!, true) }) { Text(stringResource(R.string.file_tags_embed)) } },
         dismissButton = { TextButton(onClick = { save(embedChoice!!, false) }) { Text(stringResource(R.string.file_tags_keep_inherited)) } })
-    else CommonPopupCard(onDismiss = onDismiss) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.tags_label), style = MaterialTheme.typography.titleLarge)
-            TagTreeEditor(listOf(existingTags)) { added, removed ->
+    else TagEditorDialog(onDismiss = onDismiss) {
+            TagTreeEditor(listOf(existingTags), onDismiss) { added, removed ->
                 val tags = canonicalTags(existingTags.filterNot { it in removed } + added)
                 if (tagType == TagType.Feed && prefs.inheritedTagPolicy == "ask") embedChoice = tags
                 else save(tags, tagType == TagType.Feed && prefs.inheritedTagPolicy == "embed")
             }
-        }
     }
 }
 
 @Composable
 fun MediaTagsDialog(ids: List<Long>, onDismiss: () -> Unit) {
+    val editorState = rememberSaveableStateHolder()
     var loaded by remember(ids) { mutableStateOf(false) }
     var initial by remember(ids) { mutableStateOf<List<Set<String>>>(emptyList()) }
     var refresh by remember { mutableIntStateOf(0) }
@@ -162,35 +243,45 @@ fun MediaTagsDialog(ids: List<Long>, onDismiss: () -> Unit) {
     var error by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(ids, refresh) {
-        loaded = false
-        ids.forEach { MediaTagRepository.refresh(it, true) }
-        initial = ids.mapNotNull { realm.query(Episode::class, "id == $0", it).first().find()?.tags?.toSet() }
-        loaded = true
+        loaded = false; error = false
+        try {
+            ids.forEach { MediaTagRepository.refresh(it, true) }
+            initial = ids.mapNotNull { realm.query(Episode::class, "id == $0", it).first().find()?.tags?.toSet() }
+            loaded = true
+        } catch (_: Exception) { error = true }
     }
-    CommonPopupCard(onDismiss = onDismiss) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.tags_label), style = MaterialTheme.typography.titleLarge)
-            if (!loaded || saving) CircularProgressIndicator()
-            if (error) Text(stringResource(R.string.file_tags_action_failed), color = MaterialTheme.colorScheme.error)
-            if (loaded && !saving) key(refresh) {
-                TagTreeEditor(initial) { added, removed ->
-                    saving = true
-                    scope.launch { try { MediaTagRepository.edit(ids, add = added, remove = removed); refresh++ }
-                        catch (_: Exception) { error = true } finally { saving = false } }
-                }
+    TagEditorDialog(onDismiss = { if (!saving) onDismiss() }, dismissEnabled = !saving) {
+        if (!loaded || saving) {
+            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (error) {
+                    Text(stringResource(R.string.file_tags_action_failed), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { refresh++ }) { Text(stringResource(R.string.tag_retry)) }
+                } else LinearProgressIndicator(Modifier.fillMaxWidth())
             }
-            ids.forEach { id ->
-                val item = realm.query(Episode::class, "id == $0", id).first().find()
-                if (item != null) {
-                    if (ids.size > 1) Text(item.title.orEmpty(), style = MaterialTheme.typography.titleSmall)
-                    FileTagSaveControls(item, onChanged = { refresh++ })
-                    item.feed?.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
-                        Text(stringResource(R.string.file_tags_inherited), style = MaterialTheme.typography.labelSmall)
-                        Text(tags.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            if (error) Text(stringResource(R.string.file_tags_action_failed), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+            editorState.SaveableStateProvider("editor-$refresh") {
+            TagTreeEditor(initial, onDismiss, details = {
+                ids.forEach { id ->
+                    val item = realm.query(Episode::class, "id == $0", id).first().find()
+                    if (item != null) {
+                        if (ids.size > 1) Text(item.title.orEmpty(), style = MaterialTheme.typography.titleSmall)
+                        FileTagSaveControls(item, onChanged = { refresh++ })
+                        item.feed?.tags?.takeIf { it.isNotEmpty() }?.let { tags ->
+                            Text(stringResource(R.string.file_tags_inherited), style = MaterialTheme.typography.labelSmall)
+                            CompactTagList(tags, onTagClick = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tag", tag = it)); onDismiss() },
+                                onShowAll = { ac.mdiq.podcini.ui.screens.openLibrary(LibraryDestination("tags")); onDismiss() })
+                        }
                     }
                 }
+            }) { added, removed ->
+                saving = true; error = false
+                scope.launch {
+                    try { MediaTagRepository.edit(ids, add = added, remove = removed); onDismiss() }
+                    catch (_: Exception) { error = true } finally { saving = false }
+                }
             }
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+            }
         }
     }
 }
@@ -259,7 +350,11 @@ private fun TagConflictDialog(state: MediaTagState, onDismiss: () -> Unit, onSav
     val file = MediaTagRepository.values(state.external).paths()
     val pending = MediaTagRepository.values(state.desired).paths()
     var merge by remember { mutableStateOf(false) }
-    CommonPopupCard(onDismiss = onDismiss) {
+    if (merge) TagEditorDialog(onDismiss = { merge = false }) {
+        TagTreeEditor(listOf((file + pending).toSet()), onDismiss = { merge = false }) { add, remove ->
+            onSave(canonicalTags((file + pending).filterNot { it in remove } + add))
+        }
+    } else CommonPopupCard(onDismiss = onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.file_tags_conflict), style = MaterialTheme.typography.titleLarge)
             Text(stringResource(R.string.file_tags_file_values), style = MaterialTheme.typography.titleSmall)
@@ -269,7 +364,6 @@ private fun TagConflictDialog(state: MediaTagState, onDismiss: () -> Unit, onSav
             pending.forEach { Text(tagLabel(it)) }
             TextButton(onClick = { onSave(pending) }) { Text(stringResource(R.string.file_tags_use_pending)) }
             TextButton(onClick = { merge = true }) { Text(stringResource(R.string.file_tags_merge)) }
-            if (merge) TagTreeEditor(listOf((file + pending).toSet())) { add, remove -> onSave(canonicalTags((file + pending).filterNot { it in remove } + add)) }
         }
     }
 }
@@ -285,6 +379,25 @@ private fun LegacyTagsDialog(values: FileTagValues, onDismiss: () -> Unit, onSav
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(nested, { nested = it }); Text(stringResource(R.string.file_tags_nested_legacy)) }
             values.paths(split, nested).forEach { Text(tagLabel(it)) }
             Button(onClick = { onSave(values.paths(split, nested)) }) { Text(stringResource(R.string.confirm_label)) }
+        }
+    }
+}
+
+@Composable
+private fun TagEditorDialog(onDismiss: () -> Unit, dismissEnabled: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false,
+        dismissOnBackPress = dismissEnabled, dismissOnClickOutside = dismissEnabled)) {
+        Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(8.dp), contentAlignment = Alignment.Center) {
+            Surface(Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(.94f), shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surface) {
+                Column {
+                    Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.tags_label), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                        IconButton(enabled = dismissEnabled, onClick = onDismiss) { Icon(Icons.Default.Close, stringResource(R.string.close)) }
+                    }
+                    Column(Modifier.weight(1f), content = content)
+                }
+            }
         }
     }
 }

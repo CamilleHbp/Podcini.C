@@ -253,7 +253,11 @@ fun ArchiveEpisodeRow(
                     Text(reasons.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (statusMode == StatusRowMode.Comment && episode.comment.isNotBlank()) Text(episode.comment, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
-                if (statusMode == StatusRowMode.Tags && episode.tags.isNotEmpty()) Text(episode.tags.joinToString(" · "), maxLines = 2, style = MaterialTheme.typography.bodySmall)
+                if (statusMode == StatusRowMode.Tags && episode.tags.isNotEmpty()) {
+                    var tagEditor by remember { mutableStateOf(false) }
+                    if (tagEditor) MediaTagsDialog(listOf(episode.id)) { tagEditor = false }
+                    CompactTagList(episode.tags, onTagClick = { tagEditor = true }, onShowAll = { tagEditor = true })
+                }
                 if (downloadProgress != null) LinearProgressIndicator(progress = { downloadProgress.coerceIn(0, 100) / 100f }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
             }
             if (!selecting && showActions) {

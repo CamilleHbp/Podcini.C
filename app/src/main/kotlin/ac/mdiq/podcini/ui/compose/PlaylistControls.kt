@@ -92,7 +92,7 @@ fun PlaylistEditorDialog(existing: PlayQueue? = null, rules: PlayQueue? = null, 
                 LabelSwitch(R.string.playlist_remove_completed, remove) { remove = it }
                 Text(stringResource(if (remove) R.string.playlist_cleanup_hint else R.string.playlist_keep_hint), style = MaterialTheme.typography.bodySmall)
             }
-            tags.forEach { Text(tagLabel(it)) }
+            CompactTagList(tags, onTagClick = { editTags = true }, onShowAll = { editTags = true })
             TextButton(onClick = { editTags = true }) { Text(stringResource(R.string.tags_label)) }
         }
     }, confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = {

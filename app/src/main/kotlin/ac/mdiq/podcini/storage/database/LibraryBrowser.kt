@@ -97,6 +97,7 @@ suspend fun editLibraryTag(from: String, to: String) {
         query(AppPrefs::class).first().find()?.let { prefs ->
             val saved = decodeBrowsePreferences(prefs.libraryBrowsePreferences)
             prefs.libraryBrowsePreferences = libraryJson.encodeToString(saved.copy(
+                tagColors = remapTagColors(saved.tagColors, from, to),
                 emptyTags = mapped(saved.emptyTags).toList(),
                 pins = saved.pins.map { pin -> if (to.isBlank()) pin else pin.copy(destination = pin.destination.copy(
                     tag = remapLibraryTag(pin.destination.tag, from, to).orEmpty(), filter = filter(pin.destination.filter))) }))

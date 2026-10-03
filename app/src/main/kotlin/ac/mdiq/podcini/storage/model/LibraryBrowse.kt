@@ -58,6 +58,7 @@ data class LibraryPin(val id: String, val name: String, val destination: Library
 data class LibraryBrowsePreferences(
     val start: String = "home", val pins: List<LibraryPin> = emptyList(), val emptyTags: List<String> = emptyList(),
     val homeCards: Boolean = true,
+    val tagColors: Map<String, Int> = emptyMap(),
 )
 
 fun decodeBrowsePreferences(value: String): LibraryBrowsePreferences =

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tag_color_choose_for">Change colour for %1$s</string>
+    <string name="tag_color_title">Tag colour</string>
+    <string name="tag_color_local_hint">Colours appear only in Podcini. Your media files stay unchanged.</string>
+    <string name="tag_color_automatic">Automatic · follows parent</string>
+    <string name="tag_color_custom">Custom colour</string>
+    <string name="tag_color_hue">Colour hue</string>
+    <string name="tag_color_save_failed">Could not save the colour. Try again.</string>
+    <string name="tag_color_coral">Coral</string>
+    <string name="tag_color_amber">Amber</string>
+    <string name="tag_color_olive">Olive</string>
+    <string name="tag_color_green">Green</string>
+    <string name="tag_color_teal">Teal</string>
+    <string name="tag_color_blue">Blue</string>
+    <string name="tag_color_indigo">Indigo</string>
+    <string name="tag_color_violet">Violet</string>
+    <string name="tag_color_orchid">Orchid</string>
+    <string name="tag_color_rose">Rose</string>
+    <plurals name="tag_more_count">
+        <item quantity="one">+%1$d more</item>
+        <item quantity="other">+%1$d more</item>
+    </plurals>
+    <string name="tag_clear_search">Clear tag search</string>
+    <string name="tag_browse">Browse</string>
+    <string name="tag_selected_count">Selected (%1$d)</string>
+    <string name="tag_categories">Categories</string>
+    <string name="tag_partial_hint">A dash means this tag is on some of the selected files. Select it to add it to all.</string>
+    <string name="tag_none_selected">No tags selected. Browse or search to add tags.</string>
+    <string name="tag_no_matches">No matching tags. Try another search.</string>
+    <string name="tag_file_details">File saves and inherited tags</string>
+    <string name="tag_hide_file_details">Hide file details</string>
+    <string name="tag_show_less">Show fewer tags</string>
+    <string name="tag_retry">Retry</string>
+    <string name="tag_color_hint">Tap a colour to change it.</string>
+    <string name="tag_color_default">Automatic</string>
+</resources>
