@@ -724,7 +724,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
             val url = curAudioSpec?.url ?: curMuxedSpec?.url
             if (!url.isNullOrBlank()) {
                 val expireTime = url.toUri().getQueryParameter("expire")?.toLongOrNull()
-                force = (expireTime != null && expireTime < nowInMillis())
+                force = (expireTime != null && expireTime <= nowInMillis() / 1000)
             }
         }
         if (!sameMedia || force) {
@@ -801,7 +801,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
         bitrateFlow.value = 0
         resolutionFlow.value = ""
         try {
-            mediaSource = mediaSourceFromClient(!audioOnly && (media.forceVideo || media.feed?.videoModePolicy != VideoMode.AUDIO_ONLY), sameMedia = sameMedia)
+            mediaSource = mediaSourceFromClient(!isAutoController && !audioOnly && (media.forceVideo || media.feed?.videoModePolicy != VideoMode.AUDIO_ONLY), sameMedia = sameMedia)
             if (mediaSource != null) {
                 Logd(TAG) { "prepareDataSource setting with mediaSource" }
                 mediaItem = mediaSource!!.mediaItem
