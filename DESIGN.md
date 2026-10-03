@@ -171,6 +171,11 @@ components:
     backgroundColor: "{colors.secondary-container}"
     textColor: "{colors.on-secondary-container}"
     typography: "{typography.label-large}"
+  search-field:
+    backgroundColor: "{colors.surface-container-high}"
+    textColor: "{colors.on-surface}"
+    typography: "{typography.body-large}"
+    rounded: "{rounded.extra-large}"
   settings-search:
     textColor: "{colors.on-surface}"
     typography: "{typography.body-large}"
@@ -232,8 +237,8 @@ The hierarchy favors readable titles and concise metadata. The frontmatter suppl
 | Role | Use |
 | --- | --- |
 | `headline-small` | Screen titles and empty-state headings. |
-| `title-large` | The full episode title in the expanded player. |
-| `title-medium` | Episode row titles and named content sections. |
+| `title-large` | The full episode title in the expanded player, podcast preview titles and search result groups. |
+| `title-medium` | Episode and podcast row titles and named content sections. |
 | `title-small` | Compact-player episode titles. |
 | `body-large` | Empty-state guidance and personal notes. |
 | `body-medium` | Player source names, next-episode titles and explanatory copy. |
@@ -251,13 +256,14 @@ Episode row titles allow three lines at ordinary text size and five when font sc
 Dimensions use Android density-independent `dp`; type uses `sp`. The recurring spacing rhythm is 4/8 dp, with 12/16 dp component spacing and 20/24/32 dp margins or task separation. These are native layout values, not web pixel dimensions.
 
 - **Episode lists:** 8 dp outer horizontal inset, 4 dp between rows, and 8 dp horizontal / 12 dp vertical row padding. A text column adds 12 dp horizontal and 4 dp vertical inset. Row height follows the title and metadata.
-- **Top-level views:** a named app bar leads the content. Listen uses Latest / Up next / Downloads; Library uses Sources / Folders / Collections / Saved. List controls and applied filters sit immediately above their content.
+- **Top-level views:** a named app bar leads the content. Listen presents the single listening queue, its origin, Resume, Repeat, Shuffle and continuous-playback controls. Library presents a search entry, compact named pins and six flat Browse rows: Podcasts, Creators, Albums, Tags, Playlists and Media. Child views lead with their title, scoped search and applicable Filter, Sort, View and Pin actions. Search keeps its query and scope controls above grouped library and online results. List controls and applied filters sit immediately above their content.
+- **Search and Library:** Search centers its header, filters, scope choice and results within a maximum width of 720 dp. Library uses the available content width. At 840 dp of available Library width and above, child views keep a 220 dp index of categories and pins beside their results, separated by a native divider. The Library home remains a single index. Search section headings use 16 dp horizontal inset and 24 dp top / 8 dp bottom spacing; query controls remain above the scrolling results.
 - **Compact windows:** three labeled destinations sit below the compact player. The player belongs to the bottom layout and reserves its own space.
 - **Wide windows (600 dp and above):** bottom destinations become a navigation rail. The full player places its heading and artwork beside the transport controls, with a 32 dp gap.
 - **Paired listening (840 dp and above):** when Listen is open with loaded media and the full player is collapsed, list and player share the content area in 56:44 proportions, separated by a native divider. The embedded player uses a single column.
 - **Expanded player:** content is centered with a maximum width of 960 dp and 20 dp horizontal padding. Its column scrolls and respects navigation-bar insets. Artwork is 176 dp, reducing to 120 dp below 650 dp screen height or at font scale 1.3 and above.
-- **Large text:** Listen replaces its three joined segments with a scrollable tab row above font scale 1.2. Episode artwork reduces from 72 dp to 56 dp at font scale 1.3 and above. Compact-player height follows its contents.
-- **Empty states:** left-aligned text within a 32 dp inset, a heading, explanation and one useful action. Discover’s initial invitation uses a 24 dp inset.
+- **Large text:** Episode artwork reduces from 72 dp to 56 dp at font scale 1.3 and above; podcast row artwork reduces from 64 dp to 48 dp and permits four title lines. Compact-player height follows its contents. Wrapping controls and horizontally scrollable filters preserve access as text grows.
+- **Empty states:** left-aligned text within a 32 dp inset, a heading, explanation and one useful action. Search’s initial invitation uses a 24 dp inset.
 
 Primary episode and compact-player playback actions are 48 dp; the full-player action is 80 dp, flanked by 64 dp rewind and forward controls. Keep Android’s minimum interactive target behavior for native controls and preserve visible labels when space changes.
 
@@ -283,7 +289,13 @@ Episode actions use a tonal play button and a filled primary pause button while 
 
 ### Chips
 
-Applied episode filters use selected input chips with a named trailing remove action and a separate Clear filters action. Saved uses single-choice filter chips for All saved, Episodes, Notes, Bookmarks and Clips. Chip rows scroll horizontally with 16 dp outer inset and 8 dp gaps. Selection uses native tonal treatment and semantics.
+Applied episode and Library filters use selected input chips with a named trailing remove action and a separate Clear filters action. Highlights uses single-choice filter chips for All saved, Episodes, Notes, Bookmarks and Clips. Search uses All, Podcasts, Episodes and Playlists scope chips. Library uses filter chips for child-view result groups and exact-tag or subtag scope; named pins use suggestion chips that wrap and allow two-line labels. Applied-filter and result-group chip rows scroll horizontally with 16 dp outer inset and 8 dp gaps. Selection uses native tonal treatment and semantics. When a tag’s Playlists group pauses retained media filters, their chips and Clear filters action give way to a quiet explanatory label.
+
+### Tag colours and management
+
+Tags use a small colour swatch and a readable name. Library tag rows expose the swatch as a labelled colour action; opening the row still browses that branch. The colour picker provides ten named hues, a custom hue slider, a live tag preview and an automatic parent colour. The chosen hue is stored in app preferences, separately from embedded media tags. Descendants inherit the nearest explicit parent colour, and explicit overrides follow branch renames and moves; an existing destination override wins a merge.
+
+Tag chips keep on-surface text on a subtle tinted surface. Swatches use a darker light-theme tone and a lighter dark-theme tone. Selection remains a checkbox or named selected state, never colour alone. Media and playlist previews show up to three tags with a named overflow count. The tag editor offers searchable Browse and Selected views, a lazy scrolling list with tag names above quieter parent paths, and fixed confirmation and cancellation actions. File-save details and inherited tags are secondary disclosures. The editor respects safe areas, the keyboard, large text and a 720 dp maximum width.
 
 ### Cards / Containers
 
@@ -293,19 +305,29 @@ Popup cards use the surface/on-surface pair, the large corner role, a 1 dp outli
 
 ### Inputs / Fields
 
-Discover uses a native filled text field for a podcast query or feed URL, with a search action and history when available. Settings uses a native outlined, labeled search field, inset 16 dp horizontally and 8 dp vertically. Keep labels visible and let Material manage focus, error and disabled treatment. Retain the query through loading and recoverable failure.
+Search uses a native filled text field for a query or feed URL, with the extra-large shape, surface-container-high background, Back and Clear actions, and a keyboard search action. Its indicator line is transparent in both focused and unfocused states. The Library entry uses the same tonal, rounded search form and opens Search scoped to the saved library. Child views retain that form for searching within the current browsing destination. Settings uses a native outlined, labeled search field, inset 16 dp horizontally and 8 dp vertically. Keep field purposes and actions accessible and let Material manage text entry, error and disabled treatment. Retain the query through navigation, loading and recoverable failure.
 
 ### Navigation
 
-Listen, Library and Discover keep their visible labels in both bottom navigation and the rail. Navigation sits on surface-container-low with a native tonal selected indicator. Top app bars use the surface background and headline-small title; back, search, settings and overflow use native icon buttons with meaningful labels.
+Listen, Library and Search keep their visible labels in both bottom navigation and the rail. Navigation sits on surface-container-low with a native tonal selected indicator. Top app bars use the surface background and headline-small title; back, search, settings and overflow use native icon buttons with meaningful labels.
 
-Use native segmented controls for a short mutually exclusive choice, scrollable tabs for Library and large-text Listen, and primary tabs for player reading tools. Player tabs are Details and Notes, with Chapters present only when chapter content exists. Tab indicators and text convey selection together.
+Use flat, named rows for Library categories and scoped child destinations. Tag navigation exposes one level at a time, breadcrumbs and a subtag scope choice; counts follow the linked child’s retained filters and tag scope. Creator and tag views use scrollable filter chips to choose result groups. Pins preserve the destination, filters, sort order and view choice, with explicit rename, move and remove actions in their editing view. Highlights follows the Browse rows; Manage sits in Library options. Library’s Add menu exposes podcast search, a new playlist, a device folder, a media URL, a new tag and import; Manage also exposes import and export. Search settings sits quietly after the results and opens provider controls directly. Keep advanced search and directory browsing available in Search overflow. Use wrapping controls for the listening session and primary tabs for player reading tools. Player tabs are Details and Notes, with Chapters present only when chapter content exists. Tab indicators and text convey selection together.
+
+### Library filters
+
+The native filter editor leads with quick choices for Unfinished, Downloads and Favourites, followed by media type. Tags, excluded tags, creators and duration sit in expandable sections with selection summaries. Choice controls wrap, longer choice lists offer their own search, and Apply remains distinct from Cancel. Applied choices return as removable chips above the results. The current filtered media scope can be saved as a smart playlist from Library options. Playlist groups retain media filters for returning to Media or Podcasts and explain their paused state in body-small, on-surface-variant text.
 
 ### Episode row
 
 A small fitted cover, readable title, source, remaining time and meaningful state form a consistent catalogue entry. The current episode has a primary-container background, a Playing or Paused label and a 2 dp progress line. Download progress appears below its metadata. Optional comments or tags remain supporting content.
 
-Tapping the title opens details; Play/Pause acts immediately on that episode. Overflow contains named contextual actions. Long-press opens selection, with a visible Select episodes route in overflow. Batch selection replaces artwork with checkboxes and presents a selected count with named actions.
+Tapping the title opens details; Play/Pause acts immediately on that episode. Long-press and overflow open the same native action sheet, with episode context and four icon-led actions: favourites, Listen later, the listening queue and playlist selection. More actions reveals playback, download, organization, scheduling and selection controls. Saved states are explicit, and playlist selection offers existing manual playlists or a new playlist. Batch selection replaces artwork with checkboxes and presents a selected count with named actions.
+
+### Podcast row and preview
+
+Podcast rows share fitted square artwork, a title-first text column and a separate trailing Add action. Artwork is 64 dp at ordinary text size; titles allow three lines, authors two, and supporting state uses body-small. An outlined Add button has a minimum height of 48 dp and names the podcast for accessibility. While adding, it shows progress and disables repetition; membership appears as a check and an In library label. Opening a result and adding it remain distinct actions.
+
+Search groups saved content before online podcasts and keeps local results available during online loading or failure. All shows a short group of each local result type with named actions to see more. Online errors and partial results offer retry without discarding the query. A podcast preview leads with artwork, title and author, then Add to library and View episodes. Download choices and source details are secondary disclosures. Related shows retain both artwork and readable titles.
 
 ### Player
 
@@ -313,7 +335,7 @@ The compact player combines 48 dp artwork, a two-line episode title, quieter sou
 
 The full player reads in order: artwork and title, seek position, elapsed/total time, transport, labeled utilities, Up next and reading tools. Rewind and forward show the configured intervals. Bookmark feedback names the saved time and offers Undo; Add note remains available. Next is an explicit queue action.
 
-When two players are enabled, joined segments show each player’s name, episode and Playing, Paused or Empty state. Both segments retain the same three-line structure. Switching the selection does not imply stopping the other player. Collapse and system Back return to the browsing context.
+One playback session serves audio and video. Browsing playlists leaves it untouched. Starting a list captures its current order and offers Undo; editing the session leaves the saved playlist unchanged. Collapse and system Back return to the browsing context.
 
 ## Do's and Don'ts
 
@@ -323,7 +345,7 @@ When two players are enabled, joined segments show each player’s name, episode
 - **Do** keep episode titles readable, source and time secondary, and Play/Pause separate from opening details.
 - **Do** use native vector icons, meaningful action labels and explicit Playing, Paused or Empty states.
 - **Do** let rows and player content grow or scroll with text size; reduce artwork before crowding transport controls.
-- **Do** keep both player selectors the same height with name, episode and state lines, including an explicit Empty state.
+- **Do** show the origin of the listening session and the automatic successor, including an explicit stop state when continuous playback is disabled.
 - **Do** retain source artwork proportions with a stable tonal fallback and preserve contributor and source attribution.
 
 ### Don't:

@@ -23,7 +23,7 @@ Success means listeners can find the media they want, control playback and autom
 The product combines several capabilities in one personal media library:
 
 - RSS/Atom feeds, local media, and extensible external sources.
-- Hierarchical volumes, synthetic feeds, and multiple circular playback queues.
+- One listening queue, saved manual and smart playlists, and hierarchical tags for podcasts, music and video.
 - Per-feed automation alongside detailed filtering, sorting, and playback controls.
 - Notes, tags, ratings, playback states, clips, position marks, and repeated listening.
 
@@ -33,21 +33,25 @@ Its depth of listener control is central to the product's purpose.
 
 Listeners can start by finding or subscribing to feeds, importing subscriptions or another supported app's database, selecting local media directories, or sharing supported media into the app.
 
-The Library organizes feeds and volumes. Feed and media views support inspection, search, filtering, selection, and organization. Queues determine listening order; player controls remain available while browsing. Downloads and local files support listening without streaming, while background playback supports listening outside the app. Android Auto is another playback surface.
+Listen, Library and Search are the primary destinations. Library opens with a search entry scoped to the saved library, named pins and six browsing categories: Podcasts, Creators, Albums, Tags, Playlists and Media. Pins retain a browsing destination and its filters, sorting and view choice; listeners can rename, reorder or remove them. Podcasts, creators, albums and nested tags lead to scoped child views, with search and applicable filtering, sorting and view controls. Highlights remains a separate route, and Manage is available from Library options. Its Add menu and Manage view provide access to import and export. The listening queue determines the current session’s order; player controls remain available while browsing. Downloads and local files support listening without streaming, while background playback supports listening outside the app. Android Auto is another playback surface.
+
+Library filters start with unfinished, downloaded and favourite media and media type. Expandable choices add any or all selected tags, excluded tags, creators and a maximum duration. Tag browsing can include subtags or match only the current tag; child-tag counts reflect the filters and scope that opening that child will use. Filtered media views can be saved as smart playlists. The Playlists group retains media filters for a return to Media or Podcasts, hides their controls and chips while they are paused, and explains that state. On expanded windows, a persistent Library index sits beside child views.
+
+Search uses one query for saved podcasts, episodes and playlists, with online podcast results alongside local matches. Listeners can narrow the scope or search only their library, preview a podcast, add it and return to the retained query. Podcast membership, updates and download choices remain distinct. Advanced search, directories and provider settings remain accessible from Search.
 
 External provider apps must be installed separately and enabled in settings. Server synchronization is optional; direct device-to-device exchange and backups are separate workflows.
 
 ## Capabilities and Constraints
 
 - The existing application uses Kotlin and Jetpack Compose with native Android navigation, media services, notifications, permissions, and storage integration.
-- A **feed** groups media. A **volume** contains feeds and other volumes. A **synthetic feed** can hold collected media without subscribing to its original feed. A **queue** controls playback order and can be associated with feeds.
-- Playback supports audio and video, streaming and downloads, speed controls, sleep and auto-play timers, and two independently controlled players. Per-feed policies support automatic downloading, enqueuing, and spaced repetition.
+- A **podcast** groups episodes. A **playlist** holds references to media or selects them using rules. **Tags** organize items, podcasts and playlists. The single **listening queue** captures the order of the current session. **Connections** provide library content; local files and remote URLs are playable locations for the same media. Legacy feed, volume and queue tables remain compatible with backups.
+- Playback supports audio and video, streaming and downloads, speed controls, sleep and auto-play timers, and one active listening session. Per-feed policies support automatic downloading, enqueuing, and spaced repetition.
 - Personal organization includes notes, tags, todos, ratings, playback states, related media, clips, and position marks. Transcripts, captions, reader views, and text-to-speech are supported where applicable.
 - Library data and preferences are stored locally. Network access is used for remote content, discovery, external sources, and optional synchronization. The privacy commitment is to keep personal data local except where needed for a user-selected service or feature; the repository's [privacy policy](PrivacyPolicy.md) describes these interactions.
 - Imports include OPML, AntennaPod databases, and Podcast Addict databases. Exports and backups support retaining and moving personal data.
 - Server synchronization covers a limited set of subscription and episode-action fields. It is not a full backup of local metadata or preferences.
 - Free and Play variants share the core product. Casting is available in the Play variant. Legacy variants differ in native-library packaging.
-- Existing libraries, saved preferences, imports, exports, and external provider compatibility are product constraints when changing behavior or identity.
+- Existing libraries, saved preferences, imports, exports, and external provider compatibility are product constraints when changing behavior or identity. Restoring a previous full backup must preserve reading and playback status, playlists and collections, downloaded media references, subscriptions and annotations.
 
 ## Brand Commitments
 
