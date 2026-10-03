@@ -77,6 +77,13 @@ configure<ApplicationExtension> {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.31.6"
+        }
+    }
+
     buildFeatures {
         buildConfig = true
         resValues = true
@@ -279,7 +286,14 @@ dependencies {
      rename { "$it.txt" }
  }
 
+ val copyTagLicenses = tasks.register<Copy>("copyTagLicenses") {
+     from("../third_party/taglib-2.3.2/COPYING.MPL") { rename { "taglib-MPL.txt" } }
+     from("../third_party/taglib-2.3.2/3rdparty/utfcpp/LICENSE") { rename { "utf8cpp-license.txt" } }
+     into("src/main/assets/")
+ }
+
 
  tasks.named("preBuild") {
      dependsOn(copyLicenseTask)
+     dependsOn(copyTagLicenses)
  }

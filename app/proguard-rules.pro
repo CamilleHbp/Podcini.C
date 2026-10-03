@@ -26,3 +26,4 @@
 # -optimizations !code/simplification/inline,!code/merging/*,!class/merging/*,!method/propagation/parameter
 
 -dontoptimize
+-keep class ac.mdiq.podcini.storage.tags.NativeTagCodec { *; }
