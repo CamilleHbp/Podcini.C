@@ -83,11 +83,35 @@ class MediaTagUiTest {
             screenshot("picker-$capture")
             click(activity.getString(ac.mdiq.podcini.R.string.tag_color_choose_for, "Genre"))
             waitFor(activity.getString(ac.mdiq.podcini.R.string.tag_color_title))
-            click(activity.getString(ac.mdiq.podcini.R.string.tag_color_blue))
+            val wheel = waitFor(activity.getString(ac.mdiq.podcini.R.string.tag_color_wheel))
+            val bounds = android.graphics.Rect().also(wheel::getBoundsInScreen)
+            val time = android.os.SystemClock.uptimeMillis()
+            for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
+                val event = android.view.MotionEvent.obtain(time, time + if (action == 1) 50 else 0,
+                    action, bounds.centerX() + bounds.width() * .22f, bounds.exactCenterY(), 0)
+                instrumentation.uiAutomation.injectInputEvent(event, true)
+                event.recycle()
+            }
+            Thread.sleep(300)
+            val brightness = nodes().first { it.contentDescription?.toString() == activity.getString(ac.mdiq.podcini.R.string.tag_color_brightness) && it.rangeInfo != null }
+            val progress = android.os.Bundle().apply { putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, .45f) }
+            check(brightness.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id, progress))
+            Thread.sleep(300)
+            check(nodes().first { it.isEditable }.text.toString() != "")
+            val exactColor = android.os.Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "96745B") }
+            check(nodes().first { it.isEditable }.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, exactColor))
+            Thread.sleep(300)
             screenshot("colour-$capture")
             click(activity.getString(ac.mdiq.podcini.R.string.library_save))
             waitFor(activity.getString(ac.mdiq.podcini.R.string.file_tags_search))
-            assertEquals(208, decodeBrowsePreferences(realm.query(AppPrefs::class).first().find()!!.libraryBrowsePreferences).tagColors["genre"])
+            assertEquals(0xFF96745B.toInt(), decodeBrowsePreferences(realm.query(AppPrefs::class).first().find()!!.libraryBrowsePreferences).tagColors["genre"])
+            click(activity.getString(ac.mdiq.podcini.R.string.tag_color_choose_for, "Genre"))
+            waitFor(activity.getString(ac.mdiq.podcini.R.string.tag_color_title))
+            assertEquals("96745B", nodes().first { it.isEditable }.text.toString())
+            click(activity.getString(ac.mdiq.podcini.R.string.tag_color_default))
+            click(activity.getString(ac.mdiq.podcini.R.string.cancel_label))
+            waitFor(activity.getString(ac.mdiq.podcini.R.string.file_tags_search))
+            assertEquals(0xFF96745B.toInt(), decodeBrowsePreferences(realm.query(AppPrefs::class).first().find()!!.libraryBrowsePreferences).tagColors["genre"])
             if (dense) {
                 click(activity.getString(ac.mdiq.podcini.R.string.tag_selected_count, selected.size))
                 waitFor(activity.getString(ac.mdiq.podcini.R.string.tags_label) + " › Activity › Focus")

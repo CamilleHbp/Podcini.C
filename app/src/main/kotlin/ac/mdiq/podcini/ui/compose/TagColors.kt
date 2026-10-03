@@ -11,8 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,15 +18,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.github.skydoves.colorpicker.compose.HsvColorPicker
+import com.github.skydoves.colorpicker.compose.BrightnessSlider
+import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import kotlinx.coroutines.launch
 
 @Composable
@@ -38,12 +40,9 @@ fun rememberTagColors(): Map<String, Int> {
 }
 
 @Composable
-private fun tagAccent(hue: Int): Color = Color.hsl(hue.toFloat(), .60f,
-    if (MaterialTheme.colorScheme.surface.luminance() < .5f) .72f else .36f)
-
-@Composable
 fun TagColorDot(path: String, colors: Map<String, Int>, modifier: Modifier = Modifier) {
-    Box(modifier.size(16.dp).background(tagAccent(tagColorHue(path, colors)), CircleShape))
+    Box(modifier.size(16.dp).background(Color(tagColorArgb(path, colors)), CircleShape)
+        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape))
 }
 
 @Composable
@@ -56,7 +55,7 @@ fun TagColorButton(path: String, colors: Map<String, Int>, onClick: () -> Unit) 
 
 @Composable
 fun ColoredTagChip(path: String, colors: Map<String, Int>, onClick: () -> Unit, fullPath: Boolean = true) {
-    val accent = tagAccent(tagColorHue(path, colors))
+    val accent = Color(tagColorArgb(path, colors))
     SuggestionChip(onClick = onClick, label = {
         Text(if (fullPath) tagLabel(path) else tagLeafLabel(path), maxLines = 2, overflow = TextOverflow.Ellipsis)
     }, icon = { TagColorDot(path, colors) },
@@ -76,58 +75,98 @@ fun CompactTagList(tags: Collection<String>, onTagClick: (String) -> Unit, onSho
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagColorPickerDialog(path: String, onDismiss: () -> Unit) {
     val colors = rememberTagColors()
     val identity = tagIdentity(path)
     var automatic by rememberSaveable(path) { mutableStateOf(identity !in colors) }
-    var hue by rememberSaveable(path) { mutableIntStateOf(tagColorHue(path, colors)) }
+    var argb by rememberSaveable(path) { mutableIntStateOf(tagColorArgb(path, colors)) }
+    var hex by rememberSaveable(path) { mutableStateOf(tagColorHex(argb)) }
     var saving by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val preview = if (automatic) colors - identity else colors + (identity to hue)
-    val swatches = listOf(12 to R.string.tag_color_coral, 38 to R.string.tag_color_amber, 82 to R.string.tag_color_olive,
-        150 to R.string.tag_color_green, 180 to R.string.tag_color_teal, 208 to R.string.tag_color_blue,
-        238 to R.string.tag_color_indigo, 272 to R.string.tag_color_violet, 310 to R.string.tag_color_orchid, 340 to R.string.tag_color_rose)
+    val preview = if (automatic) colors - identity else colors + (identity to argb)
+    val controller = rememberColorPickerController()
+    val initialColor = remember(path) { Color(argb) }
+    val validHex = hex.length == 6 && hex.all { it.digitToIntOrNull(16) != null }
+    SideEffect { controller.enabled = !saving }
+    fun choose(color: Color) {
+        automatic = false
+        argb = color.copy(alpha = 1f).toArgb()
+        hex = tagColorHex(argb)
+    }
+    val wheelLabel = stringResource(R.string.tag_color_wheel)
+    val brightnessLabel = stringResource(R.string.tag_color_brightness)
+    val brightness = Color(argb).let { maxOf(it.red, it.green, it.blue) }
     AlertDialog(onDismissRequest = { if (!saving) onDismiss() }, title = { Text(stringResource(R.string.tag_color_title)) }, text = {
-        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(tagLabel(path), style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.tag_color_local_hint), style = MaterialTheme.typography.bodyMedium)
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ColoredTagChip(path, preview, {})
-            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(automatic, enabled = !saving, role = Role.RadioButton,
-                onClick = { automatic = true }), verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(automatic, null); Text(stringResource(if (decodeTagSegments(path).orEmpty().size > 1) R.string.tag_color_automatic else R.string.tag_color_default), Modifier.weight(1f))
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                swatches.forEach { (value, name) ->
-                    val selected = !automatic && hue == value
-                    val label = stringResource(name)
-                    val color = tagAccent(value)
-                    Box(Modifier.size(48.dp).selectable(selected, enabled = !saving, role = Role.RadioButton,
-                        onClick = { automatic = false; hue = value }).semantics { contentDescription = label }, contentAlignment = Alignment.Center) {
-                        Box(Modifier.size(36.dp).background(color, CircleShape)
-                            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier), contentAlignment = Alignment.Center) {
-                            if (selected) Icon(Icons.Default.Check, null, tint = if (color.luminance() > .179f) Color.Black else Color.White, modifier = Modifier.size(20.dp))
-                        }
+            HsvColorPicker(
+                modifier = Modifier.fillMaxWidth().height(224.dp).semantics {
+                    contentDescription = wheelLabel
+                    stateDescription = "#${tagColorHex(argb)}"
+                },
+                controller = controller,
+                initialColor = initialColor,
+                onColorChanged = { if (it.fromUser) choose(it.color) },
+                onStart = { automatic = false },
+            )
+            Text(brightnessLabel, style = MaterialTheme.typography.labelLarge)
+            BrightnessSlider(
+                modifier = Modifier.fillMaxWidth().height(48.dp).semantics {
+                    contentDescription = brightnessLabel
+                    progressBarRangeInfo = ProgressBarRangeInfo(brightness, 0f..1f)
+                    if (!saving) setProgress { value ->
+                        automatic = false
+                        controller.setBrightness(value.coerceIn(0f, 1f), fromUser = true)
+                        true
+                    }
+                },
+                controller = controller,
+                initialColor = initialColor,
+                borderSize = 1.dp,
+                borderColor = MaterialTheme.colorScheme.outline,
+                onColorChanged = { if (it.fromUser) choose(it.color) },
+                onStart = { automatic = false },
+            )
+            OutlinedTextField(value = hex, onValueChange = { value ->
+                val entered = value.removePrefix("#").uppercase()
+                if (entered.length <= 6 && entered.all { it.digitToIntOrNull(16) != null }) {
+                    hex = entered
+                    automatic = false
+                    if (entered.length == 6) {
+                        argb = entered.toInt(16) or (255 shl 24)
+                        controller.selectByColor(Color(argb), fromUser = false)
                     }
                 }
+            }, modifier = Modifier.fillMaxWidth(), enabled = !saving, singleLine = true,
+                label = { Text(stringResource(R.string.tag_color_hex)) }, prefix = { Text("#") },
+                isError = !validHex,
+                supportingText = if (!validHex) ({ Text(stringResource(R.string.tag_color_hex_hint)) }) else null,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, imeAction = ImeAction.Done))
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(automatic, enabled = !saving, role = Role.RadioButton,
+                onClick = {
+                    automatic = true
+                    argb = tagColorArgb(path, colors - identity)
+                    hex = tagColorHex(argb)
+                    controller.selectByColor(Color(argb), fromUser = false)
+                }), verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(automatic, null); Text(stringResource(if (decodeTagSegments(path).orEmpty().size > 1) R.string.tag_color_automatic else R.string.tag_color_default), Modifier.weight(1f))
             }
-            Text(stringResource(R.string.tag_color_custom), style = MaterialTheme.typography.labelLarge)
-            val hueLabel = stringResource(R.string.tag_color_hue)
-            Slider(value = (if (automatic) tagColorHue(path, preview) else hue).toFloat(), onValueChange = { automatic = false; hue = it.toInt() },
-                valueRange = 0f..359f, enabled = !saving, colors = SliderDefaults.colors(thumbColor = tagAccent(hue), activeTrackColor = tagAccent(hue)), modifier = Modifier.semantics { contentDescription = hueLabel })
+            Text(stringResource(R.string.tag_color_local_hint), style = MaterialTheme.typography.bodySmall)
             if (failed) Text(stringResource(R.string.tag_color_save_failed), color = MaterialTheme.colorScheme.error)
         }
     }, confirmButton = {
-        TextButton(enabled = !saving, onClick = {
+        TextButton(enabled = !saving && validHex, onClick = {
             saving = true; failed = false
             scope.launch {
                 try {
-                    updateLibraryPreferences { it.copy(tagColors = if (automatic) it.tagColors - identity else it.tagColors + (identity to hue)) }
+                    updateLibraryPreferences { it.copy(tagColors = if (automatic) it.tagColors - identity else it.tagColors + (identity to argb)) }
                     onDismiss()
                 } catch (_: Exception) { failed = true } finally { saving = false }
             }
         }) { Text(stringResource(R.string.library_save)) }
     }, dismissButton = { TextButton(enabled = !saving, onClick = onDismiss) { Text(stringResource(R.string.cancel_label)) } })
 }
+
+private fun tagColorHex(argb: Int) = (argb and 0xFFFFFF).toString(16).uppercase().padStart(6, '0')
