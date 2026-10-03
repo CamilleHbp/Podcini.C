@@ -272,7 +272,9 @@ class Episode : RealmObject {
 //        Logd(TAG) { "updateFromOther ${other.viewCount} ${other.title} $title" }
         if (other.images.isNotEmpty()) this.images = other.images
         if (other.title != null) title = other.title
-        if (other.description != null) description = other.description
+        setDescriptionIfLonger(other.description)
+        if (other.transcriptMetas.isNotEmpty()) transcriptMetas = other.transcriptMetas
+        aiContent = other.aiContent
         if (other.link != null) link = other.link
         if (other.pubDate != 0L && other.pubDate != pubDate) pubDate = other.pubDate
 
@@ -283,7 +285,7 @@ class Episode : RealmObject {
         if (includeDuration && other.duration > 0 && duration <= 0) duration = other.duration
         if (other.mimeType != null) mimeType = other.mimeType
 
-        if (other.paymentLink != null) paymentLink = other.paymentLink
+        if (!other.paymentLink.isNullOrBlank()) paymentLink = other.paymentLink
         if (other.chapters.isNotEmpty()) {
             chapters.clear()
             chapters.addAll(other.chapters)

@@ -287,7 +287,7 @@ class FeedUpdater(val feeds: List<Feed>, val fullUpdate: Boolean = false, val do
             }
         }
         if (!isSuccessful) {
-            onFail(feedRaw, reasonDetailed ?: "", reason ?: DownloadError.ERROR_NOT_FOUND)
+            onFail(feed, reasonDetailed ?: "", reason ?: DownloadError.ERROR_NOT_FOUND)
             return null
         }
         return feed_

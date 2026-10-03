@@ -377,6 +377,8 @@ class Feed : RealmObject {
         if (other.description != null) description = other.description
         if (other.author != null) author = other.author
         if (other.fundings.isNotEmpty()) fundings = other.fundings
+        if (!other.medium.isNullOrBlank()) medium = other.medium
+        aiContent = other.aiContent
 
         // this feed's nextPage might already point to a higher page, so we only update the nextPage value
         // if this feed is not paged and the other feed is.
