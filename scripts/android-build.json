@@ -6,8 +6,7 @@
   },
   "required_variants": {
     "app": [
-      "freeDebug", "freeRelease", "freeLegacyDebug", "freeLegacyRelease",
-      "playDebug", "playRelease", "playLegacyDebug", "playLegacyRelease"
+      "freeDebug", "freeRelease", "playDebug", "playRelease"
     ]
   }
 }

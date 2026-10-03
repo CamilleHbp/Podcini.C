@@ -8,7 +8,7 @@ python3 scripts/android_build_gate.py verify
 ```
 
 The rebuild command runs `clean`, both aggregate assemble tasks, `--rerun-tasks`,
-and `--no-build-cache`. It covers free, freeLegacy, play, and playLegacy in both
+and `--no-build-cache`. It covers free and play in both
 debug and release, including their ABI splits. Signing properties stay in
 `~/.android/podcini-c/release.properties`.
 

@@ -98,31 +98,8 @@ configure<ApplicationExtension> {
         create("free") {
             dimension = "market"
         }
-        create("freeLegacy") {
-            dimension = "market"
-        }
         create("play") {
             dimension = "market"
-        }
-        create("playLegacy") {
-            dimension = "market"
-        }
-    }
-
-    sourceSets {
-        named("freeLegacy") {
-            kotlin.directories.add("src/free/kotlin")
-            res.directories.add("src/free/res")
-            if (file("src/free/AndroidManifest.xml").exists()) {
-                manifest.srcFile("src/free/AndroidManifest.xml")
-            }
-        }
-        named("playLegacy") {
-            kotlin.directories.add("src/play/kotlin")
-            res.directories.add("src/play/res")
-            if (file("src/play/AndroidManifest.xml").exists()) {
-                manifest.srcFile("src/play/AndroidManifest.xml")
-            }
         }
     }
 
@@ -191,13 +168,6 @@ androidComponents {
     onVariants { variant ->
         val variantName = variant.name
         val capitalized = variantName.replaceFirstChar { it.uppercase() }
-        val rawFlavor = variant.flavorName ?: ""
-        val formattedFlavor = rawFlavor.replace("Legacy", "-legacy")
-
-        if (rawFlavor.endsWith("Legacy")) {
-            variant.packaging.jniLibs.useLegacyPackaging.set(true)
-            variant.packaging.dex.useLegacyPackaging.set(true)
-        }
 
         val copyTask = tasks.register<Copy>("export${capitalized}Apks") {
             from(variant.artifacts.get(SingleArtifact.APK)) {
@@ -205,7 +175,6 @@ androidComponents {
                 rename { filename ->
                     filename
                         .replace(Regex("^app"), appName)
-                        .replace(rawFlavor, formattedFlavor)
                         .replace(Regex("-(release|debug)"), "")
                         .replace(".apk", "-$versionName.apk")
                 }
@@ -216,12 +185,6 @@ androidComponents {
     }
 }
 
-configurations {
-    listOf("Implementation", "Api", "CompileOnly", "RuntimeOnly").forEach { configType ->
-        named("freeLegacy$configType") { extendsFrom(getByName("free$configType")) }
-        named("playLegacy$configType") { extendsFrom(getByName("play$configType")) }
-    }
-}
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
