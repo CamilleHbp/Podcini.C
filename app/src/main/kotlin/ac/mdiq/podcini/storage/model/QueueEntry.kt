@@ -16,6 +16,8 @@ class QueueEntry : RealmObject {
 
     var position: Long = 0L
 
+    var originPlaylistId: Long = -1L
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -26,6 +28,7 @@ class QueueEntry : RealmObject {
         if (queueId != other.queueId) return false
         if (episodeId != other.episodeId) return false
         if (position != other.position) return false
+        if (originPlaylistId != other.originPlaylistId) return false
 
         return true
     }

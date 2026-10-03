@@ -102,7 +102,8 @@ internal var searchResults by mutableStateOf<List<FeedSearchResult>>(listOf())
 var searchProvider by mutableStateOf(searcherInfos.find { it.tag == "Combined" }!!.searcher)
 
 fun searchFeedsOnline(searcherName: String = "", query: String? = null) {
-    searchText = query ?: ""
+    if (query != null) searchText = query
+    requestEverywhereSearch(searchText, ac.mdiq.podcini.sourcing.searcher.SearchScope.Podcasts)
     if (searcherName.isNotBlank()) {
         val searcher_ = searcherInfos.find { it.tag == searcherName }?.searcher
         if (searcher_ != null) searchProvider = searcher_
@@ -128,7 +129,7 @@ class FindFeedsVM: ViewModel() {
             numberOPMLFeedsToRestore.intValue = appPrefsFlow!!.value.OPMLFeedsToRestore
             showOPMLRestoreDialog.value = true
         }
-//        search(searchText)
+        if (searchText.isNotBlank()) search(searchText)
     }
 
     private var searchGeneration = 0
@@ -146,7 +147,7 @@ class FindFeedsVM: ViewModel() {
                 val results = withContext(Dispatchers.IO) {
                     searchProvider.search(query).onEach { result ->
                         result.feedId = allFeeds.firstOrNull { it.downloadUrl == result.feedUrl }?.id ?: 0L
-                    }.sortedBy { it.title }
+                    }
                 }
                 if (generation == searchGeneration) searchResults = results
             } catch (e: kotlinx.coroutines.CancellationException) {

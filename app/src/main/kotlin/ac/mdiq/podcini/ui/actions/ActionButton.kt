@@ -2,6 +2,7 @@ package ac.mdiq.podcini.ui.actions
 
 import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import ac.mdiq.podcini.storage.database.availableLocalLocation
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.sourcing.download.DownloadRequest.Companion.requestFor
 import ac.mdiq.podcini.sourcing.download.Downloader.Companion.downloaderFor
@@ -110,11 +111,40 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
         }
     }
 
-    fun onClick() {
+    var beforePlayback: (suspend () -> Unit)? = null
+
+    fun onClick(sessionPrepared: Boolean = false) {
+        if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_ONE, ButtonTypes.PLAY_REPEAT, ButtonTypes.PLAY_LOCAL) && item.availableLocalLocation == null) {
+            type = when (type) { ButtonTypes.PLAY_ONE -> ButtonTypes.STREAM_ONE; ButtonTypes.PLAY_REPEAT -> ButtonTypes.STREAM_REPEAT; else -> ButtonTypes.STREAM }
+        }
+        val startsPlayback = type in playActions || type in streamActions || type == ButtonTypes.PLAY_LOCAL
+        if (startsPlayback && !sessionPrepared) {
+            val callback = beforePlayback
+            beforePlayback = null
+            val chosenType = type
+            val chosenItem = item
+            val single = type in listOf(ButtonTypes.PLAY_ONE, ButtonTypes.STREAM_ONE, ButtonTypes.PLAY_REPEAT, ButtonTypes.STREAM_REPEAT)
+            fun startAuthorized() {
+                runOnIOScope {
+                    callback?.invoke()
+                    if (single || !actQueueFlow.value.contains(chosenItem)) ac.mdiq.podcini.storage.database.replaceListeningQueue(listOf(chosenItem), chosenItem.id, chosenItem.title.orEmpty(), continuous = !single)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { item = chosenItem; type = chosenType; onClick(true) }
+                }
+            }
+            if (item.availableLocalLocation == null && !NetworkUtils.isStreamingAllowed) {
+                val context = getAppContext()
+                commonConfirms.add(CommonConfirmAttrib(
+                    title = context.getString(R.string.stream_label), message = context.getString(R.string.confirm_mobile_streaming_notification_message),
+                    confirmRes = R.string.confirm_mobile_streaming_button_always, cancelRes = R.string.cancel_label, neutralRes = R.string.confirm_mobile_streaming_button_once,
+                    onConfirm = { NetworkUtils.mobileAllowStreaming = true; startAuthorized() }, onNeutral = { startAuthorized() }))
+            } else startAuthorized()
+            return
+        }
+
         val context = getAppContext()
         handleAudioFocus = true
         fun fileNotExist(): Boolean {
-            if (!item.isDownloaded()) {
+            if (item.availableLocalLocation == null) {
                 Loge(TAG, context.getString(R.string.error_file_not_found) + ": ${item.title}")
                 val episode_ = upsertBlk(item) { it.fileUrl = null }
                 EventFlow.postEvent(FlowEvent.EpisodeMediaEvent.removed(episode_))
@@ -124,7 +154,7 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
             return false
         }
         fun askToStream(stream: ()->Unit) {
-            if (!NetworkUtils.isStreamingAllowed) {
+            if (!sessionPrepared && !NetworkUtils.isStreamingAllowed) {
                 commonConfirms.add(CommonConfirmAttrib(
                     title = context.getString(R.string.stream_label),
                     message = context.getString(R.string.confirm_mobile_streaming_notification_message),
@@ -183,10 +213,10 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
                 if (activeTheatresCount.value == 1) {
                     PlaybackStarter(item).start(0)
                     playVideoIfNeeded(item)
-                    actQueueFlow.value = tmpQueue()
+                    // Single-item playback uses the persistent listening queue.
                 } else askForPlayer { i->
                     PlaybackStarter(item).start(i)
-                    actQueueFlow.value = tmpQueue()
+                    // Single-item playback uses the persistent listening queue.
                 }
             }
             ButtonTypes.PLAY_REPEAT -> {
@@ -194,10 +224,10 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
                 if (activeTheatresCount.value == 1) {
                     PlaybackStarter(item).setToRepeat(true).start(0)
                     playVideoIfNeeded(item)
-                    actQueueFlow.value = tmpQueue()
+                    // Single-item playback uses the persistent listening queue.
                 } else askForPlayer { i->
                     PlaybackStarter(item).setToRepeat(true).start(i)
-                    actQueueFlow.value = tmpQueue()
+                    // Single-item playback uses the persistent listening queue.
                 }
             }
             ButtonTypes.REPEAT_THIS -> {
@@ -227,21 +257,17 @@ class ActionButton(var item: Episode, val feed: Feed? = null, val preferSingle: 
                     if (activeTheatresCount.value == 1) {
                         PlaybackStarter(item).shouldStreamThisTime(true).setToRepeat(true).start(0)
                         playVideoIfNeeded(item)
-                        actQueueFlow.value = tmpQueue()
+                        // Single-item playback uses the persistent listening queue.
                     } else askForPlayer { i->
                         PlaybackStarter(item).shouldStreamThisTime(true).setToRepeat(true).start(i)
-                        actQueueFlow.value = tmpQueue()
+                        // Single-item playback uses the persistent listening queue.
                     }
                 }
             }
             ButtonTypes.STREAM_ONE -> {
-                if (activeTheatresCount.value == 1) {
+                askToStream {
                     PlaybackStarter(item).shouldStreamThisTime(true).start(0)
                     playVideoIfNeeded(item)
-                    actQueueFlow.value = tmpQueue()
-                } else askForPlayer { i->
-                    PlaybackStarter(item).shouldStreamThisTime(true).start(i)
-                    actQueueFlow.value = tmpQueue()
                 }
             }
             ButtonTypes.DELETE -> {

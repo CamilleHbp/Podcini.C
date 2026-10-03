@@ -88,14 +88,6 @@ fun PlaybackScreen() {
     val appAttribs by appAttribsFlow!!.collectAsStateWithLifecycle()
 
     SettingsPage {
-        SettingsSection(R.string.settings_players)
-        val players by activeTheatresCount.collectAsStateWithLifecycle()
-        SettingsSwitch(R.string.archive_two_players, R.string.archive_two_players_summary, players == 2) { enabled ->
-            if (!enabled) { playbackService?.shutdownPlayer(1); actPlayerId = 0 }
-            upsertBlk(appPrefs) { it.twoPlayers = enabled }
-            activeTheatresCount.value = if (enabled) 2 else 1
-            playbackService?.switchPlayersMode()
-        }
         SettingsSection(R.string.interruptions)
         SettingsSwitch(R.string.pref_pauseOnHeadsetDisconnect_title, R.string.pref_pauseOnDisconnect_sum, appPrefs.pauseOnHeadsetDisconnect) {
             upsertBlk(appPrefs) { p-> p.pauseOnHeadsetDisconnect = it }
@@ -250,9 +242,7 @@ fun PlaybackScreen() {
         SettingsSwitch(R.string.pref_skip_keeps_episodes_title, R.string.pref_skip_keeps_episodes_sum, appPrefs.skipKeepsEpisode) {
             upsertBlk(appPrefs) { p-> p.skipKeepsEpisode = it }
         }
-        SettingsSwitch(R.string.pref_mark_played_removes_from_queue_title, R.string.pref_mark_played_removes_from_queue_sum, appPrefs.removeFromQueueMarkPlayed) {
-            upsertBlk(appPrefs) { p-> p.removeFromQueueMarkPlayed = it }
-        }
+
 
         SettingsSwitch(R.string.auto_delete, R.string.pref_auto_delete_sum, appPrefs.autoDelete) {
             upsertBlk(appPrefs) { p-> p.autoDelete = it }
@@ -275,8 +265,6 @@ fun PlaybackScreen() {
         SettingsSwitch(R.string.pref_keeps_important_episodes_title, R.string.pref_keeps_important_episodes_sum, appPrefs.favoriteKeepsEpisode) {
             upsertBlk(appPrefs) { p-> p.favoriteKeepsEpisode = it }
         }
-        SettingsSwitch(R.string.pref_delete_removes_from_queue_title, R.string.pref_delete_removes_from_queue_sum, appPrefs.deleteRemovesFromQueue) {
-            upsertBlk(appPrefs) { p-> p.deleteRemovesFromQueue = it }
-        }
+
     }
 }

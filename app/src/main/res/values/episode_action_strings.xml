@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="episode_favourite">Add to favourites</string>
+    <string name="episode_unfavourite">Remove from favourites</string>
+    <string name="episode_in_listen_later">Saved for later</string>
+    <string name="episode_add_listening_queue">Add to listening queue</string>
+    <string name="episode_in_listening_queue">In listening queue</string>
+    <string name="episode_more_actions">More actions</string>
+    <string name="episode_fewer_actions">Fewer actions</string>
+    <string name="episode_playlist_empty">Create a playlist to save this item.</string>
+</resources>

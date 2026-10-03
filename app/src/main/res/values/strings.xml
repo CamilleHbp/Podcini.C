@@ -23,7 +23,7 @@
     <string name="facet">Facet</string>
     <string name="facets">Browse episodes</string>
     <string name="episodes_label">Episodes</string>
-    <string name="queue_label">Queues</string>
+    <string name="queue_label">Playlists</string>
 
     <string name="settings_label">Settings</string>
     <string name="downloads_label">Downloads</string>
@@ -170,8 +170,8 @@
 
     <string name="enqueue">Add to queue</string>
     <string name="download">Download</string>
-    <string name="auto_enqueue_sum">Add matching episodes to the default queue for this source when checking for new episodes.</string>
-    <string name="auto_enqueue_sum1">Choose a default queue for this source to automatically add episodes.</string>
+    <string name="auto_enqueue_sum">Add matching episodes to this podcast’s playlist when checking for new episodes.</string>
+    <string name="auto_enqueue_sum1">Choose a playlist to automatically save new episodes.</string>
     <string name="auto_download_sum">Download matching episodes when checking for updates. If a default queue is selected for this source, also add them to that queue.</string>
 
     <string name="limit_episodes_to">Limit episodes to</string>
@@ -209,7 +209,7 @@
     <string name="current_filter_sort">Current filter and sort</string>
     <string name="current_filter_sort_sum">Filter "Auto downloadable" is suggested to avoid undesired repeats.</string>
 
-    <string name="add_to_queue">Add to queue…</string>
+    <string name="add_to_queue">Add to queue</string>
     <string name="remove_from_other_queues">Remove from other queues</string>
 
     <string name="create_synthetic_first_note">Create a collection in Library to add episodes to it.</string>
@@ -316,13 +316,13 @@
     <string name="set_due_date">Set due date</string>
 
     <string name="combo_action">Multiple actions…</string>
-    <string name="shelve_label">Add to collection…</string>
+    <string name="shelve_label">Add to playlist…</string>
     <string name="add_to_active_queue">Add to current queue</string>
-    <string name="add_to_associated_queue">Add to source’s default queue</string>
+    <string name="add_to_associated_queue">Add to automatic playlist</string>
 
     <string name="multicast_to_devices">Send to devices</string>
 
-    <string name="remove_from_all_queues">Remove from all queues</string>
+    <string name="remove_from_all_queues">Remove from listening queue</string>
     <string name="remove_from_cur_queue">Remove from current queue</string>
 
     <string name="media_type">Media type</string>
@@ -659,8 +659,8 @@
     <string name="pref_feed_video_quality">Video quality</string>
     <string name="pref_feed_video_quality_sum">Global equals low quality, Quality setting here takes precedence over the setting of prefLowQualityMedia for metered network.</string>
     <string name="pref_video_quality_sum">Quality setting here takes precedence over the setting of prefLowQualityMedia for metered network.</string>
-    <string name="pref_feed_associated_queue">Default queue for this source</string>
-    <string name="pref_feed_associated_queue_sum">New episodes are added to this queue when automatic queueing or downloading is enabled.</string>
+    <string name="pref_feed_associated_queue">Automatic playlist</string>
+    <string name="pref_feed_associated_queue_sum">New items are saved here when automatic adding is enabled. Playing is always a separate action.</string>
     <string name="pref_feed_type">Source type</string>
     <string name="pref_feed_type_sum">Feed type is needed for properly accessing some properties of the feed. For generic feed (not handled optimally), type is better set to null. Otherwise, all media in the feed should better be of the same type.</string>
     <string name="pref_feed_skip_ending_toast">Skipped last %d seconds</string>
@@ -893,7 +893,7 @@
     <!-- Directory chooser -->
 
     <!-- Online feed view -->
-    <string name="subscribe_label">Follow podcast</string>
+    <string name="subscribe_label">Add to library</string>
 
     <!-- Content descriptions for image buttons -->
 
@@ -1109,7 +1109,7 @@
     <string name="queue">Queue</string>
 
     <string name="select_podcast">Select podcast</string>
-    <string name="select_queue">Select queue</string>
+    <string name="select_queue">Choose a playlist</string>
     <string name="select_facet">Select facet</string>
 
     <string name="add_shortcut">Add shortcut</string>

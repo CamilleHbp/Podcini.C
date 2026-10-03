@@ -455,6 +455,9 @@ fun ImportExportScreen() {
     }
 
     SettingsPage {
+        var showFileTags by remember { mutableStateOf(false) }
+        if (showFileTags) ac.mdiq.podcini.ui.compose.FileTagManagerDialog { showFileTags = false }
+        SettingsAction(R.string.file_tags_settings, R.string.file_tags_retro_import) { showFileTags = true }
         SettingsSection(R.string.settings_backup_restore)
         SettingsAction(R.string.combo_export_label, R.string.combo_export_summary) {
             val uri = "content://com.android.externalstorage.documents/tree/primary:".toUri()

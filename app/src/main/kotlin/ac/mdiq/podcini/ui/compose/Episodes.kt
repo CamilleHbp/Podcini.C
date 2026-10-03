@@ -357,7 +357,7 @@ fun TranscriptDialog(episode: Episode, player:  MediaPlayerBase? = null, cueInde
                                 if (selectMode) {
                                     if (c in selected) selected.remove(c)
                                     else selected.add(c)
-                                } else player?.seekTo(c.startMs.toInt())
+                                } else player?.seekTo(c.startMs.toInt() + episode.transcriptStartPos)
                             },
                             onLongClick = {
                                 letScroll = false
@@ -445,12 +445,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
         CommentEditingDialog(textState = commentText, onTextChange = { commentText = it }, onDismiss = { showEditComment = false},
             onSave = { runOnIOScope { upsert(episode) { it.addComment(commentText.text, addition = false) } } })
     }
-    if (showTagsSettingDialog) TagSettingDialog(TagType.Episode, episode.tags, onDismiss = { showTagsSettingDialog = false }) { tags ->
-        runOnIOScope { upsert(episode) {
-            it.tags.clear()
-            it.tags.addAll(tags)
-        } }
-    }
+    if (showTagsSettingDialog) MediaTagsDialog(listOf(episode.id)) { showTagsSettingDialog = false }
     if (showTodoDialog) TodoDialog(episode, onTodo) { showTodoDialog = false}
 
     val sessionLogs by sessionLogsFlow.collectAsStateWithLifecycle()
@@ -570,7 +565,7 @@ fun EpisodeDetails(episode: Episode, fetchWebdata: Boolean = true, fetchChapters
             }
         }
 
-        if (episode.tagsAsString.isNotBlank()) Text(stringResource(R.string.filter_tag_summary, episode.tagsAsString), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 15.dp, top = 5.dp, bottom = 5.dp).clickable { showTagsSettingDialog = true })
+        LibraryMetadataLinks(episode) { showTagsSettingDialog = true }
         if (episode.comment.isNotBlank()) {
             Text(stringResource(R.string.comments), color = MaterialTheme.colorScheme.primary, style = CustomTextStyles.titleCustom, modifier = Modifier.padding(start = 15.dp, top = 5.dp, bottom = 5.dp).clickable { showEditComment = true })
             Text(episode.comment, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 15.dp, bottom = 5.dp))
@@ -820,76 +815,15 @@ fun PlayStateDialog(selected: List<Episode>, onDismiss: () -> Unit, futureCB: (E
 
 @Composable
 fun PutToQueueDialog(selected: List<Episode>, onDismiss: () -> Unit) {
-    CommonPopupCard(onDismiss = onDismiss) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            var removeChecked by remember { mutableStateOf(false) }
-            var toQueue by remember { mutableStateOf(actQueueFlow.value) }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(10.dp)) {
-                for (q in queuesLive) {
-                    FilterChip(label = { Text(q.displayName) }, onClick = { toQueue = q }, selected = toQueue == q, border = filterChipBorder(toQueue == q) )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = removeChecked, onCheckedChange = { removeChecked = it })
-                Text(text = stringResource(R.string.remove_from_other_queues), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 10.dp))
-            }
-            Row {
-                Spacer(Modifier.weight(1f))
-                Button(onClick = {
-                    runOnIOScope {
-                        if (removeChecked) {
-                            val toRemove = mutableSetOf<Long>()
-                            val toRemoveCur = mutableListOf<Episode>()
-                            selected.forEach { e -> if (actQueueFlow.value.contains(e)) toRemoveCur.add(e) }
-                            selected.forEach { e ->
-                                for (q in queuesLive) {
-                                    if (q.contains(e)) {
-                                        toRemove.add(e.id)
-                                        break
-                                    }
-                                }
-                            }
-                            if (toRemove.isNotEmpty()) removeFromAllQueuesQuiet(toRemove.toList(), false)
-                            if (toRemoveCur.isNotEmpty()) EventFlow.postEvent(FlowEvent.QueueEvent.removed(toRemoveCur))
-                        }
-                        addToQueue(selected, toQueue)
-                    }
-                    onDismiss()
-                }) { Text(stringResource(R.string.confirm_label)) }
-            }
-        }
+    LaunchedEffect(selected.map { it.id }) {
+        addToQueue(selected, actQueueFlow.value, ac.mdiq.podcini.storage.specs.EnqueueLocation.BACK)
+        onDismiss()
     }
 }
 
 @Composable
 fun ShelveDialog(selected: List<Episode>, onDismiss: () -> Unit) {
-    val synthetics = allFeeds.filter { it.id in 100..1000 }
-    CommonPopupCard(onDismiss = onDismiss) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(stringResource(R.string.shelve_label), style = MaterialTheme.typography.titleLarge)
-            var removeChecked by remember { mutableStateOf(false) }
-            var toFeed by remember { mutableStateOf<Feed?>(null) }
-            if (synthetics.isNotEmpty()) {
-                for (f in synthetics) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = toFeed == f, onClick = { toFeed = f })
-                        Text(f.title ?: stringResource(R.string.archive_no_title))
-                    }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = removeChecked, onCheckedChange = { removeChecked = it })
-                    Text(text = stringResource(R.string.remove_from_current_feed), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 10.dp))
-                }
-            } else Text(text = stringResource(R.string.create_synthetic_first_note))
-            if (toFeed != null) Row {
-                Spacer(Modifier.weight(1f))
-                Button(onClick = {
-                    runOnIOScope { shelveToFeed(selected, toFeed!!, removeChecked) }
-                    onDismiss()
-                }) { Text(stringResource(if (removeChecked) R.string.archive_move else R.string.archive_add)) }
-            }
-        }
-    }
+    PlaylistPickerDialog(selected, onDismiss)
 }
 
 @Composable

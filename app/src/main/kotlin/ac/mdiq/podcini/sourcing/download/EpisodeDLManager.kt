@@ -83,6 +83,8 @@ abstract class EpisodeDLManager {
 //                Logd(TAG) { "run() set duration: ${it.duration}" }
                 it.isAutoDownloadEnabled = false
             }
+            ac.mdiq.podcini.storage.tags.MediaTagRepository.refresh(item.id, force = true)
+            ac.mdiq.podcini.storage.tags.MediaTagRepository.schedule()
             // TODO: need to post two events?
             //                if (broadcastUnreadStateUpdate) EventFlow.postEvent(FlowEvent.EpisodeMediaEvent.updated(item))
             if (isSyncProviderConnected) {

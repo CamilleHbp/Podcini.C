@@ -385,7 +385,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
 
         swipeActions.ActionOptionsDialog()
 
-        if (showTagsSettingDialog && feed != null) TagSettingDialog(TagType.Feed, feed!!.tags, onDismiss = { showTagsSettingDialog = false }) { tags ->
+        if (showTagsSettingDialog && feed != null) TagSettingDialog(TagType.Feed, feed!!.tags, onDismiss = { showTagsSettingDialog = false }, feedIds = listOf(feed!!.id)) { tags ->
             runOnIOScope {
                 upsert(feed!!) {
                     it.tags.clear()
@@ -523,7 +523,9 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
             SelectionContainer {
                 Column {
                     Text(feed?.title ?: stringResource(R.string.archive_no_title), color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 16.dp))
-                    Text(stringResource(R.string.by) + ": " + (feed?.author?.ifBlank { "Anonymous" } ?: "Anonymous"), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                    if (!feed?.author.isNullOrBlank()) TextButton(onClick = { openLibrary(ac.mdiq.podcini.storage.model.LibraryDestination("creator", creator = feed!!.author!!)) }) {
+                        Text(feed!!.author!!, style = MaterialTheme.typography.bodyMedium)
+                    }
                     if (!feed?.medium.isNullOrBlank()) Text(stringResource(R.string.medium) + ": " + feed!!.medium!!, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                     if (feed?.aiContent == true) Text(stringResource(R.string.is_ai_content), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)) {
@@ -550,9 +552,6 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                     Text(HtmlToPlainText.getPlainText(feed?.description ?: ""), color = textColor, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-
-            val curVolumeName = remember(feed?.volumeId) { if (feed?.volumeId == -1L) "None" else allVolumes.find { it.id == feed?.volumeId }?.name ?: "None" }
-            Text(stringResource(R.string.archive_parent_folder_value, curVolumeName), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
             Text(stringResource(R.string.archive_default_queue_value, feed?.queue?.displayName ?: stringResource(R.string.archive_no_queue)), color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 10.dp, bottom = 5.dp))
 
@@ -697,7 +696,7 @@ fun FeedDetailsScreen(feedId: Long = 0L, modeName: String = FeedScreenMode.List.
                             Logd(TAG) { "actionButtonCB type: $type ${e.feed?.id} ${feed?.id}" }
                             if (e.feed?.id == feed?.id) {
                                 if (type in streamActions + playActions + listOf(ButtonTypes.PLAY_LOCAL)) runOnIOScope { upsert(feed!!) { it.lastPlayed = nowInMillis() } }
-                                if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, feed!!.episodeSortOrder, true) }
+                                if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) queueToVirtual(e, episodes, vm.listIdentity, feed!!.episodeSortOrder, true)
                             }
                         },
                     )

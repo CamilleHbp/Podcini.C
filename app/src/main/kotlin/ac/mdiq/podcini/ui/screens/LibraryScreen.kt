@@ -1447,7 +1447,7 @@ fun LibraryScreen() {
         if (showChooseRatingDialog) ChooseRatingDialog(feedsSelected) { showChooseRatingDialog = false }
         if (showAssociateDialog) SetAssociateQueueDialog {showAssociateDialog = false}
         if (showToVolumeDialog) SetToVolumeDialog {showToVolumeDialog = false}
-        if (showTagsSettingDialog) TagSettingDialog(TagType.Feed, setOf(), multiples = true, { showTagsSettingDialog = false } ) { tags ->
+        if (showTagsSettingDialog) TagSettingDialog(TagType.Feed, setOf(), multiples = true, { showTagsSettingDialog = false }, feedIds = feedsSelected.map { it.id }) { tags ->
             runOnIOScope { realm.write { for (f_ in feedsSelected) findLatest(f_)?.tags?.addAll(tags) } }
         }
         @Composable

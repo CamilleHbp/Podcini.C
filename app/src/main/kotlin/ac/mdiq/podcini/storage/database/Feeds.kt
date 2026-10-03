@@ -360,6 +360,11 @@ class FeedAssistant(val feed: Feed, savedFeedId: Long = 0L, isNew: Boolean = fal
         val iterator = if (isNew) feed.episodes.iterator() else getEpisodes(null, null, feedId=feed.id, copy = true).iterator()
         while (iterator.hasNext()) {
             val e = iterator.next()
+            if (feed.isLocal) {
+                val identity = ac.mdiq.podcini.storage.tags.tagFileIdentity(e.downloadUrl ?: e.fileUrl.orEmpty())
+                map.getOrPut(identity) { mutableListOf() }.add(e)
+                continue
+            }
 //            Logd(TAG) { "FeedAssistant init $tag ${e.title}" }
             if (!e.identifier.isNullOrEmpty()) {
                 Logd(TAG) { "FeedAssistant init $tag identifier ${e.identifier}" }
@@ -390,7 +395,7 @@ class FeedAssistant(val feed: Feed, savedFeedId: Long = 0L, isNew: Boolean = fal
                 } else map[title] = mutableListOf(e)
             }
         }
-        if (savedFeedId == 0L) {
+        if (savedFeedId == 0L && !feed.isLocal) {
             for ((k, v) in map.entries) {
                 if (v.size < 2) continue
                 Logd(TAG) { "FeedAssistant removing ${v.size-1} duplicates on $k" }
@@ -425,6 +430,10 @@ class FeedAssistant(val feed: Feed, savedFeedId: Long = 0L, isNew: Boolean = fal
     //            if (url != episode.identifyingValue && !url.isNullOrEmpty() && !map.containsKey(url)) map[url] = episode
     //        }
     fun addidvToMap(episode: Episode) {
+        if (feed.isLocal) {
+            map.getOrPut(ac.mdiq.podcini.storage.tags.tagFileIdentity(episode.downloadUrl ?: episode.fileUrl.orEmpty())) { mutableListOf() }.add(episode)
+            return
+        }
         val idv = episode.identifyingValue
         if (idv != episode.identifier && !idv.isNullOrEmpty()) {
             if (map.containsKey(idv)) map[idv]!!.add(episode)
@@ -452,8 +461,10 @@ class FeedAssistant(val feed: Feed, savedFeedId: Long = 0L, isNew: Boolean = fal
 //                ${duplicateEpisodeDetails(possibleDuplicate)}
 //                """.trimIndent()))
 //    }
-    fun getEpisodeByIdentifyingValue(item: Episode): List<Episode>? = map[item.identifyingValue]
+    fun getEpisodeByIdentifyingValue(item: Episode): List<Episode>? = if (feed.isLocal)
+        map[ac.mdiq.podcini.storage.tags.tagFileIdentity(item.downloadUrl ?: item.fileUrl.orEmpty())] else map[item.identifyingValue]
     fun guessDuplicate(item: Episode): List<Episode>? {
+        if (feed.isLocal) return getEpisodeByIdentifyingValue(item)
         var episodes = map[item.identifier]
         if (!episodes.isNullOrEmpty()) return episodes
         val url = item.downloadUrl

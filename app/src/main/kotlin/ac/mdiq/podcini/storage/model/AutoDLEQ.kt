@@ -20,7 +20,7 @@ class AutoDLEQ: EmbeddedRealmObject {
         }
         set(value) {
             field = value
-            filterStringADL = value.propertySet.joinToString()
+            filterStringADL = value.encode()
             durationFloorADL = value.durationFloor
             durationCeilingADL = value.durationCeiling
         }

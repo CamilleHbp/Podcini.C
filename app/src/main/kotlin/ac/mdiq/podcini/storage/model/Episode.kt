@@ -64,6 +64,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 class Episode : RealmObject {
+    var contentKind: String = ""
+    var artist: String = ""
+    var album: String = ""
+    var albumArtist: String = ""
+    var discNumber: Int = 0
+    var additionalLocations: RealmList<String> = realmListOf()
+
     @PrimaryKey
     var id: Long = 0L   // increments from nowInMillis()
 
@@ -608,6 +615,8 @@ class Episode : RealmObject {
         other as Episode
 
         if (id != other.id) return false
+        if (albumArtist != other.albumArtist || discNumber != other.discNumber) return false
+        if (contentKind != other.contentKind || artist != other.artist || album != other.album || additionalLocations != other.additionalLocations) return false
         if (pubDate != other.pubDate) return false
         if (trackNumber != other.trackNumber) return false
         if (feedId != other.feedId) return false

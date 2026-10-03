@@ -116,6 +116,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -156,6 +157,7 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
     internal var enableSubscribe by mutableStateOf(true)
     internal var enableEpisodes by mutableStateOf(true)
     internal var subButTextRes by mutableIntStateOf(R.string.subscribe_label)
+    var addError by mutableStateOf(false)
 
     var numEpisodes by mutableIntStateOf(0)
 
@@ -163,7 +165,6 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
 
     internal var feedOptions: List<String?> = listOf()
 
-    internal var infoBarText = mutableStateOf("")
 
     var episodeSortOrder by mutableStateOf(EpisodeSortOrder.DATE_DESC)
 
@@ -316,34 +317,18 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
         showProgress = false
         showFeedDisplay = true
         enableSubscribe = true
-        subButTextRes = textRes
+        subButTextRes = R.string.search_in_library
     }
 
     fun findExisting(feed_: Feed?): Feed? {
-        Logd(TAG) { "checkExisting check for ${feed_?.title} ${feed_?.author}" }
-        fun isSameFeed(f: Feed): Boolean {
-            Logd(TAG) { "isSameFeed check with feed: ${f.type} ${f.title} ${f.author}" }
-            fun getDomain(url: String): String? = try { URI(url).host?.removePrefix("www.") } catch (e: Exception) { null }
-            val d1 = getDomain(f.downloadUrl?:"")
-            val d2 = getDomain(feed_?.downloadUrl?:"")
-            val ds1 = f.description?.takeCodePoints(100).orEmpty()
-            val ds2 = f.description?.takeCodePoints(100).orEmpty()
-            Logd(TAG) { "isSameFeed d1: $d1 d2: $d2" }
-            return  (f.title == feed_?.title && f.author == feed_?.author && d1 == d2 && ds1 == ds2)
-        }
-        for (f in allFeeds) if (isSameFeed(f)) return f
-        return null
+        if (feed_ == null) return null
+        ac.mdiq.podcini.sourcing.feed.PodcastLibrary.existing(feed_.downloadUrl)?.let { return it }
+        val identifier = feed_.identifier?.takeIf { it.isNotBlank() } ?: return null
+        // Publisher name, host and description alone are not a podcast identity.
+        return allFeeds.firstOrNull { it.identifier == identifier && it.identifyingValue == feed_.identifyingValue }
     }
 
-    fun findExisting(url: String): Feed? {
-        if (url.isNotBlank()) for (f in allFeeds) {
-            if (f.downloadUrl == url) {
-                Logd(TAG) { "checkExisting found existing feed: ${f.title}" }
-                return f
-            }
-        }
-        return null
-    }
+    fun findExisting(url: String): Feed? = ac.mdiq.podcini.sourcing.feed.PodcastLibrary.existing(url)
 
 
     internal fun handleFeed(feed_: Feed) {
@@ -369,7 +354,8 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
             }
         }
         viewModelScope.launch(Dispatchers.IO) {
-            val fl = CombinedSearcher::class.java.getDeclaredConstructor().newInstance().search("${feed?.author} podcasts")
+            val author = feed?.author?.takeIf { it.isNotBlank() } ?: return@launch
+            val fl = CombinedSearcher().searchOutcome("$author podcasts").results
             withContext(Dispatchers.Main) { if (fl.isNotEmpty()) relatedResults = fl }
         }
         showProgress = false
@@ -382,7 +368,6 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
         if (feed == null) return
         if (episodes.isEmpty()) {
             episodes.addAll(feed!!.episodes)
-            infoBarText.value = "${episodes.size} episodes"
 
             Logd(TAG) { "showEpisodes ${episodes.size}" }
             if (episodes.isEmpty()) return
@@ -398,6 +383,28 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
         showEpisodes = true
     }
 
+    fun addToLibrary() {
+        val preview = feed ?: return
+        if (!enableSubscribe || feedId != 0L) return
+        enableSubscribe = false
+        addError = false
+        viewModelScope.launch {
+            try {
+                if (limitEpisodesCount > 0) preview.limitEpisodesCount = limitEpisodesCount
+                feedId = ac.mdiq.podcini.sourcing.feed.PodcastLibrary.save(preview)
+                subscribePress = true
+                if (isShared) withContext(Dispatchers.IO) {
+                    realm.query(ShareLog::class, "url == $0", feedUrl).first().find()?.let { log ->
+                        upsert(log) { it.status = ShareLog.Status.SUCCESS.code }
+                    }
+                }
+                handleSubscribeStatus()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { addError = true }
+            finally { enableSubscribe = true; enableEpisodes = true }
+        }
+    }
+
     internal fun handleSubscribeStatus() {
         if (preparedUrl.isBlank()) return
 
@@ -410,7 +417,7 @@ class OnlineFeedVM(url: String = "", source: String = "", shared: Boolean = fals
             feedId != 0L -> {
                 Logd(TAG) { "handleUpdatedFeedStatus feedId != 0L" }
                 enableSubscribe = true
-                subButTextRes = R.string.archive_view_episodes
+                subButTextRes = R.string.search_in_library
                 if (subscribePress) {
                     subscribePress = false
                     runOnIOScope {
@@ -446,6 +453,10 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
     val drawerController = LocalDrawerController.current
     val context by rememberUpdatedState(LocalContext.current)
     val appPrefs by appPrefsFlow!!.collectAsStateWithLifecycle()
+    var optionsExpanded by remember { mutableStateOf(false) }
+    var sourceExpanded by remember { mutableStateOf(false) }
+    var descriptionExpanded by remember { mutableStateOf(false) }
+    var descriptionOverflows by remember { mutableStateOf(false) }
 
     val vm: OnlineFeedVM = viewModel(key = url, factory = viewModelFactory { initializer { OnlineFeedVM(url, source, shared) } })
 
@@ -457,7 +468,6 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                 Lifecycle.Event.ON_CREATE -> Logd(TAG) { "feedUrl: ${vm.feedUrl}" }
                 Lifecycle.Event.ON_START -> {
                     vm.isPaused = false
-                    vm.infoBarText.value = "${vm.episodes.size} episodes"
                 }
                 Lifecycle.Event.ON_STOP -> vm.isPaused = true
                 Lifecycle.Event.ON_DESTROY -> {}
@@ -569,7 +579,7 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
         Scaffold(topBar = {
             Box {
                 TopAppBar(title = {  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = stringResource(R.string.archive_discover), modifier = Modifier.weight(1f))
+                    Text(text = stringResource(R.string.search_podcast_details), modifier = Modifier.weight(1f))
                     if (vm.showEpisodes && vm.episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.arrows_sort), contentDescription = stringResource(R.string.archive_sort), modifier = Modifier.padding(start = 7.dp).clickable { showSortDialog = true })
                 } },
                     navigationIcon = {
@@ -586,19 +596,19 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
             } else if (vm.feed == null && vm.errorMessage.isNotBlank()) Box(Modifier.padding(innerPadding)) {
                 ArchiveEmpty(R.string.archive_source_failed, R.string.archive_source_failed_body, R.string.archive_back) { navBack() }
             } else if (vm.showEpisodes) Column(modifier = Modifier.padding(innerPadding).fillMaxSize().padding(start = 5.dp, end = 5.dp).background(MaterialTheme.colorScheme.surface)) {
-                EpisodeListInfoBar(vm.episodes, vm.infoBarText.value, swipeActions, showRandom = false)
-                EpisodeLazyColumn(vm.episodes, isExternal = true, swipeActions = swipeActions, actionButtonCB = { _, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) actQueueFlow.value = tmpQueue() })
+                EpisodeListInfoBar(vm.episodes, pluralStringResource(R.plurals.search_episode_count, vm.episodes.size, vm.episodes.size), swipeActions, showRandom = false)
+                EpisodeLazyColumn(vm.episodes, isExternal = true, swipeActions = swipeActions, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) ac.mdiq.podcini.storage.database.replaceListeningQueue(vm.episodes, e.id, e.feed?.title.orEmpty()) })
             } else Column(modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 10.dp, end = 10.dp).background(MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(model = vm.feed?.images?.firstOrNull()?.href, imageLoader = imageLoader, contentDescription = null, error = painterResource(R.drawable.archive_headphones), modifier = Modifier.size(80.dp))
+                        ac.mdiq.podcini.ui.compose.PodcastArtwork(vm.feed?.images?.firstOrNull()?.href, Modifier.size(80.dp))
                         Column(Modifier.weight(1f).padding(start = 16.dp)) {
                             Text(vm.feed?.title ?: stringResource(R.string.archive_no_title), style = MaterialTheme.typography.titleLarge)
                             Text(vm.feed?.author.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     FlowRow(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (vm.showFeedDisplay && vm.enableSubscribe) Button(onClick = {
+                        if (vm.showFeedDisplay) Button(enabled = vm.enableSubscribe, onClick = {
                             if (vm.feedId != 0L) {
                                 if (vm.isShared) {
                                     val log = realm.query(ShareLog::class).query("url == $0", vm.feedUrl).first().find()
@@ -607,38 +617,23 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                                 if (vm.updatedFeedUrl.isNotBlank() && vm.feed != null) upsertBlk(vm.feed!!) { it.downloadUrl = vm.updatedFeedUrl }
                                 navTo(FeedDetails(feedId = vm.feedId, modeName = FeedScreenMode.List.name))
                             } else {
-                                if (vm.feed == null) return@Button
-                                vm.enableSubscribe = false
-                                vm.enableEpisodes = false
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    if (vm.limitEpisodesCount > 0) vm.feed?.limitEpisodesCount = vm.limitEpisodesCount
-                                    subscribe(vm.feed!!)
-                                    if (vm.isShared) {
-                                        val log = realm.query(ShareLog::class).query("url == $0", vm.feedUrl).first().find()
-                                        if (log != null) upsertBlk(log) { it.status = ShareLog.Status.SUCCESS.code }
-                                    }
-                                    withContext(Dispatchers.Main) {
-                                        runCatching {
-                                            vm.subscribePress = true
-                                            vm.feedId = vm.feed?.id ?: 0L
-                                            vm.enableSubscribe = true
-                                            vm.subButTextRes = R.string.archive_view_episodes
-                                            vm.handleSubscribeStatus()
-                                        }
-                                    }
-                                }
+                                vm.addToLibrary()
                             }
-                        }) { Text(stringResource(vm.subButTextRes)) }
+                        }) { Text(stringResource(if (!vm.enableSubscribe) R.string.search_adding else vm.subButTextRes)) }
 
                         when {
                             vm.showEpisodes -> Button(onClick = { vm.showEpisodes = false }) { Text(stringResource(R.string.feed)) }
-                            vm.feedId == 0L && vm.enableEpisodes && vm.feed != null && vm.numEpisodes > 0 -> Button(onClick = { vm.showEpisodes() }) { Text(stringResource(R.string.episodes_label)) }
+                            vm.enableEpisodes && vm.feed != null && vm.numEpisodes > 0 -> TextButton(onClick = { vm.showEpisodes() }) { Text(stringResource(R.string.archive_view_episodes)) }
                             else -> {}
                         }
 
                     }
+                    Text(stringResource(R.string.search_membership_hint), modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (vm.addError) Text(stringResource(R.string.search_add_failed), modifier = Modifier.padding(top = 8.dp), color = MaterialTheme.colorScheme.error)
                 }
-                Column(Modifier.border(1.dp, MaterialTheme.colorScheme.tertiary)) {
+                if (vm.feedId == 0L) TextButton(onClick = { optionsExpanded = !optionsExpanded }, modifier = Modifier.padding(horizontal = 8.dp)) { Text(stringResource(R.string.search_podcast_options)) }
+                if (optionsExpanded && vm.feedId == 0L) Column(Modifier.padding(vertical = 8.dp)) {
                     //                    TODO: add alternate_urls_spinner
                     if (vm.feedId == 0L) Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.limit_episodes_to), modifier = Modifier.weight(0.5f))
@@ -672,28 +667,38 @@ fun OnlineFeedScreen(url: String = "", source: String = "", shared: Boolean = fa
                         }
                         if (!vm.feed?.medium.isNullOrBlank()) Text(stringResource(R.string.medium) + ": " + vm.feed!!.medium!!, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                         if (vm.feed?.aiContent == true) Text(stringResource(R.string.is_ai_content), color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
-                        Text(stringResource(R.string.archive_episode_count, vm.numEpisodes), color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 10.dp))
+                        Text(pluralStringResource(R.plurals.search_episode_count, vm.numEpisodes, vm.numEpisodes), color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 10.dp))
                         Text(stringResource(R.string.description_label), color = textColor, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
-                        Text(HtmlToPlainText.getPlainText(vm.feed?.description ?: ""), color = textColor, style = MaterialTheme.typography.bodyMedium)
+                        Text(HtmlToPlainText.getPlainText(vm.feed?.description ?: ""), color = textColor, style = MaterialTheme.typography.bodyMedium,
+                            maxLines = if (descriptionExpanded) Int.MAX_VALUE else 6, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            onTextLayout = { if (!descriptionExpanded) descriptionOverflows = it.hasVisualOverflow })
+                        if (descriptionOverflows || descriptionExpanded) TextButton(onClick = { descriptionExpanded = !descriptionExpanded }) {
+                            Text(stringResource(if (descriptionExpanded) R.string.search_read_less else R.string.search_read_more))
+                        }
                         if (!vm.feed?.episodes.isNullOrEmpty()) {
                             Text(stringResource(R.string.recent_episode), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
-                            Text(vm.feed?.episodes[0]?.title ?: "", color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
+                            TextButton(onClick = { vm.showEpisodes() }) { Text(vm.feed?.episodes[0]?.title ?: "", style = MaterialTheme.typography.bodyMedium) }
                         }
-                        Text(stringResource(R.string.feeds_related_to_author), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp).clickable {
-                            searchFeedsOnline(query = "${vm.feed?.author} podcasts")
-                            navTo(FindFeeds)
-                        })
-                        LazyRow(state = rememberLazyListState(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            items(vm.relatedResults) { result ->
-                                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.width(100.dp).height(100.dp).clickable {
-                                    navTo(OnlineFeed(url = result.feedUrl ?: "", source = result.source))
-                                })
+                        if (vm.relatedResults.isNotEmpty()) {
+                            TextButton(onClick = { openEverywhereSearch("${vm.feed?.author.orEmpty()} podcasts", ac.mdiq.podcini.sourcing.searcher.SearchScope.Podcasts) }) {
+                                Text(stringResource(R.string.search_related_podcasts), style = MaterialTheme.typography.titleMedium)
+                            }
+                            LazyRow(state = rememberLazyListState(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                items(vm.relatedResults) { result ->
+                                    Column(Modifier.width(136.dp).clickable { result.feedUrl?.let { navTo(OnlineFeed(it, result.source)) } }.padding(4.dp)) {
+                                        ac.mdiq.podcini.ui.compose.PodcastArtwork(result.imageUrl, Modifier.size(96.dp))
+                                        Text(result.title, Modifier.padding(top = 8.dp), style = MaterialTheme.typography.labelLarge, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                    }
+                                }
                             }
                         }
-                        val info = remember(vm.feed) { if (vm.feed == null) "" else "${vm.feed!!.langSet.joinToString(" ")} ${vm.feed!!.type.orEmpty()} ${vm.feed!!.lastUpdate.orEmpty()}" }
-                        Text(info, color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
-                        Text(vm.feed?.link ?: "", color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
-                        Text(vm.feed?.downloadUrl ?: "", color = textColor, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 5.dp, bottom = 4.dp))
+                        TextButton(onClick = { sourceExpanded = !sourceExpanded }) { Text(stringResource(R.string.search_source_details)) }
+                        if (sourceExpanded) {
+                            val info = remember(vm.feed) { if (vm.feed == null) "" else "${vm.feed!!.langSet.joinToString(" ")} ${vm.feed!!.type.orEmpty()} ${vm.feed!!.lastUpdate.orEmpty()}" }
+                            Text(info, style = MaterialTheme.typography.bodySmall)
+                            Text(vm.feed?.link ?: "", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 8.dp))
+                            Text(vm.feed?.downloadUrl ?: "", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }

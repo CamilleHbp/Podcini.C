@@ -2,9 +2,16 @@ package ac.mdiq.podcini.storage.specs
 
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.utils.Logd
+import ac.mdiq.podcini.storage.model.libraryJson
+import kotlinx.serialization.encodeToString
 
 class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
-    val propertySet = properties_.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+    val propertySet = properties_.flatMap(::decodeProperties).map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+
+    fun encode(): String = libraryJson.encodeToString(propertySet.toList())
+
+    private fun decodeProperties(value: String): List<String> = if (value.trimStart().startsWith("["))
+        runCatching { libraryJson.decodeFromString<List<String>>(value) }.getOrElse { listOf(value) } else value.split(",")
 
     var durationFloor: Int = 0
     var durationCeiling: Int = Int.MAX_VALUE
@@ -12,7 +19,7 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
     var titleText: String = ""
 
     fun add(vararg properties_: String) {
-        propertySet.addAll(properties_.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotEmpty() })
+        propertySet.addAll(properties_.flatMap(::decodeProperties).map { it.trim() }.filter { it.isNotEmpty() })
     }
 
     fun add(filter: EpisodeFilter): EpisodeFilter {
@@ -24,7 +31,7 @@ class EpisodeFilter(vararg properties_: String, var andOr: String = "AND") {
     }
 
     fun remove(vararg properties_: String) {
-        propertySet.removeAll(properties_.flatMap { it.split(",") }.map { it.trim() }.filter { it.isNotEmpty() }.toSet())
+        propertySet.removeAll(properties_.flatMap(::decodeProperties).map { it.trim() }.filter { it.isNotEmpty() }.toSet())
     }
 
     fun addTag(tag: String) {

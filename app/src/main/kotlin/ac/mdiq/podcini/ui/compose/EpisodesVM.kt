@@ -183,7 +183,8 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                       swipeActions: SwipeActions? = null,
                       refreshCB: (()->Unit)? = null, selectModeCB: ((Boolean)->Unit)? = null,
                       showActionButtons: Boolean = true, preferSingleAction: Boolean = false, showHighlights: Boolean = false,
-                      actionButtonType: ButtonTypes? = null, actionButtonCB: ((Episode, ButtonTypes)->Unit)? = null) {
+                      actionButtonType: ButtonTypes? = null, actionButtonCB: (suspend (Episode, ButtonTypes)->Unit)? = null,
+                      headerContent: (@Composable () -> Unit)? = null) {
 
     var selectMode by remember { mutableStateOf(false) }
     val selected = remember { mutableStateListOf<Episode>() }
@@ -254,9 +255,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
             CommentEditingDialog(textState = editCommentText, autoSave = false, onTextChange = { editCommentText = it }, onDismiss = { showAddCommentDialog = false },
                 onSave = { runOnIOScope { for (e in selected) upsert(e) { it.addComment(editCommentText.text) } } })
         }
-        if (showEditTagsDialog) TagSettingDialog(TagType.Episode, setOf(), multiples = true, onDismiss = { showEditTagsDialog = false }) { tags ->
-            runOnIOScope { for (e in selected) upsert(e) { it.tags.addAll(tags) }  }
-        }
+        if (showEditTagsDialog) MediaTagsDialog(selected.map { it.id }) { showEditTagsDialog = false }
         if (showPlayStateDialog) PlayStateDialog(selected, onDismiss = { showPlayStateDialog = false }, futureCB = { futureState = it }, ignoreCB = { showIgnoreDialog = true })
         if (showPutToQueueDialog) PutToQueueDialog(selected) { showPutToQueueDialog = false }
         if (showShelveDialog) ShelveDialog(selected) { showShelveDialog = false }
@@ -325,6 +324,7 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
 
         //        Logd(TAG) { "outside of LazyColumn" }
         LazyColumn(state = lazyListState, modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (headerContent != null) item(key = "library-header") { headerContent() }
             items(items = episodes, key = { it.id }) { episode_ ->
                 val episode = when (episode_.id) {
                     curMedia0?.id -> curMedia0 ?: episode_
@@ -387,7 +387,10 @@ fun EpisodeLazyColumn(episodes: List<Episode>, feed: Feed? = null, isExternal: B
                             if (episode !in selected) selected.add(episode)
                             longPressIndex = episodes.indexOfFirst { it.id == episode.id }
                         },
-                        onAction = actionButtonCB
+                        onAction = { item, type ->
+                            if (actionButtonCB != null) actionButtonCB(item, type)
+                            else if (curQueue == null) ac.mdiq.podcini.storage.database.replaceListeningQueue(episodes, item.id, item.feed?.title.orEmpty())
+                        }
                     )
                 }
             }

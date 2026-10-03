@@ -154,7 +154,7 @@ abstract class EpisodeCleanupAlgorithm {
                 if (episode.downloaded) deleteMedia(episode)
             }
         }
-        if (appPrefsFlow!!.value.deleteRemovesFromQueue) removeFromAllQueues(toDelete)
+        // File cleanup does not remove playlist membership or session order.
         val counter = toDelete.size
         Logt(TAG, localizedString(R.string.message_auto_delete_deleted_episodes_requested, (counter).toString(), (numToRemove).toString()))
         return counter

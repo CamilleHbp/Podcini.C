@@ -27,6 +27,8 @@ import ac.mdiq.podcini.storage.model.Todo
 import ac.mdiq.podcini.storage.model.TranscriptMeta
 import ac.mdiq.podcini.storage.model.Volume
 import ac.mdiq.podcini.storage.model.FeedFunding
+import ac.mdiq.podcini.storage.model.MediaTagState
+import ac.mdiq.podcini.storage.model.TagUndo
 import ac.mdiq.podcini.utils.Logd
 import ac.mdiq.podcini.utils.Logs
 import android.util.Log
@@ -83,17 +85,23 @@ fun createRealmConfiguration(directory: String? = null): RealmConfiguration =
         FacetsPrefs::class,
         SleepPrefs::class,
         SyncPrefs::class,
-    )).name("Podcini.realm").schemaVersion(169)
+        MediaTagState::class,
+        TagUndo::class,
+    )).name("Podcini.realm").schemaVersion(173)
         .migration({ mContext ->
             val oldRealm = mContext.oldRealm // old realm using the previous schema
             val newRealm = mContext.newRealm // new realm using the new schema
+            if (oldRealm.schemaVersion() < 173) {
+                // Upstream 12.14.1 repair, also applied to existing fork databases.
+                newRealm.query("Feed", "type == $0", "YOUTUBE").find().forEach { it.set("type", "YouTube") }
+            }
             if (oldRealm.schemaVersion() < 169) {
-                newRealm.query("AppPrefs").find().forEach { it.set("completionPercent", 97) }
+                newRealm.query("AppPrefs").find().forEach { it.set("completionPercent", 97L) }
                 newRealm.query("Episode").find().forEach { episode ->
                     // Older versions reset position on completion. Preserve the evidence still available.
-                    val position = episode.getValue<Int>("position")
-                    val duration = episode.getValue<Int>("duration")
-                    val listened = episode.getValue<Int>("playedDuration").coerceIn(0, duration.coerceAtLeast(0))
+                    val position = episode.getValue<Long>("position")
+                    val duration = episode.getValue<Long>("duration")
+                    val listened = episode.getValue<Long>("playedDuration").coerceIn(0, duration.coerceAtLeast(0))
                     episode.set("playedPosition", maxOf(position, listened))
                 }
             }

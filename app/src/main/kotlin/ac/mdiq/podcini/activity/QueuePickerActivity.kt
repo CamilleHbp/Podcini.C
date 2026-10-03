@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.activity
 
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.R
 import androidx.compose.ui.res.stringResource
 import ac.mdiq.podcini.config.AppConfig.initialize
@@ -50,7 +51,7 @@ class QueuePickerActivity : AppCompatActivity() {
 
         initialize()
 
-        val spinnerTexts = queuesLive.map { "${if (it.id == actQueueFlow.value.id) "> " else ""}${it.name} : ${it.size()}" }
+        val spinnerTexts = queuesLive.map { "${if (it.id == actQueueFlow.value.id) "> " else ""}${it.displayName} : ${ac.mdiq.podcini.storage.database.playlistItems(it).size}" }
         setContent {
             PodciniTheme(AppThemes.BLACK) {
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
@@ -65,7 +66,7 @@ class QueuePickerActivity : AppCompatActivity() {
                                         curIndex = index
                                         val queue = queuesLive[index]
                                         lifecycleScope.launch(Dispatchers.IO) {
-                                            val episodes = queue.episodesSorted.take(40).map { it.toWidget() }
+                                            val episodes = ac.mdiq.podcini.storage.database.playlistItems(queue).take(40).map { it.toWidget() }
                                             val json = Json.encodeToString(episodes)
                                             val manager = GlanceAppWidgetManager(this@QueuePickerActivity)
                                             val glanceIds = manager.getGlanceIds(PodciniWidget::class.java)
@@ -73,7 +74,7 @@ class QueuePickerActivity : AppCompatActivity() {
                                                 updateAppWidgetState(this@QueuePickerActivity, PreferencesGlanceStateDefinition, glanceId) { prefs ->
                                                     prefs.toMutablePreferences().apply {
                                                         this[longPreferencesKey("queue_id")] = queue.id
-                                                        this[stringPreferencesKey("queue_name")] = queue.name
+                                                        this[stringPreferencesKey("queue_name")] = queue.displayName
                                                         this[intPreferencesKey("queue_size")] = queue.size()
                                                         this[stringPreferencesKey("episodes")] = json
                                                         this[stringPreferencesKey("update_type")] = "queue"

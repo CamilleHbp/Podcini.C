@@ -266,6 +266,9 @@ class PlayAction : ActionCallback {
             prefs[MARKED_EPISODE_KEY] = id
             prefs[stringPreferencesKey("update_type")] = "episode"
             Logd(TAG) { "PlayAction onAction episode: ${episode.title}" }
+            val queueId = prefs[longPreferencesKey("queue_id")] ?: ac.mdiq.podcini.storage.database.LISTENING_QUEUE_ID
+            val playlist = realm.query(ac.mdiq.podcini.storage.model.PlayQueue::class, "id == $0", queueId).first().find()
+            if (playlist != null && !playlist.isVirtual()) ac.mdiq.podcini.storage.database.replaceListeningQueue(ac.mdiq.podcini.storage.database.playlistItems(playlist), episode.id, playlist.name, playlist.id)
             withContext(Dispatchers.Main) { PlaybackStarter(episode).setWidgetId(glanceId.toString()).shouldStreamThisTime(null).start() }
         }
         PodciniWidget().update(context, glanceId)

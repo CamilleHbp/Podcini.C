@@ -60,7 +60,7 @@ class AutoDownloadAlgorithm {
                         if (episode.downloaded) deleteMedia(episode)
                     }
                 }
-                removeFromAllQueues(toReplace)
+                // Download replacement changes file availability only.
             }
             val downloadedCount = getEpisodesCount(EpisodeFilter(EpisodeFilter.States.downloaded.name))
             val deletedCount = toReplace.size + cleanupAlgorithm().makeRoomForEpisodes(autoDownloadableCount - toReplace.size)
@@ -92,7 +92,9 @@ class AutoEnqueueAlgorithm {
 
         assembleCandidates(feeds, candidates, toReplace, noRefreshing = noRefreshing, dl = false)
         if (candidates.isNotEmpty()) {
-            if (toReplace.isNotEmpty()) removeFromAllQueues(toReplace, EpisodeState.UNPLAYED)
+            if (toReplace.isNotEmpty()) for (feed in toReplace.mapNotNull { it.feed }.distinctBy { it.id }) {
+                feed.queue?.takeIf { !it.isVirtual() }?.let { queue -> ac.mdiq.podcini.storage.database.removeFromQueue(queue, toReplace.filter { it.feedId == feed.id }) }
+            }
             Logd(TAG) { "Enqueueing ${candidates.size} items" }
             realm.write { for (e in candidates) findLatest(e)?.isAutoDownloadEnabled = false }
             addToAssQueue(candidates.toList())

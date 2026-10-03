@@ -545,9 +545,13 @@ fun SleepTimerDialog(onDismiss: () -> Unit) {
 fun PlayRandom(episodes: List<Episode>, playNext: Boolean = false) {
     if (episodes.isNotEmpty()) Icon(imageVector = ImageVector.vectorResource(R.drawable.random_svgrepo_com), tint = MaterialTheme.colorScheme.tertiary, contentDescription = stringResource(R.string.ui_shuffle), modifier = Modifier.clickable {
         val item = episodes.random()
-        PlaybackStarter(item).shouldStreamThisTime(null).start(0)
-        playVideoIfNeeded(item)
-        if (!playNext) actQueueFlow.value = tmpQueue()
+        ac.mdiq.podcini.storage.database.runOnIOScope {
+            if (!playNext) ac.mdiq.podcini.storage.database.replaceListeningQueue(listOf(item), item.id, item.title.orEmpty(), continuous = false)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                ac.mdiq.podcini.ui.screens.playLibraryItem(item)
+                playVideoIfNeeded(item)
+            }
+        }
     })
 }
 

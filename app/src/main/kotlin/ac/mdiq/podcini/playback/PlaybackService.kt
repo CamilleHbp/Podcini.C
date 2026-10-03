@@ -2,6 +2,7 @@ package ac.mdiq.podcini.playback
 
 import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp
+import ac.mdiq.podcini.storage.model.displayName
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.config.AppConfig
 import ac.mdiq.podcini.storage.database.appPrefsFlow
@@ -151,22 +152,22 @@ class PlaybackService : MediaLibraryService() {
 
     object MediaRepository {
         data class MediaCategory(val id: String, val type: String, val title: String)
-//        val actQueueCategory = actQueueFlow.value.let { MediaCategory(id = it.id.toString(), type = "Queue", title = it.name) }
-        val queueCategories = queuesLive.map { MediaCategory(id = it.id.toString(), type = "Queue", title = it.name) }
-        val feedCategories = realm.query(Feed::class).sort("lastPlayed", sortOrder = Sort.DESCENDING).limit(5).find().map { MediaCategory(id = it.id.toString(), type = "Feed", title = it.title?.take(50)?:"No title") }
-        val categories = queueCategories + feedCategories
+//        val actQueueCategory = actQueueFlow.value.let { MediaCategory(id = it.id.toString(), type = "Queue", title = it.displayName) }
+        val queueCategories get() = queuesLive.map { MediaCategory(id = it.id.toString(), type = "Queue", title = it.displayName) }
+        val feedCategories get() = realm.query(Feed::class).sort("lastPlayed", sortOrder = Sort.DESCENDING).limit(5).find().map { MediaCategory(id = it.id.toString(), type = "Feed", title = it.title?.take(50)?:"No title") }
+        val categories get() = queueCategories + feedCategories
         fun tracksInCategory(id: String): List<MediaItem> {
             val cat = categories.firstOrNull { it.id == id } ?: return listOf()
             val episodes = when (cat.type) {
                 "Queue" -> {
                     val q = queuesLive.firstOrNull { it.id.toString() == id }
-                    q?.episodes ?: listOf()
+                    q?.let { ac.mdiq.podcini.storage.database.playlistItems(it) } ?: listOf()
                 }
                 "Feed" -> {
                     var list = listOf<Episode>()
                     id.toLongOrNull()?.let {
                         val f = feedsMap[it]
-                        if (f != null) list = getEpisodes(f.episodeFilter, f.episodeSortOrder, it, limit = 50, copy = false)
+                        if (f != null) list = getEpisodes(f.episodeFilter, f.episodeSortOrder, it, limit = Int.MAX_VALUE, copy = false)
                     }
                     list
                 }
@@ -327,7 +328,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         AppConfig.initialize()
-        activeTheatresCount.value = if (appPrefsFlow!!.value.twoPlayers) 2 else 1
+        activeTheatresCount.value = 1
 
         Logd(TAG) { "onCreate Service created." }
         timeIt("$TAG onCreate Service")

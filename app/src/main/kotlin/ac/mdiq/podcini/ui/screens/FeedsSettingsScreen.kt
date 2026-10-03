@@ -309,7 +309,7 @@ fun FeedsSettingsScreen() {
             }
             //                    tags
             var showTagsSettingDialog by remember { mutableStateOf(false) }
-            if (showTagsSettingDialog) TagSettingDialog(TagType.Feed, feedToSet.tags, onDismiss = { showTagsSettingDialog = false }) { tags ->
+            if (showTagsSettingDialog) TagSettingDialog(TagType.Feed, feedToSet.tags, onDismiss = { showTagsSettingDialog = false }, feedIds = feedsToSet.map { it.id }) { tags ->
                 runOnIOScope {
                     realm.write { for (f in feedsToSet) { findLatest(f)?.let {
                         it.tags.clear()
@@ -358,7 +358,7 @@ fun FeedsSettingsScreen() {
                             if (selected == custom) {
                                 Logd(TAG) { "queues: ${queuesLive.size}" }
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    for (i in queuesLive.indices) {
+                                    for (i in queuesLive.indices.filter { queuesLive[it].id != ac.mdiq.podcini.storage.database.LISTENING_QUEUE_ID && !queuesLive[it].smart }) {
                                         FilterChip(label = { Text(queuesLive[i].displayName) }, selected = false, border = BorderStroke(1.dp, borderColor),
                                             onClick = {
                                                 val q = queuesLive[i]

@@ -2,6 +2,13 @@ package ac.mdiq.podcini.ui.compose
 
 import ac.mdiq.podcini.sourcing.download.EpisodeAdrDLManager
 import ac.mdiq.podcini.ui.actions.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import ac.mdiq.podcini.storage.database.availableLocalLocation
+import ac.mdiq.podcini.storage.database.availableRemoteLocation
+import ac.mdiq.podcini.storage.database.libraryKind
+import ac.mdiq.podcini.storage.database.playableLocations
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.actQueueFlow
 import ac.mdiq.podcini.playback.theatres
@@ -54,7 +61,7 @@ fun ArchiveNavigation(rail: Boolean) {
     val destinations = listOf(
         Triple(Listen, R.string.archive_listen, R.drawable.archive_headphones),
         Triple(Library, R.string.library, R.drawable.ic_subscriptions),
-        Triple(FindFeeds, R.string.archive_discover, R.drawable.archive_explore)
+        Triple(Search, R.string.archive_search, R.drawable.ic_search)
     )
     val selected = primaryDestination()
     if (rail) NavigationRail(Modifier.fillMaxHeight(), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
@@ -114,13 +121,7 @@ fun ArchiveEmpty(
 
 @Composable
 fun ArchiveArtwork(episode: Episode?, modifier: Modifier = Modifier, finished: Boolean = false) {
-    AsyncImage(
-        model = episode?.imageLocation(), imageLoader = imageLoader,
-        placeholder = painterResource(R.drawable.archive_headphones), error = painterResource(R.drawable.archive_headphones),
-        contentDescription = null, contentScale = ContentScale.Fit,
-        colorFilter = if (finished) ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) }) else null,
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-    )
+    PodcastArtwork(episode?.imageLocation(), modifier, finished)
 }
 
 @Composable
@@ -129,7 +130,7 @@ fun ArchiveEpisodeRow(
     selected: Boolean, selecting: Boolean, isExternal: Boolean,
     statusMode: StatusRowMode, showActions: Boolean,
     downloadProgress: Int?, onOpen: () -> Unit, onSelect: () -> Unit,
-    onAction: ((Episode, ButtonTypes) -> Unit)?,
+    onAction: (suspend (Episode, ButtonTypes) -> Unit)?,
     showHighlights: Boolean = false
 ) {
     var expanded by remember(episode.id) { mutableStateOf(false) }
@@ -145,10 +146,12 @@ fun ArchiveEpisodeRow(
             Text(stringResource(if (schedule) R.string.archive_schedule else R.string.archive_organize), style = MaterialTheme.typography.titleLarge)
             extraActions.filter { if (schedule) it is SetPlaybackState || it is SetDueDate || it is Timer else it is AddComment || it is AddTag || it is Shelve || it is AddTodo }.forEach { action ->
                 EpisodeAction.onEpisode = episode
-                if (action.enabled()) TextButton(onClick = { organize = false; schedule = false; action.performAction(episode) }) { Text(action.title) }
+                if (action.enabled()) EpisodeActionRow(action.title, action.iconRes) { organize = false; schedule = false; action.performAction(episode) }
             }
         }
     }
+    var locations by remember(episode.id) { mutableStateOf(false) }
+    if (locations) MediaLocationsDialog(episode) { locations = false }
     var chooseQueue by remember(episode.id) { mutableStateOf(false) }
     val title = episode.title ?: stringResource(R.string.archive_no_title)
     val primaryLabel = stringResource(if (playing) R.string.archive_pause_episode else R.string.archive_play_episode, title)
@@ -157,7 +160,56 @@ fun ArchiveEpisodeRow(
     val finished = episode.isPlaybackFinished(prefs.completionPercent)
     val surface = when { selected -> MaterialTheme.colorScheme.secondaryContainer; current -> MaterialTheme.colorScheme.primaryContainer; finished -> MaterialTheme.colorScheme.surfaceContainerLow; else -> MaterialTheme.colorScheme.surface }
     if (showMore) button.AltActionsDialog(includeDownloads = isExternal) { showMore = false }
-    if (chooseQueue) PutToQueueDialog(listOf(episode)) { chooseQueue = false }
+    if (chooseQueue) PlaylistPickerDialog(listOf(episode)) { chooseQueue = false }
+    if (expanded) EpisodeActionSheet(episode, onDismiss = { expanded = false }, onChoosePlaylist = { expanded = false; chooseQueue = true }) {
+        if (!isExternal) EpisodeActionRow(stringResource(R.string.archive_play_next), R.drawable.ic_playlist_play) {
+            expanded = false
+            runOnIOScope { addToQueue(listOf(episode), actQueueFlow.value, EnqueueLocation.AFTER_CURRENTLY_PLAYING) }
+        }
+        EpisodeActionRow(stringResource(R.string.play_only_item), R.drawable.ic_play_24dp) {
+            expanded = false
+            button.item = episode
+            button.type = if (episode.availableLocalLocation != null) ButtonTypes.PLAY_ONE else ButtonTypes.STREAM_ONE
+            button.onClick()
+        }
+        if (!isExternal) {
+            val downloading = downloadProgress != null || episode.downloadUrl?.let { EpisodeAdrDLManager.manager.isDownloading(it) } == true
+            val local = episode.feed?.isLocal == true
+            val fileAction = episodeDownloadAction(local, !episode.fileUrl.isNullOrBlank() && (episode.downloaded || local), downloading,
+                !episode.downloadUrl.isNullOrBlank(), isMediaDownloadable(episode))
+            val downloadType = when (fileAction) {
+                EpisodeDownloadAction.CANCEL -> ButtonTypes.CANCEL
+                EpisodeDownloadAction.REMOVE_DOWNLOAD, EpisodeDownloadAction.DELETE_LOCAL_FILE -> ButtonTypes.DELETE
+                EpisodeDownloadAction.DOWNLOAD -> ButtonTypes.DOWNLOAD
+                null -> null
+            }
+            if (downloadType != null) EpisodeActionRow(stringResource(when (downloadType) {
+                ButtonTypes.CANCEL -> R.string.archive_cancel_download
+                ButtonTypes.DELETE -> if (local) R.string.archive_delete_local else R.string.delete_episode_label
+                else -> R.string.download_label
+            }), when (downloadType) {
+                ButtonTypes.CANCEL -> R.drawable.ic_cancel
+                ButtonTypes.DELETE -> R.drawable.ic_delete
+                else -> R.drawable.ic_download
+            }) {
+                expanded = false
+                button.item = episode
+                button.typeToCancel = ButtonTypes.DOWNLOAD
+                button.type = downloadType
+                button.onClick()
+            }
+            EpisodeActionRow(stringResource(R.string.archive_mark_played), R.drawable.ic_mark_played) {
+                expanded = false
+                runOnIOScope { upsert(episode) { it.setPlayState(EpisodeState.PLAYED) } }
+            }
+            EpisodeActionRow(stringResource(R.string.set_rating_label), R.drawable.ic_star) { expanded = false; rate = true }
+            EpisodeActionRow(stringResource(R.string.archive_organize), R.drawable.baseline_label_24) { expanded = false; organize = true }
+            EpisodeActionRow(stringResource(R.string.archive_schedule), R.drawable.baseline_watch_later_24) { expanded = false; schedule = true }
+        }
+        EpisodeActionRow(stringResource(R.string.media_available_from), R.drawable.ic_info) { expanded = false; locations = true }
+        EpisodeActionRow(stringResource(R.string.archive_playback_options), R.drawable.ic_play_24dp) { expanded = false; showMore = true }
+        if (!isExternal) EpisodeActionRow(stringResource(R.string.archive_select), R.drawable.ic_check) { expanded = false; onSelect() }
+    }
     fun play() {
         if (playing) {
             theatres.filter { it.mPlayerFlow.value?.curMediaFlow?.value?.id == episode.id }.forEach { it.mPlayerFlow.value?.pause(false) }
@@ -165,23 +217,24 @@ fun ArchiveEpisodeRow(
         }
         button.item = episode
         val type = when {
-            episode.feed?.isLocal == true -> ButtonTypes.PLAY_LOCAL
-            episode.downloaded -> if (button.preferSingle) ButtonTypes.PLAY_ONE else ButtonTypes.PLAY
-            episode.downloadUrl.isNullOrBlank() -> ButtonTypes.TTS_NOW
+            episode.availableLocalLocation != null -> if (button.preferSingle) ButtonTypes.PLAY_ONE else ButtonTypes.PLAY
+            episode.availableRemoteLocation == null -> ButtonTypes.TTS_NOW
             else -> if (button.preferSingle) ButtonTypes.STREAM_ONE else ButtonTypes.STREAM
         }
         button.type = type
+        button.beforePlayback = { onAction?.invoke(episode, type) }
         button.onClick()
-        onAction?.invoke(episode, type)
     }
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(surface)) {
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(surface)
+        .combinedClickable(onClick = onOpen, onLongClickLabel = stringResource(R.string.archive_episode_actions, title),
+            onLongClick = { if (selecting) onSelect() else expanded = true })) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             if (selecting) Checkbox(checked = selected, onCheckedChange = { onOpen() })
             else ArchiveArtwork(episode, Modifier.size(if (largeText) 56.dp else 72.dp), finished = finished)
-            Column(Modifier.weight(1f).combinedClickable(onClick = onOpen, onLongClick = onSelect).padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 4.dp)) {
                 Text(title, color = if (finished) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium, maxLines = if (largeText) 5 else 3, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
-                Text(episode.feed?.title ?: stringResource(R.string.archive_no_source), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(listOf(episode.artist, episode.album).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { episode.feed?.title ?: episode.parentTitle ?: stringResource(R.string.archive_no_source) }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val state = buildList {
                     if (current) add(stringResource(if (playing) R.string.archive_playing else R.string.archive_paused))
                     if (finished) add(stringResource(R.string.playback_finished))
@@ -209,49 +262,8 @@ fun ArchiveEpisodeRow(
                     Icon(ImageVector.vectorResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play_24dp), primaryLabel, Modifier.size(28.dp))
                 }
             }
-            if (!selecting) Box {
-                IconButton(onClick = { expanded = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.archive_episode_actions, title)) }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    if (!isExternal) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_play_next)) }, onClick = {
-                            expanded = false
-                            val queue = actQueueFlow.value
-                            runOnIOScope { addToQueue(listOf(episode), queue, EnqueueLocation.AFTER_CURRENTLY_PLAYING) }
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_add_queue)) }, onClick = { expanded = false; chooseQueue = true })
-                        HorizontalDivider()
-                        val downloading = downloadProgress != null || episode.downloadUrl?.let { EpisodeAdrDLManager.manager.isDownloading(it) } == true
-                        val local = episode.feed?.isLocal == true
-                        val fileAction = episodeDownloadAction(local, !episode.fileUrl.isNullOrBlank() && (episode.downloaded || local), downloading,
-                            !episode.downloadUrl.isNullOrBlank(), isMediaDownloadable(episode))
-                        val downloadType = when (fileAction) {
-                            EpisodeDownloadAction.CANCEL -> ButtonTypes.CANCEL
-                            EpisodeDownloadAction.REMOVE_DOWNLOAD, EpisodeDownloadAction.DELETE_LOCAL_FILE -> ButtonTypes.DELETE
-                            EpisodeDownloadAction.DOWNLOAD -> ButtonTypes.DOWNLOAD
-                            null -> null
-                        }
-                        if (downloadType != null) DropdownMenuItem(text = { Text(stringResource(when (downloadType) {
-                            ButtonTypes.CANCEL -> R.string.archive_cancel_download
-                            ButtonTypes.DELETE -> if (local) R.string.archive_delete_local else R.string.delete_episode_label
-                            else -> R.string.download_label
-                        })) }, onClick = {
-                            expanded = false
-                            button.item = episode
-                            button.typeToCancel = ButtonTypes.DOWNLOAD
-                            button.type = downloadType
-                            button.onClick()
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.set_rating_label)) }, onClick = { expanded = false; rate = true })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_organize)) }, onClick = { expanded = false; organize = true })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_schedule)) }, onClick = { expanded = false; schedule = true })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_mark_played)) }, onClick = {
-                            expanded = false
-                            runOnIOScope { upsert(episode) { it.setPlayState(EpisodeState.PLAYED) } }
-                        })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.archive_select)) }, onClick = { expanded = false; onSelect() })
-                    }
-                    DropdownMenuItem(text = { Text(stringResource(R.string.archive_playback_options)) }, onClick = { expanded = false; showMore = true })
-                }
+            if (!selecting) IconButton(onClick = { expanded = true }) {
+                Icon(Icons.Default.MoreVert, stringResource(R.string.archive_episode_actions, title))
             }
         }
         if (episode.duration > 0 && (current || episode.playedPosition > 0)) LinearProgressIndicator(

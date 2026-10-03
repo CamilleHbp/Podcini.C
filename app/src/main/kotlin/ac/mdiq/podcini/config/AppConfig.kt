@@ -51,6 +51,7 @@ object AppConfig {
         try {
             getRealmInstance()
             initAppPrefs()
+            ac.mdiq.podcini.storage.tags.migrateTagPaths()
             AppGatewayRegistry.initialize(appPrefsFlow!!.value.loadExternalApp, CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
 
             if (nmJob == null) nmJob = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate).launch { networkMonitor.networkFlow.collect { isConnected -> networkChangedDetected(isConnected) } }
@@ -70,6 +71,7 @@ object AppConfig {
             timeIt("ClientConfigurator Init ends ")
 
             isInitialized.value = true
+            ac.mdiq.podcini.storage.tags.MediaTagRepository.schedule()
         } finally { synchronized(initLock) { initializing = false } }
     }
 

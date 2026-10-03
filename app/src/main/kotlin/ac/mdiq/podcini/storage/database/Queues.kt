@@ -28,7 +28,6 @@ import kotlin.random.Random
 private const val TAG: String = "Queues"
 
 const val QUEUE_POSITION_DELTA = 10000L
-const val VIRTUAL_QUEUE_SIZE = 50
 
 val queuesFlow = realm.query(PlayQueue::class).sort("name").asFlow()
 var queuesLive = listOf<PlayQueue>()
@@ -38,51 +37,15 @@ private var virQueue = PlayQueue()
 var queuesJob: Job? = null
 
 fun initQueues() {
-    Logd(TAG) { "initQueues called " }
-    timeIt("$TAG start of initQueues")
+    migrateListeningLibrary()
     queuesLive = realm.query(PlayQueue::class).sort("name").find()
-
+    refreshListeningQueue()
     if (queuesJob == null) queuesJob = runOnIOScope {
-        Logd(TAG) { "starting queues queuesLive: ${queuesLive.size}" }
-        if (queuesLive.isEmpty()) {
-            realm.write {
-                for (i in 0..4) {
-                    Logd(TAG) { "creating queue id: $i" }
-                    val q = PlayQueue()
-                    if (i == 0) q.name = "Default"
-                    else {
-                        q.id = i.toLong()
-                        q.name = "Queue $i"
-                    }
-                    copyToRealm(q)
-                }
-            }
-        }
-        virQueue = realm.query(PlayQueue::class).query("id == $VIRTUAL_QUEUE_ID").first().find() ?: run {
-            val vq = PlayQueue()
-            vq.id = VIRTUAL_QUEUE_ID
-            vq.name = "Virtual"
-            upsertBlk(vq) {}
-        }
-
-        queuesFlow.collect { changes: ResultsChange<PlayQueue> ->
+        queuesFlow.collect { changes ->
             queuesLive = changes.list
-            queuesLive.find { it.id == actQueueFlow.value.id }?.let { actQueueFlow.value = it }
-            Logd(TAG) { "queuesLive updated" }
-            when (changes) {
-                is UpdatedResults -> {
-                    when {
-                        changes.insertions.isNotEmpty() -> {}
-                        changes.changes.isNotEmpty() -> {}
-                        changes.deletions.isNotEmpty() -> {}
-                        else -> {}
-                    }
-                }
-                else -> {}
-            }
+            changes.list.firstOrNull { it.id == LISTENING_QUEUE_ID }?.let { actQueueFlow.value = it }
         }
     }
-    timeIt("$TAG start of initQueues")
 }
 
 fun cancelQueuesJob() {
@@ -116,7 +79,8 @@ suspend fun addToAssQueue(episodes: List<Episode>) {
     for (en in mapByFeed.entries) {
         val fid = en.key ?: continue
         val f = feedsMap[fid] ?: continue
-        val q = f.queue ?: continue
+        val assigned = f.queue ?: continue
+        val q = if (assigned.isVirtual()) realm.query(PlayQueue::class, "id == 0").first().find() ?: continue else assigned
         val episodes = en.value
         addToQueue(episodes, q)
     }
@@ -124,12 +88,10 @@ suspend fun addToAssQueue(episodes: List<Episode>) {
 
 suspend fun addToQueue(episodes: List<Episode>, queue: PlayQueue, location: EnqueueLocation? = null) {
     Logd(TAG) { "addToQueue( ... ) called" }
-    if (queue.isVirtual() && location == null) {
-        Loge(TAG, localizedString(R.string.message_current_queue_is_virtual_ignored))
-        return
-    }
+    if (queue.smart) return
     val curPlaying = if (queue.id == actQueueFlow.value.id) theatres[0].mPlayerFlow.value?.curMediaFlow?.value else null
     realm.write {
+        episodes.forEach { item -> if (query(Episode::class, "id == $0", item.id).first().find() == null) copyToRealm(item) }
         if (location != null) {
             val existing = query(QueueEntry::class, "queueId == $0 SORT(position ASC)", queue.id).find().toList()
             val chosen = episodes.map { it.id }.distinct()
@@ -168,84 +130,20 @@ suspend fun addToQueue(episodes: List<Episode>, queue: PlayQueue, location: Enqu
 }
 
 suspend fun queueToVirtual(episode: Episode, episodes: List<Episode>, listIdentity: String, sortOrder: EpisodeSortOrder, playInSequence: Boolean = true) {
-    Logd(TAG) { "queueToVirtual ${virQueue.identity} $listIdentity ${episodes.size}" }
-    virQueue = queuesLive.find { it.id == VIRTUAL_QUEUE_ID } ?: return
-    if (virQueue.identity != listIdentity || !virQueue.contains(episode)) {
-        val index = episodes.indexOfFirst { it.id == episode.id }
-        if (index >= 0) {
-            Logd(TAG) { "queueToVirtual index: $index" }
-            realm.write {
-                val qes = query(QueueEntry::class).query("queueId == $VIRTUAL_QUEUE_ID").find()
-                delete(qes)
-            }
-            val eIdsToQueue = episodes.subList(index, min(episodes.size, index + VIRTUAL_QUEUE_SIZE)).map { it.id }
-            virQueue = upsert(virQueue) { q ->
-                q.identity = listIdentity
-                q.playInSequence = playInSequence
-                q.sortOrder = sortOrder
-            }
-            var ip = QUEUE_POSITION_DELTA
-            realm.write {
-                for (eid in eIdsToQueue) {
-                    val qe = QueueEntry().apply {
-                        id = getEntityId()
-                        queueId = virQueue.id
-                        episodeId = eid
-                        position = ip
-                    }
-                    copyToRealm(qe)
-                    ip += QUEUE_POSITION_DELTA
-                }
-            }
-            actQueueFlow.value = virQueue
-            Logt(TAG, localizedString(R.string.message_first_episodes_are_added_to_the_virtual_queue, (virQueue.size()).toString()))
-        }
-    } else actQueueFlow.value = virQueue
+    val origin = episode.feed?.title ?: localizedString(R.string.library_items)
+    replaceListeningQueue(episodes, episode.id, origin, continuous = playInSequence)
 }
 
-
 suspend fun smartRemoveFromQueues(item_: Episode, queues_: List<PlayQueue> = listOf()) {
-    Logd(TAG) { "smartRemoveFromAllQueues: ${item_.title}" }
-    var item = item_
-    val almostEnded = item.hasAlmostEnded()
-    if (almostEnded) {
-        item = upsert(item) {
-            it.playbackCompletionTime = nowInMillis()
-            if (it.playState == EpisodeState.FOREVER.code) it.repeatTime = it.repeatInterval + nowInMillis()
-            if (it.playState < EpisodeState.PLAYED.code && !shouldPreserve(it.playState)) it.setPlayState(EpisodeState.PLAYED)
-        }
-    }
-    if (item.playState < EpisodeState.SKIPPED.code && !shouldPreserve(item.playState)) {
-        val stat = if (item.lastPlayedTime > 0L) EpisodeState.SKIPPED else EpisodeState.PASSED
-        item = upsert(item) { it.setPlayState(stat, resetPosition = false) }
-    }
-    val queues = queues_.ifEmpty { queuesLive }
-    for (q in queues) {
-        if (q.id != actQueueFlow.value.id && q.contains(item)) removeFromQueue(q, listOf(item))
-    }
-    //        ensure actQueueFlow.value is last updated
-    if (actQueueFlow.value.id in queues.map { it.id }) {
-        Logd(TAG) { "actQueueFlow.value: [${actQueueFlow.value.name}]" }
-        val qes = actQueueFlow.value.entries
-        val curMediaId0 = theatres[0].mPlayerFlow.value?.curMediaFlow?.value?.id
-        val curMediaId1 = theatres[1].mPlayerFlow.value?.curMediaFlow?.value?.id
-        curIndexInActQueue = qes.indexOfFirst { it.episodeId == curMediaId0 || it.episodeId == curMediaId1 }
-        if (actQueueFlow.value.size() > 0 && actQueueFlow.value.contains(item)) removeFromQueue(actQueueFlow.value, listOf(item))
-        else upsertBlk(actQueueFlow.value) { it.update() }
-    }
+    val targets = queues_.ifEmpty { listOf(actQueueFlow.value) }
+    for (queue in targets) removeFromQueue(queue, listOf(item_))
 }
 
 suspend fun removeFromAllQueues(episodes: Collection<Episode>, playState: EpisodeState? = null) {
-    Logd(TAG) { "removeFromAllQueuesSync called " }
-    for (q in queuesLive) {
-        if (q.id != actQueueFlow.value.id) removeFromQueue(q, episodes, playState)
-    }
-    //        ensure actQueueFlow.value is last updated
-    val qes = actQueueFlow.value.entries
-    val curMediaId0 = theatres[0].mPlayerFlow.value?.curMediaFlow?.value?.id
-    val curMediaId1 = theatres[1].mPlayerFlow.value?.curMediaFlow?.value?.id
-    curIndexInActQueue = qes.indexOfFirst { it.episodeId == curMediaId0 || it.episodeId == curMediaId1 }
-    if (actQueueFlow.value.size() > 0) removeFromQueue(actQueueFlow.value, episodes, playState)
+    // Legacy completion/download actions must not erase membership in saved playlists.
+    val queue = actQueueFlow.value
+    curIndexInActQueue = queue.entries.indexOfFirst { it.episodeId == theatres[0].mPlayerFlow.value?.curMediaFlow?.value?.id }
+    removeFromQueue(queue, episodes, playState)
 }
 
 internal suspend fun removeFromQueue(queue_: PlayQueue?, episodes: Collection<Episode>, playState: EpisodeState? = null) {
@@ -256,6 +154,8 @@ internal suspend fun removeFromQueue(queue_: PlayQueue?, episodes: Collection<Ep
         return
     }
     if (episodes.isEmpty()) return
+    val currentId = theatres[0].mPlayerFlow.value?.curMediaFlow?.value?.id
+    if (queue.id == LISTENING_QUEUE_ID && episodes.any { it.id == currentId }) curIndexInActQueue = queue.entries.indexOfFirst { it.episodeId == currentId }
     val removeFromActQueue = mutableListOf<Episode>()
     realm.write {
         val qes = query(QueueEntry::class).query("queueId == $0 AND episodeId IN $1", queue.id, episodes.map { it.id }).find()

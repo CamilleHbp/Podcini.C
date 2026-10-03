@@ -212,70 +212,66 @@ class ItunesDeepSearcher: ItunesSearcher() {
         }.getOrNull()
     }
 }
+data class PodcastSearchOutcome(
+    val results: List<FeedSearchResult>,
+    val failedSources: List<String> = emptyList(),
+    val successfulSources: Int = 0
+) {
+    val failed: Boolean get() = successfulSources == 0
+}
+
 class CombinedSearcher : FeedSearcher {
     override suspend fun search(query: String): List<FeedSearchResult> {
-        Logd(TAG) { "CombinedSearcher search" }
-        val searchProviders = PodcastSearcherRegistry.searcherInfos
-        val searchResults = MutableList<List<FeedSearchResult>>(searchProviders.size) { listOf() }
-
-        // Using a supervisor scope to ensure that one failing child does not cancel others
-        supervisorScope {
-            val searchJobs = searchProviders.mapIndexed { index, searchProviderInfo ->
-                val searcher = searchProviderInfo.searcher
-                if (searchProviderInfo.weight > 0.00001f && searcher.javaClass != CombinedSearcher::class.java) {
-                    async(Dispatchers.IO) { try { searchResults[index] = searcher.search(query) } catch (e: Throwable) { Logs(TAG, e) } }
-                } else null
-            }.filterNotNull()
-            searchJobs.awaitAll()
-        }
-        return weightSearchResults(searchResults)
+        val outcome = searchOutcome(query)
+        if (outcome.failed) throw IOException("Podcast directories are unavailable")
+        return outcome.results
     }
 
-    private fun weightSearchResults(singleResults: List<List<FeedSearchResult>>): List<FeedSearchResult> {
-        val resultRanking = mutableMapOf<String?, Float>()
-        val urlToResult = mutableMapOf<String?, FeedSearchResult>()
-        for (i in singleResults.indices) {
-            val providerPriority = PodcastSearcherRegistry.searcherInfos[i].weight
-            val providerResults = singleResults[i]
-            for (position in providerResults.indices) {
-                val result = providerResults[position]
-                urlToResult[result.feedUrl] = result
-                var ranking = 0f
-                if (resultRanking.containsKey(result.feedUrl)) ranking = resultRanking[result.feedUrl]!!
-                ranking += 1f / (position + 1f)
-                resultRanking[result.feedUrl] = ranking * providerPriority
+    suspend fun searchOutcome(query: String, sources: List<PodcastSearcherRegistry.SearcherInfo> = PodcastSearcherRegistry.searcherInfos.toList()): PodcastSearchOutcome {
+        // Snapshot the registry: enabled external providers may change during a request.
+        val providers = sources.filter {
+            it.weight > 0.00001f && it.searcher !is CombinedSearcher
+        }
+        val outcomes = supervisorScope {
+            providers.map { provider ->
+                async(Dispatchers.IO) {
+                    try {
+                        Triple(provider, kotlinx.coroutines.withTimeout(12_000) { provider.searcher.search(query) }, false)
+                    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                        Triple(provider, emptyList<FeedSearchResult>(), true)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        android.util.Log.w(TAG, "Podcast directory ${provider.tag} is unavailable", error)
+                        Triple(provider, emptyList<FeedSearchResult>(), true)
+                    }
+                }
+            }.awaitAll()
+        }
+        val rankings = linkedMapOf<String, Float>()
+        val results = linkedMapOf<String, FeedSearchResult>()
+        outcomes.forEach { (provider, matches, failed) ->
+            if (!failed) matches.forEachIndexed { index, result ->
+                // A missing URL is not a shared identity; never collapse all such results.
+                val key = podcastUrlKey(result.feedUrl) ?: "${provider.tag}:$index:${result.title}"
+                rankings[key] = (rankings[key] ?: 0f) + provider.weight / (index + 1f)
+                results.putIfAbsent(key, result)
             }
         }
-        //        val sortedResults = mutableListOf<MutableMap.MutableEntry<String?, Float>>(resultRanking.entries)
-        val sortedResults = resultRanking.entries.toMutableList()
-        sortedResults.sortWith { o1: Map.Entry<String?, Float>, o2: Map.Entry<String?, Float> -> o2.value.toDouble().compareTo(o1.value.toDouble()) }
-
-        val results: MutableList<FeedSearchResult> = mutableListOf()
-        for ((key) in sortedResults) {
-            val v = urlToResult[key] ?: continue
-            results.add(v)
-        }
-        return results
+        return PodcastSearchOutcome(
+            rankings.entries.sortedByDescending { it.value }.mapNotNull { results[it.key] },
+            outcomes.filter { it.third }.map { it.first.tag },
+            outcomes.count { !it.third }
+        )
     }
 
     override suspend fun lookupUrl(url: String): String = PodcastSearcherRegistry.lookupUrl(url)
-
     override fun urlNeedsLookup(url: String): Boolean = PodcastSearcherRegistry.urlNeedsLookup(url)
-
     override val name: String
-        get() {
-            val names = mutableListOf<String?>()
-            for (i in PodcastSearcherRegistry.searcherInfos.indices) {
-                val searchProviderInfo = PodcastSearcherRegistry.searcherInfos[i]
-                val searcher = searchProviderInfo.searcher
-                if (searchProviderInfo.weight > 0.00001f && searcher.javaClass != CombinedSearcher::class.java) names.add(searcher.name)
-            }
-            return names.joinToString()
-        }
+        get() = PodcastSearcherRegistry.searcherInfos.filter { it.weight > 0.00001f && it.searcher !is CombinedSearcher }
+            .joinToString { it.searcher.name.orEmpty() }
 
-    companion object {
-        private val TAG: String = CombinedSearcher::class.simpleName ?: "Anonymous"
-    }
+    companion object { private const val TAG = "CombinedSearcher" }
 }
 
 object PodcastSearcherRegistry {

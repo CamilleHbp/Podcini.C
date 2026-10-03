@@ -176,73 +176,7 @@ fun RemoveFeedDialog(feeds: List<Feed>, onDismiss: () -> Unit, callback: ()->Uni
 
 @Composable
 fun OnlineFeedItem(result: FeedSearchResult, log: SubscriptionLog? = null) {
-    val TAG = "OnlineFeedItem"
-    val context = LocalContext.current
-    val showSubscribeDialog = remember { mutableStateOf(false) }
-    suspend fun subscribeFeed(result: FeedSearchResult) {
-        val url = result.feedUrl ?: return
-        val client = clientBySearcher(result.source)
-        if (client != null) {
-            val fipc = client.withProvider { it.buildFeed(url, 0) }
-            if (fipc != null) {
-                val eList = mutableListOf<EpisodeIPC>()
-                var episodes = client.withProvider { it.getEpisodes(EPISODE_BATCH_SIZE, 0L) }?: listOf()
-                while (episodes.isNotEmpty()) {
-                    eList.addAll(episodes)
-                    Logd(TAG) { "subscribeFeed eList: ${eList.size}" }
-                    if (eList.size > EPISODES_LIMIT || episodes.size < EPISODE_BATCH_SIZE) break
-                    episodes = client.withProvider { it.getEpisodes(EPISODE_BATCH_SIZE, 0L) } ?: listOf()
-                }
-                fipc.episodes = eList
-                subscribe(fipc)
-            } else Loge(TAG, localizedString(R.string.message_subscribe_feed_failed))
-        } else {
-            val fbb = FeedBuilder { message, details -> Loge("OnineFeedItem", localizedString(R.string.message_subscribe_error_n, (message).toString(), (details).toString())) }
-            fbb.buildPodcast(url, "", "") { feed, _ -> subscribe(feed) }
-        }
-    }
-    if (showSubscribeDialog.value) CommonPopupCard(onDismiss = { showSubscribeDialog.value = false }) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Text(stringResource(R.string.ui_subscribe_confirm, result.title.orEmpty()), color = textColor, modifier = Modifier.padding(bottom = 10.dp))
-            Button(onClick = {
-                runOnIOScope { subscribeFeed(result) }
-                showSubscribeDialog.value = false
-            }) { Text(stringResource(R.string.confirm_label)) }
-        }
-    }
-
-    Column(Modifier.padding(start = 5.dp, end = 5.dp, top = 4.dp, bottom = 4.dp).combinedClickable(
-        onClick = {
-            if (result.feedUrl != null) {
-                Logd(TAG) { "feed.feedId: ${result.feedId}" }
-                if (result.feedId > 0) navTo(FeedDetails(feedId = result.feedId))
-                else navTo(OnlineFeed(url = result.feedUrl!!, source = result.source))
-            } },
-        onLongClick = { showSubscribeDialog.value = true })) {
-        
-        Row {
-            Box(modifier = Modifier.width(80.dp).height(80.dp)) {
-                AsyncImage(model = ImageRequest.Builder(context).data(result.imageUrl).memoryCachePolicy(CachePolicy.ENABLED).build(), imageLoader = imageLoader, placeholder = painterResource(R.drawable.ic_launcher_foreground), error = painterResource(R.drawable.ic_launcher_foreground), contentDescription = stringResource(R.string.ui_cover), modifier = Modifier.fillMaxSize())
-                if (result.feedId > 0 || log != null) {
-                    Logd("OnlineFeedItem") { "${result.feedId} $log" }
-                    val iRes = remember(result) { if (result.feedId > 0) R.drawable.ic_check else R.drawable.baseline_clear_24 }
-                    Icon(imageVector = ImageVector.vectorResource(iRes), tint = textColor, contentDescription = stringResource(R.string.archive_played), modifier = Modifier.background(Color.Green).alpha(1.0f).align(Alignment.BottomEnd))
-                }
-            }
-            Column(Modifier.padding(start = 10.dp)) {
-                Text(result.title, color = textColor, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 4.dp))
-                val authorText = remember(result.author) { result.author?.takeIf { it.isNotBlank() }?.trim { it <= ' ' }?: "Anonymous" }
-                Text(authorText, color = textColor, style = MaterialTheme.typography.bodyMedium)
-                if (result.subscriberCount > 0) Text(stringResource(R.string.ui_subscribers, formatLargeInteger(result.subscriberCount)), color = textColor, style = MaterialTheme.typography.bodyMedium)
-                Row {
-                    Text(stringResource(R.string.archive_episode_count, result.count ?: 0), color = textColor, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.weight(1f))
-                    if (result.update != null) Text(result.update!!, color = textColor, style = MaterialTheme.typography.bodyMedium)
-                }
-                Text("${result.source}:\u00A0${result.feedUrl ?: stringResource(R.string.ui_unavailable)}", color = textColor, style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
+    OnlinePodcastRow(result, previouslyRemoved = log != null)
 }
 
 @Composable

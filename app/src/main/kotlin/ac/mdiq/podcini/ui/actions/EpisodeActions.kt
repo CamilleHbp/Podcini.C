@@ -395,14 +395,7 @@ class AddTag : EpisodeAction() {
     @Composable
     override fun ActionOptions() {
         if (showTagDialog) {
-            TagSettingDialog(TagType.Episode, onEpisode!!.tags, onDismiss = { showTagDialog = false }) { tags ->
-                runOnIOScope {
-                    upsert(onEpisode!!) {
-                        it.tags.clear()
-                        it.tags.addAll(tags)
-                    }
-                }
-            }
+            ac.mdiq.podcini.ui.compose.MediaTagsDialog(listOf(onEpisode!!.id)) { showTagDialog = false }
         }
     }
 }

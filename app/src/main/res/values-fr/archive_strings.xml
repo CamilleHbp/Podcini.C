@@ -102,7 +102,7 @@
     <string name="archive_select_below">Sélectionner en dessous</string>
     <string name="archive_select_all">Tout sélectionner</string>
     <string name="archive_selection_done">Terminer la sélection</string>
-    <string name="archive_manage_queues">Gérer les files d’attente</string>
+    <string name="archive_manage_queues">Listes de lecture</string>
     <string name="archive_repeat_queue">Répéter la file d’attente</string>
     <string name="archive_repeat_queue_summary">Recommencer lorsque cette file d’attente est terminée.</string>
     <string name="archive_appearance">Apparence et accessibilité</string>
@@ -206,7 +206,7 @@
     <string name="archive_queue_unique_name">Choisissez un nom de file d’attente unique.</string>
     <string name="archive_lock_queue_summary">Empêcher le réordonnancement manuel. Désactiver ce réglage désactive aussi le tri automatique.</string>
     <string name="archive_parent_folder_value">Dossier parent : %1$s</string>
-    <string name="archive_default_queue_value">File d’attente par défaut : %1$s</string>
+    <string name="archive_default_queue_value">Liste automatique : %1$s</string>
     <string name="archive_no_queue">Aucun</string>
     <string name="browse_new">Nouveaux épisodes</string>
     <string name="browse_planned">Écoutes prévues</string>

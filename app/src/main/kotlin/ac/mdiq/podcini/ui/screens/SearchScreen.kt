@@ -139,6 +139,11 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private var curSearchString by mutableStateOf("")
 fun setSearchTerms(query: String? = null) {
+    if (query != null) requestEverywhereSearch(query)
+    setLegacySearchTerms(query)
+}
+
+fun setLegacySearchTerms(query: String? = null) {
     Logd("setSearchTerms") { "query: $query" }
     if (query != null) {
         curSearchString = query
@@ -478,7 +483,7 @@ fun SearchScreen() {
                 when (vm.selectedTabIndex) {
                     0 -> {
                         EpisodeListInfoBar(episodes, infoBarText.value, swipeActions)
-                        EpisodeLazyColumn(episodes, swipeActions = swipeActions, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, EpisodeSortOrder.DATE_DESC) } })
+                        EpisodeLazyColumn(episodes, swipeActions = swipeActions, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) queueToVirtual(e, episodes, vm.listIdentity, EpisodeSortOrder.DATE_DESC) })
                     }
                     1 -> FeedsColumn()
                     2 -> {
@@ -489,7 +494,7 @@ fun SearchScreen() {
                             Spacer(modifier = Modifier.weight(0.1f))
                             PlayRandom(vm.remoteMedia)
                         }
-                        EpisodeLazyColumn(vm.remoteMedia, isExternal = true, layoutMode = LayoutMode.WideImage.code, swipeActions = null, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) actQueueFlow.value = tmpQueue() })
+                        EpisodeLazyColumn(vm.remoteMedia, isExternal = true, layoutMode = LayoutMode.WideImage.code, swipeActions = null, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) ac.mdiq.podcini.storage.database.replaceListeningQueue(vm.remoteMedia, e.id, ac.mdiq.podcini.utils.localizedString(R.string.archive_search)) })
                     }
                     3 -> PAFeedsColumn()
                 }

@@ -34,7 +34,7 @@ var aController: MediaController? = null
 internal var vCtrlFuture: ListenableFuture<MediaController>? = null
 var vController: MediaController? = null
 
-val actQueueFlow = MutableStateFlow(PlayQueue())
+val actQueueFlow = MutableStateFlow(PlayQueue().apply { id = ac.mdiq.podcini.storage.model.VIRTUAL_QUEUE_ID })
 
 val activeTheatresCount = MutableStateFlow(1)
 
@@ -78,7 +78,7 @@ class Theatre(val id: Int) {
 internal fun startTheatres() {
     timeIt("$TAG start of init")
     CoroutineScope(Dispatchers.IO).launch {
-        for (i in 0..1) {
+        for (i in 0..0) {
             val player = theatres[i].mPlayerFlow.value
             Logd(TAG) { "starting curState for player: ${player?.playerId}" }
             player?.curState = realm.query(CurrentState::class).query("id == $i").first().find() ?: run {
@@ -89,10 +89,6 @@ internal fun startTheatres() {
             if (player != null && player.curState.curMediaId > 0L) player.setAsCurMedia(episodeById(player.curState.curMediaId))
 
             Logd(TAG) { "curMediaFlow.value from preference: ${player?.curMediaFlow?.value?.title}" }
-            player?.curMediaFlow?.value?.let {
-                val qes = realm.query(QueueEntry::class).query("episodeId == ${it.id}").find()
-                if (qes.isNotEmpty()) realm.query(PlayQueue::class).query("id == ${qes[0].queueId}").first().find()?.let { q-> actQueueFlow.value = q }
-            }
             theatres[i].curStateMonitor?.cancel()
             theatres[i].curStateMonitor = null
             theatres[i].monitorState()

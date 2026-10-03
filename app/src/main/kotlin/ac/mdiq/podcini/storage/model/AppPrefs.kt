@@ -32,6 +32,10 @@ class AppPrefs: RealmObject {
     var showDownloadReport: Boolean = true
 
     var defaultPage: String = DefaultPages.Listen.name
+    var libraryBrowsePreferences: String = ""
+    var inheritedTagPolicy: String = "ask"
+    var tagPathsMigrated: Boolean = false
+    var recentMediaTags: String = "[]"
 
     var backButtonOpensDrawer: Boolean = false
 
@@ -139,6 +143,8 @@ class AppPrefs: RealmObject {
         other as AppPrefs
 
         if (id != other.id) return false
+        if (libraryBrowsePreferences != other.libraryBrowsePreferences) return false
+        if (inheritedTagPolicy != other.inheritedTagPolicy || tagPathsMigrated != other.tagPathsMigrated || recentMediaTags != other.recentMediaTags) return false
         if (OPMLRestored != other.OPMLRestored) return false
         if (OPMLFeedsToRestore != other.OPMLFeedsToRestore) return false
         if (OPMLBackup != other.OPMLBackup) return false
@@ -220,6 +226,10 @@ class AppPrefs: RealmObject {
 
     override fun hashCode(): Int {
         var result = id.hashCode()
+        result = 31 * result + libraryBrowsePreferences.hashCode()
+        result = 31 * result + inheritedTagPolicy.hashCode()
+        result = 31 * result + tagPathsMigrated.hashCode()
+        result = 31 * result + recentMediaTags.hashCode()
         result = 31 * result + OPMLRestored.hashCode()
         result = 31 * result + OPMLFeedsToRestore
         result = 31 * result + OPMLBackup.hashCode()

@@ -103,7 +103,7 @@
     <string name="replace">Remplacer</string>
     <string name="feed_auto_dleq_newer">Les plus récents non joués</string>
     <string name="feed_auto_dleq_older">Les plus anciens non joués</string>
-    <string name="add_to_queue">Ajouter à la file d’attente…</string>
+    <string name="add_to_queue">Ajouter à la file</string>
     <string name="remove_from_other_queues">Retirer des autres files d\'attente</string>
     <string name="create_synthetic_first_note">Créez une collection dans la bibliothèque pour y ajouter des épisodes.</string>
     <string name="remove_from_current_feed">Déplacer depuis la source d’origine</string>
@@ -157,7 +157,7 @@
     <string name="choose_tab">Choisissez un onglet dans le canal</string>
     <string name="set_play_state_label">Définir l\'état de lecture</string>
     <string name="combo_action">Plusieurs actions…</string>
-    <string name="shelve_label">Établir en synthétique</string>
+    <string name="shelve_label">Ajouter à une liste…</string>
     <string name="add_to_active_queue">Ajouter à la file d’attente actuelle</string>
 
     <string name="media_type">Type de média</string>
@@ -388,8 +388,8 @@
     <string name="pref_feed_audio_quality_sum">Globalement équivaut généralement à une qualité élevée, sauf lorsque prefLowQualityMedia est configuré pour le réseau limité. Le paramétrage de la qualité a préséance sur la configuration de prefLowQualityMedia pour le réseau compté.</string>
     <string name="pref_feed_video_quality">Qualité vidéo</string>
     <string name="pref_feed_video_quality_sum">Globale équivaut à une qualité de bas niveau, le réglage de la qualité a préséance sur la configuration de prefLowQualityMedia pour le réseau compté.</string>
-    <string name="pref_feed_associated_queue">File d’attente par défaut de cette source</string>
-    <string name="pref_feed_associated_queue_sum">Les nouveaux épisodes sont ajoutés à cette file d’attente lorsque l’ajout automatique ou le téléchargement automatique est activé.</string>
+    <string name="pref_feed_associated_queue">Liste automatique</string>
+    <string name="pref_feed_associated_queue_sum">Les nouveaux éléments sont ajoutés ici si l’ajout automatique est activé. La lecture reste une action distincte.</string>
     <string name="pref_feed_skip_ending_toast">%d dernières secondes sautées</string>
     <string name="pref_feed_skip_intro_toast">%d premières secondes sautées</string>
 
@@ -545,7 +545,7 @@
     <string name="gpodnetsync_error_descr">Une erreur est apparue lors de la synchronisation :\u0020</string>
     <!-- Directory chooser -->
     <!-- Online feed view -->
-    <string name="subscribe_label">S\'abonner</string>
+    <string name="subscribe_label">Ajouter à la bibliothèque</string>
     <!-- Content descriptions for image buttons -->
     <string name="status_downloading_label">L\'épisode est en train d\'être téléchargé</string>
     <!-- Feed settings/information screen -->
@@ -663,7 +663,7 @@
     <string name="feed">Source</string>
     <string name="facet">Vue filtrée</string>
     <string name="facets">Parcourir les épisodes</string>
-    <string name="queue_label">Files d’attente</string>
+    <string name="queue_label">Listes de lecture</string>
     <string name="library">Bibliothèque</string>
     <string name="overview">Vue d’ensemble</string>
     <string name="no_more_screens_back">Aucun écran précédent</string>
@@ -706,8 +706,8 @@
     <string name="show_archived">Afficher les éléments archivés</string>
     <string name="enqueue">Ajouter à la file d’attente</string>
     <string name="download">Télécharger</string>
-    <string name="auto_enqueue_sum">Ajouter les épisodes correspondants à la file d’attente par défaut de cette source lors de la recherche de nouveaux épisodes.</string>
-    <string name="auto_enqueue_sum1">Choisissez une file d’attente par défaut pour cette source afin d’y ajouter automatiquement des épisodes.</string>
+    <string name="auto_enqueue_sum">Ajouter les épisodes correspondants à la liste de ce podcast lors de l’actualisation.</string>
+    <string name="auto_enqueue_sum1">Choisissez une liste pour enregistrer automatiquement les nouveaux épisodes.</string>
     <string name="auto_download_sum">Télécharger les épisodes correspondants lors des actualisations. Si une file d’attente par défaut est définie pour cette source, les y ajouter également.</string>
     <string name="limit_episodes_to">Limiter le nombre d’épisodes à</string>
     <string name="limit_episodes_to_sum">Définir le nombre maximal d’épisodes à conserver. Au-delà, les anciens épisodes sont supprimés. Les épisodes marqués comme importants sont conservés.</string>
@@ -752,9 +752,9 @@
     <string name="removed_on">Supprimé le</string>
     <string name="related">Associés</string>
     <string name="set_due_date">Définir la date d’échéance</string>
-    <string name="add_to_associated_queue">Ajouter à la file d’attente par défaut de la source</string>
+    <string name="add_to_associated_queue">Ajouter à la liste automatique</string>
     <string name="multicast_to_devices">Envoyer vers plusieurs appareils</string>
-    <string name="remove_from_all_queues">Retirer de toutes les files d’attente</string>
+    <string name="remove_from_all_queues">Retirer de la file d’écoute</string>
     <string name="remove_from_cur_queue">Retirer de la file d’attente actuelle</string>
     <string name="search_selected">Rechercher dans la sélection</string>
     <string name="select_text_to_search">Sélectionnez le texte à rechercher</string>
@@ -960,6 +960,6 @@
     <string name="podcast">Podcast</string>
     <string name="queue">File d’attente</string>
     <string name="select_podcast">Choisir un podcast</string>
-    <string name="select_queue">Choisir une file d’attente</string>
+    <string name="select_queue">Choisir une liste de lecture</string>
     <string name="select_facet">Choisir une vue filtrée</string>
 </resources>

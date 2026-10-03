@@ -27,7 +27,9 @@ enum class PopMode {
 }
 
 fun navTo(key: NavKey, popMode: PopMode = PopMode.None) {
-    if (key == Listen || key == Library || key == FindFeeds) { selectPrimary(key); return }
+    if (key == FindFeeds) { selectPrimary(Search); return }
+    if (key == Listen || key == Library || key == Search) { selectPrimary(key); return }
+    SearchSession.focusRequested = false
     if (popMode != PopMode.None) {
         val from = if (popMode == PopMode.UpTo) {
             val index = backStack.indexOfFirst { it.javaClass == key.javaClass }
@@ -77,6 +79,12 @@ data class Facets(val modeName: String = QuickAccess.None.name) : NavKey()
 data object Search : NavKey()
 
 @Serializable
+data object AdvancedSearch : NavKey()
+
+@Serializable
+data object PodcastDirectories : NavKey()
+
+@Serializable
 data object TopChart : NavKey()
 
 @Serializable
@@ -110,16 +118,18 @@ val defaultNavKey: NavKey
 @OptIn(ExperimentalMaterial3Api::class)
 val myEntryProvider = entryProvider {
     entry<Listen>{ ListenScreen() }
-    entry<Library>{ LibraryScreen() }
-    entry<Queues>{ k-> QueuesScreen(k.id) }
+    entry<Library>{ UnifiedLibraryScreen() }
+    entry<Queues>{ k-> PlaylistScreen(k.id) }
     entry<FeedDetails>{ k-> FeedDetailsScreen(k.feedId, k.modeName) }
     entry<FeedsSettings>{ FeedsSettingsScreen() }
     entry<EpisodeInfo>{ k-> EpisodeInfoScreen(k.episodeId) }
     entry<Facets>{ k-> FacetsScreen(k.modeName) }
-    entry<Search>{ SearchScreen() }
+    entry<Search>{ UnifiedSearchScreen() }
+    entry<AdvancedSearch>{ SearchScreen() }
+    entry<PodcastDirectories>{ FindFeedsScreen() }
     entry<TopChart>{ TopChartScreen() }
     entry<OnlineFeed>{ k-> OnlineFeedScreen(k.url, k.source, k.shared) }
-    entry<FindFeeds>{ FindFeedsScreen() }
+    entry<FindFeeds>{ UnifiedSearchScreen() }
     entry<Logs>{ LogsScreen() }
     entry<DownloadLogs>{ LogsScreen(initialMode = LogsModes.Downloads) }
     entry<Statistics>{ StatisticsScreen() }
@@ -131,7 +141,7 @@ enum class DefaultPages(val res: Int) {
     Library(R.string.library),
     Queues(R.string.queue_label),
     Facets(R.string.facets),
-    OnlineSearch(R.string.add_feed_label),
+    OnlineSearch(R.string.archive_search),
     Statistics(R.string.statistics_label);
 
     companion object {
@@ -142,7 +152,7 @@ enum class DefaultPages(val res: Int) {
                 Library.name -> ac.mdiq.podcini.ui.screens.Library
                 Queues.name -> Queues()
                 Facets.name -> Facets()
-                OnlineSearch.name -> FindFeeds
+                OnlineSearch.name, "Search", "FindFeeds" -> Search
                 Statistics.name -> ac.mdiq.podcini.ui.screens.Statistics
                 else -> ac.mdiq.podcini.ui.screens.Library
             }
@@ -168,16 +178,30 @@ enum class Screens {
 }
 
 private val primaryStacks = mutableMapOf<NavKey, List<NavKey>>()
+private var searchReturnDestination: NavKey? = null
+
+fun canReturnFromSearch(): Boolean = searchReturnDestination != null
+
+fun returnFromSearch(): Boolean {
+    val destination = searchReturnDestination ?: return false
+    searchReturnDestination = null
+    selectPrimary(destination)
+    return true
+}
 
 fun primaryDestination(): NavKey {
-    return backStack.lastOrNull { it == Listen || it == Library || it == FindFeeds }
-        ?: when(backStack.firstOrNull()) { is FeedDetails, FeedsSettings -> Library; is OnlineFeed, TopChart -> FindFeeds; else -> Listen }
+    return backStack.lastOrNull { it == Listen || it == Library || it == Search || it == FindFeeds }?.let { if (it == FindFeeds) Search else it }
+        ?: when(backStack.firstOrNull()) { is FeedDetails, FeedsSettings, is Queues -> Library; is OnlineFeed, TopChart, AdvancedSearch, PodcastDirectories -> Search; else -> Listen }
 }
 
 fun selectPrimary(destination: NavKey, resetToRoot: Boolean = false) {
+    if (destination == FindFeeds) { selectPrimary(Search, resetToRoot); return }
+    SearchSession.focusRequested = destination == Search
     val current = primaryDestination()
+    if (destination == Search && current != Search) searchReturnDestination = current
     ac.mdiq.podcini.ui.compose.episodeForInfo = null
-    if (resetToRoot) primaryStacks.remove(destination)
+    // An explicit Search entry always reaches the input, even if its tab last showed a preview.
+    if (resetToRoot || destination == Search) primaryStacks.remove(destination)
     if (current == destination) {
         if (backStack.lastOrNull() != destination) { backStack.clear(); backStack.add(destination) }
         return

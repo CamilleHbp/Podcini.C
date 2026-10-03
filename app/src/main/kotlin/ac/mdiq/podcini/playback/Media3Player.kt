@@ -1,5 +1,7 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.storage.database.availableRemoteLocation
+import ac.mdiq.podcini.storage.database.libraryKind
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
@@ -789,7 +791,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
         mediaItem = null
 //        deferredMediaItem = CompletableDeferred()
         mediaSource = null
-        val url = media.downloadUrl
+        val url = media.availableRemoteLocation
         if (url.isNullOrBlank()) {
             LogeFor(TAG, media.id, "prepareDataSource: media downloadUrl is null or blank ${media.title}")
             runOnIOScope { upsert(media) { it.setPlayState(EpisodeState.ERROR) } }
@@ -908,7 +910,7 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
     }
 
     override fun setSkipSilence() {
-        val skipSilence = skipSilence ?: curMediaFlow.value?.feed?.skipSilence ?: isSkipSilence
+        val skipSilence = skipSilence ?: if (curMediaFlow.value?.libraryKind == "music") false else curMediaFlow.value?.feed?.skipSilence ?: isSkipSilence
         Logd(TAG) { "setSkipSilence skipSilence: $skipSilence" }
         val wantsOffload = !skipSilence
         if (wantsOffload != silenceEnablesOffload) {
@@ -1332,9 +1334,9 @@ class Media3Player(playerId: Int, val lr: Int) : MediaPlayerBase() {
                 .setSubtitle(e.feed?.title ?: "")
                 .setDescription(e.description ?: "")
 
-                .setArtist(e.feed?.title ?: "")
-                .setAlbumArtist(e.feed?.title ?: "")
-                .setAlbumTitle(e.feed?.title ?: "")
+                .setArtist(e.artist.ifBlank { e.feed?.title.orEmpty() })
+                .setAlbumArtist(e.artist.ifBlank { e.feed?.title.orEmpty() })
+                .setAlbumTitle(e.album.ifBlank { e.feed?.title.orEmpty() })
 
                 // Release date (expects "YYYY-MM-DD" format)
                 .setRecordingDay(date.day)

@@ -102,7 +102,7 @@
     <string name="archive_select_below">Select below</string>
     <string name="archive_select_all">Select all</string>
     <string name="archive_selection_done">Done selecting</string>
-    <string name="archive_manage_queues">Manage queues</string>
+    <string name="archive_manage_queues">Playlists</string>
     <string name="archive_repeat_queue">Repeat queue</string>
     <string name="archive_repeat_queue_summary">Start again when this queue finishes.</string>
     <string name="archive_appearance">Appearance &amp; accessibility</string>
@@ -206,7 +206,7 @@
     <string name="archive_queue_unique_name">Use a unique queue name.</string>
     <string name="archive_lock_queue_summary">Prevent manual reordering. Turning this off also turns off automatic sorting.</string>
     <string name="archive_parent_folder_value">Parent folder: %1$s</string>
-    <string name="archive_default_queue_value">Default queue: %1$s</string>
+    <string name="archive_default_queue_value">Automatic playlist: %1$s</string>
     <string name="archive_no_queue">None</string>
     <string name="browse_new">New episodes</string>
     <string name="browse_planned">Planned listening</string>

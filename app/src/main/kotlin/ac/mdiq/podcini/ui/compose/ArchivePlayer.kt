@@ -247,7 +247,7 @@ fun ArchiveExpandedPlayer(vm: AVPlayerVM, onDetails: () -> Unit, singleColumn: B
     }
     val queue by actQueueFlow.collectAsStateWithLifecycle()
     val queuedIds by remember(queue.id) { realm.query(QueueEntry::class, "queueId == $0 SORT(position ASC)", queue.id).asFlow().map { change -> change.list.map { it.episodeId } } }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val nextId = queuedIds.let { ids -> val index = ids.indexOf(item.id); ids.getOrNull(index + 1) ?: ids.firstOrNull()?.takeIf { queue.repeatQueue && it != item.id } }
+    val nextId = ac.mdiq.podcini.storage.model.nextListeningId(queuedIds, item.id, queue.playInSequence, queue.repeatQueue)
     val next = nextId?.let { episodeById(it) }
     val configuration = LocalConfiguration.current
     var tab by rememberSaveable(item.id) { mutableIntStateOf(0) }
@@ -275,14 +275,14 @@ fun ArchiveExpandedPlayer(vm: AVPlayerVM, onDetails: () -> Unit, singleColumn: B
             if (next != null) { ArchiveArtwork(next, Modifier.size(48.dp)); Spacer(Modifier.width(12.dp)) }
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.archive_up_next), style = MaterialTheme.typography.titleMedium)
-                Text(next?.title ?: stringResource(R.string.archive_queue_finished), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(next?.title ?: stringResource(if (queue.playInSequence) R.string.archive_queue_finished else R.string.listening_stop_after), style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (next != null) Text(listOfNotNull(next.feed?.title, next.duration.takeIf { it > 0 }?.let { durationStringAdapt(it) }).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(if(queue.isVirtual()) stringResource(R.string.archive_from_list) else queue.displayName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.listening_from, queue.originName), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(12.dp))
             FilledTonalButton(onClick = { player?.skip(force = true) }, enabled = next != null) { Text(stringResource(R.string.archive_next)) }
         }
-        TextButton(onClick = { navTo(Queues(queue.id)); psState = PSState.PartiallyExpanded }) { Text(stringResource(R.string.archive_manage_queues)) }
+        TextButton(onClick = { selectPrimary(Listen); psState = PSState.PartiallyExpanded }) { Text(stringResource(R.string.listening_queue)) }
         val tabs = if (item.chapters.isEmpty()) listOf(R.string.archive_details, R.string.archive_notes) else listOf(R.string.archive_details, R.string.archive_chapters, R.string.archive_notes)
         PrimaryTabRow(selectedTabIndex = tab.coerceAtMost(tabs.lastIndex)) {
             tabs.forEachIndexed { index, label -> Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) }) }

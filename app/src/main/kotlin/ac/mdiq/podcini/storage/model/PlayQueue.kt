@@ -13,6 +13,8 @@ import ac.mdiq.podcini.storage.specs.EpisodeSortOrder.Companion.fromCode
 import ac.mdiq.podcini.storage.specs.EpisodeSortOrder.Companion.reorderWith
 import ac.mdiq.podcini.storage.specs.EpisodeSortOrder.Companion.sortPairOf
 import io.github.xilinjia.krdb.ext.query
+import io.github.xilinjia.krdb.ext.realmSetOf
+import io.github.xilinjia.krdb.types.RealmSet
 import io.github.xilinjia.krdb.ext.realmListOf
 import io.github.xilinjia.krdb.types.RealmList
 import io.github.xilinjia.krdb.types.RealmObject
@@ -32,6 +34,33 @@ class PlayQueue : RealmObject {
     var id: Long = 0L
 
     var name: String = ""
+
+    // The virtual ID is now the single session; all other rows are saved playlists.
+    var libraryModelVersion: Int = 0
+    var removeWhenFinished: Boolean = false
+    var smart: Boolean = false
+    var ruleKind: String = "all"
+    var ruleUnfinished: Boolean = false
+    var ruleFavourite: Boolean = false
+    var ruleDownloaded: Boolean = false
+    var ruleTag: String = ""
+    var ruleTagDescendants: Boolean = true
+    var ruleText: String = ""
+    var ruleBrowseFilter: String = ""
+    var ruleArtist: String = ""
+    var ruleFeedIds: RealmList<Long> = realmListOf()
+    var tags: RealmSet<String> = realmSetOf()
+    var originName: String = ""
+    var undoAvailable: Boolean = false
+    var previousIds: RealmList<Long> = realmListOf()
+    var previousOrigins: RealmList<Long> = realmListOf()
+    var previousName: String = ""
+    var previousCurrentId: Long = -1
+    var previousPosition: Int = 0
+    var previousRepeat: Boolean = false
+    var previousContinuous: Boolean = true
+    var unshuffledIds: RealmList<Long> = realmListOf()
+
 
     var playInSequence: Boolean = true
 
@@ -122,13 +151,7 @@ class PlayQueue : RealmObject {
     }
 
     fun checkAndFill() {
-        if (size() == 0 && !isVirtual()) {
-            CoroutineScope(Dispatchers.IO).launch {
-                val feeds = normalFeeds
-                AutoEnqueueAlgorithm().run(feeds, true)
-                if(launchAutoEQDlWhenEmpty && appPrefsFlow!!.value.enableAutoDl) AutoDownloadAlgorithm().run(feeds, false, noRefreshing = true)
-            }
-        }
+        // A session is a snapshot. Reaching its end never adds unexpected media.
     }
 
     override fun equals(other: Any?): Boolean {
@@ -138,6 +161,12 @@ class PlayQueue : RealmObject {
         other as PlayQueue
 
         if (id != other.id) return false
+        if (removeWhenFinished != other.removeWhenFinished || smart != other.smart ||
+            ruleKind != other.ruleKind || ruleUnfinished != other.ruleUnfinished ||
+            ruleFavourite != other.ruleFavourite || ruleDownloaded != other.ruleDownloaded ||
+            ruleTag != other.ruleTag || ruleArtist != other.ruleArtist || ruleText != other.ruleText || ruleTagDescendants != other.ruleTagDescendants ||
+            ruleBrowseFilter != other.ruleBrowseFilter || ruleFeedIds != other.ruleFeedIds || tags != other.tags || originName != other.originName ||
+            undoAvailable != other.undoAvailable || unshuffledIds != other.unshuffledIds) return false
         if (playInSequence != other.playInSequence) return false
         if (repeatQueue != other.repeatQueue) return false
         if (updated != other.updated) return false

@@ -3,6 +3,11 @@ package ac.mdiq.podcini.playback
 import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.PodciniApp.Companion.appMainScope
 import ac.mdiq.podcini.PodciniApp.Companion.getAppContext
+import ac.mdiq.podcini.storage.database.availableLocalLocation
+import ac.mdiq.podcini.storage.database.availableRemoteLocation
+import ac.mdiq.podcini.storage.database.libraryKind
+import ac.mdiq.podcini.storage.database.completePlaylistItem
+import ac.mdiq.podcini.storage.model.nextListeningId
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.playback.PlaybackService.Companion.isCasting
 import ac.mdiq.podcini.playback.PlaybackService.Companion.playbackService
@@ -217,6 +222,12 @@ abstract class MediaPlayerBase {
         isSpeedForward = !isSpeedForward
     }
 
+    private var playlistOriginId: Long = -1L
+
+    fun refreshPlaylistOrigin() {
+        playlistOriginId = actQueueFlow.value.entries.firstOrNull { it.episodeId == curMediaFlow.value?.id }?.originPlaylistId ?: -1L
+    }
+
     fun setAsCurMedia(episode: Episode?) {
         if (episode != null && episode.id == curMediaFlow.value?.id) return
         cancelClipRecording()
@@ -235,6 +246,7 @@ abstract class MediaPlayerBase {
             episode_ != null -> {
                 bitrateFlow.value = 0
                 resolutionFlow.value = ""
+                playlistOriginId = actQueueFlow.value.entries.firstOrNull { it.episodeId == episode_.id }?.originPlaylistId ?: -1L
                 curMediaFlow.value = episode_
                 curClient = clientByEpisode(episode_)
                 setAudioStream()
@@ -248,10 +260,7 @@ abstract class MediaPlayerBase {
                 curMediaScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
                 curMediaScope!!.launch {
                     realm.query(Episode::class).query("id == $0", episode_.id).asFlow().map { it.list.firstOrNull() }.collect { curMediaFlow.value = it }
-                    if (!actQueueFlow.value.contains(curMediaFlow.value!!)) {
-                        val qes = realm.query(QueueEntry::class).query("episodeId == ${curMediaFlow.value!!.id}").find()
-                        if (qes.isNotEmpty()) queuesLive.find { it.id == qes[0].queueId }?.let { actQueueFlow.value = it }
-                    }
+
                 }
             }
             else -> {
@@ -334,7 +343,7 @@ abstract class MediaPlayerBase {
             return
         }
         val media = media_ ?: curMediaFlow.value!!
-        val needStreaming = media.feed?.isLocal != true && media.fileUrl.isNullOrBlank()
+        val needStreaming = media.availableLocalLocation == null
         if (needStreaming && !isStreamingCapable(media)) return
         prepareMedia(playable = media, streaming = needStreaming, startWhenPrepared = true, prepareImmediately = true, forceReset = true, doPostPlayback = false)
     }
@@ -427,19 +436,15 @@ abstract class MediaPlayerBase {
     protected abstract fun setCastPlayImmediately()
 
     private fun prefSpeedPitchOf(media: Episode): Pair<Float, Float> {
-        val feed = media.feedId?.let { feedsMap[it] } ?: return Pair(curSpeed, curPitch)
-
-        var speed = curSpeed
-        if (speed == SPEED_USE_GLOBAL) speed = feed.playSpeed
-        if (speed == SPEED_USE_GLOBAL) speed = appPrefsFlow!!.value.playbackSpeed
-
-        var pitch = curPitch
-        if (pitch == SPEED_USE_GLOBAL) pitch = feed.playPitch
-        if (pitch == SPEED_USE_GLOBAL) pitch = appPrefsFlow!!.value.playbackPitch
+        val feed = media.feed
+        val music = media.libraryKind == "music"
+        val speed = if (curSpeed != SPEED_USE_GLOBAL) curSpeed else if (music) 1f else feed?.playSpeed?.takeIf { it != SPEED_USE_GLOBAL } ?: appPrefsFlow!!.value.playbackSpeed
+        val pitch = if (curPitch != SPEED_USE_GLOBAL) curPitch else if (music) 1f else feed?.playPitch?.takeIf { it != SPEED_USE_GLOBAL } ?: appPrefsFlow!!.value.playbackPitch
         return Pair(speed, pitch)
     }
 
-    fun prepareMedia(playable: Episode, streaming: Boolean, startWhenPrepared: Boolean, prepareImmediately: Boolean, audioOnly: Boolean = false, forceReset: Boolean = false, doPostPlayback: Boolean = true) {
+
+    fun prepareMedia(playable: Episode, streaming: Boolean, startWhenPrepared: Boolean, prepareImmediately: Boolean, audioOnly: Boolean = false, forceReset: Boolean = false, doPostPlayback: Boolean = true, repeatItem: Boolean = false) {
         Logd(TAG) { "prepareMedia statusFlow=${status} stream=$streaming startWhenPrepared=$startWhenPrepared prepareImmediately=$prepareImmediately forceReset=$forceReset ${playable.getEpisodeTitle()} " }
 //        showStackTrace()
         if (!forceReset && playable.id == prevMedia?.id && isPlaying) {
@@ -474,26 +479,28 @@ abstract class MediaPlayerBase {
             if (sameMedia) curClient = clientByEpisode(curMediaFlow.value!!)
         }
         Logd(TAG) { "prepareMedia media.forceVideo: ${curMediaFlow.value?.forceVideo}" }
-        this.isStreaming = streaming
+        val localLocation = playable.availableLocalLocation
+        this.isStreaming = localLocation == null
         currentMediaType = curMediaFlow.value!!.mediaType
 //        videoSize = null
         resetPlayerAttributes()
 
         isStartWhenPrepared = startWhenPrepared
         prefSpeedPitchOf(curMediaFlow.value!!).let { (sp, pi)-> setPlaybackParams(sp, pi) }
-        setRepeat(shouldRepeatFlow.value)
+        shouldRepeatFlow.value = repeatItem
+        setRepeat(repeatItem)
         setSkipSilence()
         dataSourceJob = CoroutineScope(Dispatchers.Main).launch {
             try {
                 when {
-                    streaming -> {
+                    localLocation == null -> {
                         Logd(TAG) { "prepareMedia streamurl: ${curMediaFlow.value?.downloadUrl}" }
-                        if (!curMediaFlow.value?.downloadUrl.isNullOrBlank()) prepareDataSource(sameMedia, audioOnly = audioOnly)
+                        if (curMediaFlow.value?.availableRemoteLocation != null) prepareDataSource(sameMedia, audioOnly = audioOnly)
                         else throw IOException("episode downloadUrl is null or empty ${curMediaFlow.value?.title}")
                     }
                     else -> {
                         Logd(TAG) { "prepareMedia localMediaurl: ${curMediaFlow.value?.fileUrl}" }
-                        if (!curMediaFlow.value?.fileUrl.isNullOrBlank()) prepareDataSource(curMediaFlow.value!!.fileUrl!!, null, null)
+                        if (localLocation != null) prepareDataSource(localLocation, null, null)
                         else throw IOException("Unable to read local file ${curMediaFlow.value?.fileUrl}")
                     }
                 }
@@ -620,45 +627,13 @@ abstract class MediaPlayerBase {
     internal abstract fun notifyWidget()
 
     private fun getNextInQueue(manualAdvance: Boolean = false): Episode? {
-        Logd(TAG) { "getNextInQueue called curMediaFlow.value: ${curMediaFlow.value?.getEpisodeTitle()}" }
-        if (!manualAdvance && !actQueueFlow.value.playInSequence) {
-            Logd(TAG) { "getNextInQueue(), but follow queue is not enabled." }
-            saveCurState()
-            return null
-        }
-        val qes = actQueueFlow.value.entries
-        if (qes.isEmpty()) {
-            Logd(TAG) { "getNextInQueue queue is empty" }
-            saveCurState()
-            return null
-        }
-        var curIndex = qes.indexOfFirst { isCurMedia(it.episodeId) }
-        if (curIndex < 0 && curIndexInActQueue >= 0) {
-            curIndex = curIndexInActQueue
-            curIndexInActQueue = -1
-        }
-        Logd(TAG) { "getNextInQueue curIndexInQueue: $curIndex ${qes.size}" }
-        val nextQE = if (curIndex >= 0 && curIndex < qes.size) {
-            when {
-                !isCurMedia(qes[curIndex].episodeId) -> qes[curIndex]
-                qes.size == 1 -> return null
-                curIndex == qes.lastIndex && !actQueueFlow.value.repeatQueue -> return null
-                else -> {
-                    var j = if (curIndex < qes.size - 1) curIndex + 1 else 0
-                    val start = j
-                    while (isCurMedia(qes[j].episodeId)) {
-                        j = if (j < qes.size - 1) j + 1 else 0
-                        if (j == start) break
-                    }
-                    qes[j]
-                }
-            }
-        } else qes[0]
-        if (isCurMedia(nextQE.episodeId)) return null
-        var nextItem = episodeById(nextQE.episodeId) ?: return null
-        Logd(TAG) { "getNextInQueue nextItem ${nextItem.title}" }
-        nextItem = checkAndMarkDuplicates(nextItem)
-        return nextItem
+        val queue = actQueueFlow.value
+        val ids = queue.entries.map { it.episodeId }
+        val next = if (curMediaFlow.value?.id !in ids && curIndexInActQueue >= 0) {
+            val index = curIndexInActQueue; curIndexInActQueue = -1
+            if (!queue.playInSequence && !manualAdvance) null else ids.getOrNull(index) ?: ids.firstOrNull()?.takeIf { queue.repeatQueue }
+        } else nextListeningId(ids, curMediaFlow.value?.id, queue.playInSequence, queue.repeatQueue, manualAdvance)
+        return next?.let { episodeById(it) }
     }
 
     internal fun endPlayback(hasEnded: Boolean, wasSkipped: Boolean, shouldContinue: Boolean = true, manualAdvance: Boolean = false) {
@@ -700,15 +675,21 @@ abstract class MediaPlayerBase {
                     Logd(TAG) { "endPlayback useRingTone: ${appPrefsFlow!!.value.useRingTone} ringToneUriString: ${appPrefsFlow!!.value.ringToneUriString}" }
                     if (appPrefsFlow!!.value.useRingTone && !appPrefsFlow!!.value.ringToneUriString.isNullOrBlank() && (nextMedia.feed?.audioType != AudioType.MUSIC.code || !appPrefsFlow!!.value.disableRingToneOnMusic)) playChime()
 
-                    val needStreaming = (nextMedia.feed?.isLocal != true && nextMedia.fileUrl.isNullOrBlank())
+                    val needStreaming = nextMedia.availableLocalLocation == null
                     if (needStreaming) {
-                        if (!isStreamingCapable(nextMedia)) {
+                        if (!isStreamingCapable(nextMedia) || !ac.mdiq.podcini.utils.NetworkUtils.isStreamingAllowed) {
+                            playbackErrorFlow.value = true
+                            loadingFlow.value = false
                             onPostPlayback(currentMedia, hasEnded, wasSkipped, false)
+                            setAsCurMedia(nextMedia)
+                            handlePlayerStatus(PlayerStatus.ERROR, nextMedia)
                             return
                         }
                     }
                     onPostPlayback(currentMedia, hasEnded, wasSkipped, true)
-                    prepareMedia(playable = nextMedia, streaming = needStreaming, startWhenPrepared = wasPlayng, prepareImmediately = wasPlayng, doPostPlayback = false)
+                    val next = episodeById(nextMedia.id) ?: nextMedia
+                    val toPlay = if (next.libraryKind == "music") upsertBlk(next) { it.position = 0 } else next
+                    prepareMedia(playable = toPlay, streaming = needStreaming, startWhenPrepared = wasPlayng, prepareImmediately = wasPlayng, doPostPlayback = false, forceReset = nextMedia.id == currentMedia.id)
                     if (widgetId.isNotEmpty()) notifyWidget()
                 }
             }
@@ -755,7 +736,7 @@ abstract class MediaPlayerBase {
     protected fun onPlaybackStart(playable: Episode, position: Int) {
         Logd(TAG) { "onPlaybackStart ${playable.title}" }
         Logd(TAG) { "onPlaybackStart position: $position delayInterval: $positionSaverInterval" }
-        if (position != Episode.INVALID_TIME) {
+        if (position > 0) {
             upsertBlk(playable) {
                 it.position = position
                 it.setPlaybackStart()
@@ -789,6 +770,7 @@ abstract class MediaPlayerBase {
 
     private fun onPostPlayback(playable: Episode, ended: Boolean, skipped: Boolean, playingNext: Boolean) {
         Logd(TAG) { "onPostPlayback(): ended=$ended skipped=$skipped playingNext=$playingNext media=${playable.getEpisodeTitle()}" }
+        val completedOrigin = playlistOriginId
         val autoSkipped = autoSkippedFeedMediaId != null && autoSkippedFeedMediaId == playable.identifyingValue
         if (autoSkipped) autoSkippedFeedMediaId = null
         var completed = ended
@@ -812,6 +794,7 @@ abstract class MediaPlayerBase {
                 if (completed) it.playbackCompletionTime = nowInMillis()
             }
         }
+        if (completed && !skipped) runOnIOScope { completePlaylistItem(playable.id, completedOrigin) }
         SynchronizationQueueSink.enqueueEpisodePlayedIfSyncActive(unmanaged(item).apply { startPosition = playbackStartPosition }, completed)
         if (markPlayed) runOnIOScope {
             val action = item.feed?.autoDeleteAction
@@ -821,8 +804,7 @@ abstract class MediaPlayerBase {
                 (item.rating < Rating.GOOD.code && item.playState != EpisodeState.AGAIN.code && item.playState != EpisodeState.FOREVER.code)
             if (shouldAutoDelete && isDeletable) {
                 if (!item.fileUrl.isNullOrBlank()) item = deleteMedia(item)
-                if (appPrefsFlow!!.value.deleteRemovesFromQueue) removeFromAllQueues(listOf(item))
-            } else if (appPrefsFlow!!.value.removeFromQueueMarkPlayed) removeFromAllQueues(listOf(item))
+            }
         }
     }
 
@@ -1012,7 +994,7 @@ abstract class MediaPlayerBase {
 
         fun isStreamingCapable(media: Episode): Boolean {
 //            showStackTrace()
-            if (!isNetworkUrl(media.downloadUrl)) {
+            if (!isNetworkUrl(media.availableRemoteLocation)) {
                 LogeFor(TAG, media.id, "streaming media without a remote downloadUrl: ${media.downloadUrl}. Abort")
                 return false
             }

@@ -211,7 +211,7 @@ class FacetsVM(modeName_: String): ViewModel() {
         }
         set(f) {
             facetsPrefs = upsertBlk(facetsPrefs) {
-                it.filtersMap[facetsMode.name] = f.propertySet.joinToString()
+                it.filtersMap[facetsMode.name] = f.encode()
                 it.filtersMap["${facetsMode.name}.join"] = f.andOr
                 it.filtersMap["${facetsMode.name}.floor"] = f.durationFloor.toString()
                 it.filtersMap["${facetsMode.name}.ceiling"] = f.durationCeiling.toString()
@@ -709,7 +709,7 @@ fun FacetsScreen(modeName: String = "") {
                         facetsMode == QuickAccess.History && historyCount > 0L -> ArchiveEmpty(R.string.archive_no_history_dates, R.string.archive_no_history_dates_body, R.string.between_dates) { showDatesFilterDialog = true }
                         else -> ArchiveEmpty(R.string.archive_empty_episode_list, R.string.archive_empty_episode_list_body, R.string.archive_browse_library) { selectPrimary(Library) }
                     }
-                } else EpisodeLazyColumn(episodes, statusRowMode = statusMode, showActionButtons = facetsMode != QuickAccess.Commented, swipeActions = swipeActions, actionButtonType = actionButtonType, lazyListState = lazyListState, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) runOnIOScope { queueToVirtual(e, episodes, vm.listIdentity, vm.sortOrder) } })
+                } else EpisodeLazyColumn(episodes, statusRowMode = statusMode, showActionButtons = facetsMode != QuickAccess.Commented, swipeActions = swipeActions, actionButtonType = actionButtonType, lazyListState = lazyListState, actionButtonCB = { e, type -> if (type in listOf(ButtonTypes.PLAY, ButtonTypes.PLAY_LOCAL, ButtonTypes.STREAM)) queueToVirtual(e, episodes, vm.listIdentity, vm.sortOrder) })
             }
         }
         if (episodeForInfo != null) EpisodeScreen(episodeForInfo!!, listFlow = vm.episodesFlow, allowOpenFeed = true)

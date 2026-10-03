@@ -1,5 +1,6 @@
 package ac.mdiq.podcini.playback
 
+import ac.mdiq.podcini.storage.database.*
 import ac.mdiq.podcini.R
 import ac.mdiq.podcini.utils.localizedString
 import ac.mdiq.podcini.playback.Media3Player.Companion.getCache
@@ -30,10 +31,7 @@ class PlaybackStarter(private val media: Episode) {
     private var widgetId: String = ""
 
     fun shouldStreamThisTime(shouldStreamThisTime: Boolean?): PlaybackStarter {
-        if (shouldStreamThisTime == null) {
-            this.shouldStreamThisTime = media.feed == null || media.feedId == null || (!media.downloaded && media.feed?.isLocal != true)
-                    || !isMediaDownloadable(media) || (prefStreamOverDownload && media.feed?.prefStreamOverDownload == true)
-        } else this.shouldStreamThisTime = shouldStreamThisTime
+        this.shouldStreamThisTime = media.availableLocalLocation == null
         return this
     }
 
@@ -58,6 +56,14 @@ class PlaybackStarter(private val media: Episode) {
     }
 
     fun start(playerId: Int = 0) {
+        if (!actQueueFlow.value.contains(media)) {
+            runOnIOScope {
+                replaceListeningQueue(listOf(media), media.id, media.title.orEmpty())
+                withContext(Dispatchers.Main) { start(0) }
+            }
+            return
+        }
+        shouldStreamThisTime = media.availableLocalLocation == null
         Logd(TAG) { "start PlaybackService.isRunning: ${PlaybackService.isRunning}" }
 //        showStackTrace()
         ensureAController()
@@ -68,7 +74,7 @@ class PlaybackStarter(private val media: Episode) {
         val player = theatres[playerId].mPlayerFlow.value
         if (player?.curMediaFlow?.value?.id != media.id) {
             sameMedia = false
-            media_ = checkAndMarkDuplicates(media)
+            media_ = if (media.libraryKind == "music") upsertBlk(media) { it.position = 0 } else media
 //            player.setAsCurEpisode(media_)   // seems redundant
         }
 
@@ -87,33 +93,34 @@ class PlaybackStarter(private val media: Episode) {
             Logd(TAG) { "aCtrlFuture: ${aCtrlFuture != null} player status: ${player.status}" }
             player.shouldRepeatFlow.value = repeat
             Logd(TAG) { "start: statusFlow: ${player.status} sameMedia: $sameMedia" }
+            if (sameMedia) player.refreshPlaylistOrigin()
             player.isStreaming = shouldStreamThisTime
             player.widgetId = widgetId
             when {
                 player.isPlaying -> {
-                    player.pause(false)
                     if (!sameMedia) {
+                        player.pause(false)
                         player.isSkipping = true
-                        player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset)
+                        player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset, repeatItem = repeat)
                         sleepManager?.restart()
                     }
                 }
                 player.isPaused || player.isPrepared -> {
-                    if (sameMedia) player.play()
+                    if (sameMedia) { if (startImmediately) player.play() }
                     else {
                         player.isSkipping = true
-                        player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset)
+                        player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset, repeatItem = repeat)
                     }
                     sleepManager?.restart()
                 }
                 player.isStopped -> {
 //                    ContextCompat.startForegroundService(getAppContext(), Intent(getAppContext(), PlaybackService::class.java))
-                    player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset)
+                    player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset, repeatItem = repeat)
                     sleepManager?.restart()
                 }
                 // TODO: test
                 player.isInitialized -> {
-                    player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset)
+                    player.prepareMedia(media_, shouldStreamThisTime, startWhenPrepared = startImmediately, prepareImmediately = true, audioOnly = audioOnly, forceReset = forcePlaybackReset, repeatItem = repeat)
                     sleepManager?.restart()
                 }
                 else -> {
