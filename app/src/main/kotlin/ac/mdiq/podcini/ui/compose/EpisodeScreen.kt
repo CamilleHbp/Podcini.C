@@ -201,7 +201,7 @@ fun EpisodeScreen(episode_: Episode, listFlow: StateFlow<List<Episode>> = Mutabl
 
     val player = playerOf(episode)
     var cueIndex by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(player?.status, showTransDialog, episode.id) {
+    LaunchedEffect(player?.status, showTransDialog, episode.id, episode.transcriptStartPos) {
         while (isActive && showTransDialog && player?.isPlaying == true) {
             val pos = player.getPosition() - episode.transcriptStartPos
             cueIndex = episode.captionIndexAt(pos.toLong()+500, cueIndex)

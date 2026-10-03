@@ -527,7 +527,7 @@ fun AVPlayerScreen(embedded: Boolean = false) {
 
     var showCaption by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showCaption, player?.status, showTransDialog, curMedia?.id) {
+    LaunchedEffect(showCaption, player?.status, showTransDialog, curMedia?.id, curMedia?.transcriptStartPos) {
         while (isActive && (showCaption || showTransDialog) && player?.isPlaying == true && curMedia != null) {
             val pos = player.getPosition() - curMedia.transcriptStartPos
             cueIndex = curMedia.captionIndexAt(pos.toLong()+500, cueIndex)
@@ -970,20 +970,20 @@ fun AVPlayerScreen(embedded: Boolean = false) {
             }
             SelectionContainer { Text((vm.episodeFeed?.title?:"").trim(), textAlign = TextAlign.Center, color = textColor, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 5.dp)) }
             if (episode.captionCues.isNotEmpty()) {
-                val captionPrev = remember(cueIndex) { if (cueIndex>0) episode.captionCues[cueIndex-1] else null }
-                val captionNow = remember(cueIndex) { if (cueIndex>=0) episode.captionCues[cueIndex] else null }
-                val captionNext = remember(cueIndex) { if (cueIndex>=0 && cueIndex<episode.captionCues.size-1) episode.captionCues[cueIndex+1] else null }
+                val captionPrev = episode.captionCues.getOrNull(cueIndex - 1)
+                val captionNow = episode.captionCues.getOrNull(cueIndex)
+                val captionNext = if (cueIndex >= 0) episode.captionCues.getOrNull(cueIndex + 1) else null
                 if (showCaption) {
                     if (captionPrev != null) Text(captionPrev.speaker + ": " + captionPrev.text, color = textColor.copy(alpha = 0.6f), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().clickable {
-                        player?.seekTo(captionPrev.startMs.toInt())
+                        player?.seekTo(captionPrev.startMs.toInt() + episode.transcriptStartPos)
                     })
                     if (captionNow != null) SelectionContainer {
                         Text(captionNow.speaker + ": " + captionNow.text, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().border(width = 1.dp, color = borderColor.copy(alpha = 0.5f)).clickable {
-                            player?.seekTo(captionNow.startMs.toInt())
+                            player?.seekTo(captionNow.startMs.toInt() + episode.transcriptStartPos)
                         })
                     }
                     if (captionNext != null) Text(captionNext.speaker + ": " + captionNext.text, color = textColor.copy(alpha = 0.7f), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().clickable {
-                        player?.seekTo(captionNext.startMs.toInt())
+                        player?.seekTo(captionNext.startMs.toInt() + episode.transcriptStartPos)
                     })
                 }
             }

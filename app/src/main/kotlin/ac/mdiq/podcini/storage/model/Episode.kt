@@ -532,22 +532,20 @@ class Episode : RealmObject {
 
     fun captionIndexAt(positionMs: Long, actIndex: Int): Int {
         val cues = captionCues
-        fun indexAt(positionMs: Long): Int {
-            var low = 0
-            var high = cues.lastIndex
-            while (low <= high) {
-                val mid = (low + high) ushr 1
-                if (cues[mid].startMs <= positionMs) low = mid + 1
-                else high = mid - 1
-            }
-            return high
-        }
         if (cues.isEmpty()) return -1
-        if (actIndex < 0 || positionMs < cues[actIndex].startMs) return indexAt(positionMs)
-        else {
-            while (actIndex + 1 < cues.size && positionMs >= cues[actIndex + 1].startMs) { return actIndex+1 }
+        if (actIndex in cues.indices && positionMs >= cues[actIndex].startMs) {
+            var index = actIndex
+            while (index + 1 < cues.size && positionMs >= cues[index + 1].startMs) index++
+            return index
         }
-        return actIndex
+        var low = 0
+        var high = cues.lastIndex
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            if (cues[mid].startMs <= positionMs) low = mid + 1
+            else high = mid - 1
+        }
+        return high
     }
 
     fun setChapters(chapters_: List<Chapter>) {
@@ -648,6 +646,7 @@ class Episode : RealmObject {
         if (transcript?.length != other.transcript?.length) return false
         if (captionCues.size != other.captionCues.size) return false
         if (transcriptIndex != other.transcriptIndex) return false
+        if (transcriptStartPos != other.transcriptStartPos) return false
         if (transcriptMetas.size != other.transcriptMetas.size) return false
         if (comment != other.comment) return false
         if (todos != other.todos) return false
@@ -693,6 +692,7 @@ class Episode : RealmObject {
         result = 31 * result + (parentTitle?.hashCode() ?: 0)
         result = 31 * result + chapters.size
         result = 31 * result + transcriptIndex
+        result = 31 * result + transcriptStartPos
         result = 31 * result + transcriptMetas.size
         result = 31 * result + captionCues.size
         result = 31 * result + transcript.hashCode()
