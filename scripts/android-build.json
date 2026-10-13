@@ -1,12 +1,31 @@
 {
-  "tasks": [":app:assembleDebug", ":app:assembleRelease"],
-  "gradle_args": ["--offline"],
+  "tasks": [
+    ":app:assembleDebug",
+    ":app:assembleRelease"
+  ],
+  "gradle_args": [
+    "--offline"
+  ],
   "gradle_properties_files": {
     "releaseSigningPropertiesFile": "~/.android/podcini-c/release.properties"
   },
   "required_variants": {
     "app": [
-      "freeDebug", "freeRelease", "playDebug", "playRelease"
+      "freeDebug",
+      "freeRelease",
+      "playDebug",
+      "playRelease"
     ]
-  }
+  },
+  "source_globs": [
+    "app/**",
+    "third_party/**",
+    "build.gradle.kts",
+    "settings.gradle.kts",
+    "gradle.properties",
+    "local.properties",
+    "gradle/**",
+    "gradlew",
+    "gradlew.bat"
+  ]
 }

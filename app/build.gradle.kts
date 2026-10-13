@@ -36,12 +36,13 @@ configure<ApplicationExtension> {
     }
 
     defaultConfig {
+        resValue("string", "camille_update_app_id", "podcini")
         minSdk = 26
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 37
 
-        versionCode = 125
-        versionName = "12.12.0"
+        versionCode = 126
+        versionName = "12.12.1"
 
         ndkVersion = "29.0.14206865"
 
@@ -103,9 +104,11 @@ configure<ApplicationExtension> {
     flavorDimensions += "market"
     productFlavors {
         create("free") {
+            resValue("string", "camille_update_edition", "free")
             dimension = "market"
         }
         create("play") {
+            resValue("string", "camille_update_edition", "play")
             dimension = "market"
         }
     }
@@ -194,6 +197,7 @@ androidComponents {
 
 
 dependencies {
+    implementation(files("libs/camille-updater-1.0.0.aar"))
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("junit:junit:4.13.2")
