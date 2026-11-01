@@ -41,8 +41,8 @@ configure<ApplicationExtension> {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         targetSdk = 37
 
-        versionCode = 126
-        versionName = "12.12.1"
+        versionCode = 163
+        versionName = "12.12.37"
 
         ndkVersion = "29.0.14206865"
 
@@ -197,7 +197,7 @@ androidComponents {
 
 
 dependencies {
-    implementation(files("libs/camille-updater-1.0.0.aar"))
+    implementation(files("libs/camille-updater-1.0.3.aar"))
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("junit:junit:4.13.2")

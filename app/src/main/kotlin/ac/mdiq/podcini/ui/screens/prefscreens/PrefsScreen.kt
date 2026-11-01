@@ -230,6 +230,12 @@ fun AboutScreen() {
             clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.podcini_version), versionText))
             if (Build.VERSION.SDK_INT <= 32) Logt(TAG, context.getString(R.string.copied_to_clipboard))
         }
+        SettingsAction(stringResource(R.string.app_check_updates),
+            stringResource(R.string.app_installed_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)) {
+            var owner = context
+            while (owner is android.content.ContextWrapper && owner !is android.app.Activity) owner = owner.baseContext
+            (owner as? android.app.Activity)?.let { studio.camille.updater.CamilleUpdater.checkNow(it) }
+        }
         SettingsAction(R.string.privacy_policy, R.string.settings_privacy_summary) { openInSystemDefault("${githubAddress}/blob/main/PrivacyPolicy.md") }
         SettingsAction(R.string.licenses, R.string.licenses_summary) { pfBackStack.add(PFNav.Licenses) }
         SettingsSection(R.string.settings_help_feedback)
